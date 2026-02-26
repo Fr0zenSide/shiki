@@ -1,0 +1,9 @@
+{
+  "imports": {
+    "postgres": "npm:postgres@3.4.5"
+  },
+  "tasks": {
+    "dev": "deno run --allow-net --allow-env --allow-read --watch src/server.ts",
+    "start": "deno run --allow-net --allow-env --allow-read src/server.ts"
+  }
+}
