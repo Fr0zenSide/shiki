@@ -1,106 +1,231 @@
-import { sql, healthCheck } from "./db.ts";
+import { sql, healthCheck, getPoolStats } from "./db.ts";
 import { ollamaHealthCheck } from "./ollama.ts";
 import { writeAgentEvent, writePerformanceMetric } from "./events.ts";
 import { storeMemory, searchMemories } from "./memories.ts";
+import {
+  AgentEventSchema,
+  PerformanceMetricSchema,
+  ChatMessageSchema,
+  MemorySchema,
+  MemorySearchSchema,
+  PrCreatedSchema,
+  DataSyncSchema,
+} from "./schemas.ts";
+import { json, parseBody, handleError, logDebug } from "./middleware.ts";
+
+const APP_VERSION = "3.0.0";
+const startedAt = Date.now();
 
 export async function handleRequest(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const path = url.pathname;
   const method = req.method;
 
-  // Health check
-  if (path === "/health") {
-    const dbOk = await healthCheck();
-    const ollamaOk = await ollamaHealthCheck();
-    return json({ status: dbOk ? "ok" : "degraded", db: dbOk, ollama: ollamaOk }, dbOk ? 200 : 503);
-  }
+  try {
+    // ── Health check ──────────────────────────────────────────────
+    if (path === "/health") {
+      return await handleHealth();
+    }
 
-  // --- Projects ---
-  if (path === "/api/projects" && method === "GET") {
-    const projects = await sql`SELECT * FROM projects ORDER BY created_at`;
-    return json(projects);
-  }
+    // ── Projects ──────────────────────────────────────────────────
+    if (path === "/api/projects" && method === "GET") {
+      const projects = await sql`SELECT * FROM projects ORDER BY created_at`;
+      return json(projects);
+    }
 
-  // --- Sessions ---
-  if (path === "/api/sessions" && method === "GET") {
-    const projectId = url.searchParams.get("project_id");
-    const sessions = projectId
-      ? await sql`SELECT * FROM sessions WHERE project_id = ${projectId} ORDER BY started_at DESC LIMIT 50`
-      : await sql`SELECT * FROM sessions ORDER BY started_at DESC LIMIT 50`;
-    return json(sessions);
-  }
+    // ── Sessions ──────────────────────────────────────────────────
+    if (path === "/api/sessions" && method === "GET") {
+      const projectId = url.searchParams.get("project_id");
+      const sessions = projectId
+        ? await sql`SELECT * FROM sessions WHERE project_id = ${projectId} ORDER BY started_at DESC LIMIT 50`
+        : await sql`SELECT * FROM sessions ORDER BY started_at DESC LIMIT 50`;
+      return json(sessions);
+    }
 
-  // --- Agent Events ---
-  if (path === "/api/agent-update" && method === "POST") {
-    const body = await req.json();
-    await writeAgentEvent(body);
-    return json({ ok: true });
-  }
+    // ── Active sessions view ──────────────────────────────────────
+    if (path === "/api/sessions/active" && method === "GET") {
+      const sessions = await sql`SELECT * FROM active_sessions ORDER BY hours_active DESC`;
+      return json(sessions);
+    }
 
-  // --- Performance ---
-  if (path === "/api/stats-update" && method === "POST") {
-    const body = await req.json();
-    await writePerformanceMetric(body);
-    return json({ ok: true });
-  }
+    // ── Agents ────────────────────────────────────────────────────
+    if (path === "/api/agents" && method === "GET") {
+      const sessionId = url.searchParams.get("session_id");
+      const agents = sessionId
+        ? await sql`SELECT * FROM agents WHERE session_id = ${sessionId} ORDER BY spawned_at DESC`
+        : await sql`SELECT * FROM agents ORDER BY spawned_at DESC LIMIT 100`;
+      return json(agents);
+    }
 
-  // --- Memories ---
-  if (path === "/api/memories" && method === "POST") {
-    const body = await req.json();
-    const id = await storeMemory(body);
-    return json({ id });
-  }
+    // ── Agent Events ──────────────────────────────────────────────
+    if (path === "/api/agent-update" && method === "POST") {
+      const body = await parseBody(req, AgentEventSchema);
+      await writeAgentEvent(body);
+      return json({ ok: true });
+    }
 
-  if (path === "/api/memories/search" && method === "POST") {
-    const { query, projectId, limit, threshold } = await req.json();
-    const results = await searchMemories(query, projectId, limit, threshold);
-    return json(results);
-  }
+    if (path === "/api/agent-events" && method === "GET") {
+      const sessionId = url.searchParams.get("session_id");
+      const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50"), 500);
+      const events = sessionId
+        ? await sql`SELECT * FROM agent_events WHERE session_id = ${sessionId} ORDER BY occurred_at DESC LIMIT ${limit}`
+        : await sql`SELECT * FROM agent_events ORDER BY occurred_at DESC LIMIT ${limit}`;
+      return json(events);
+    }
 
-  // --- Chat Messages ---
-  if (path === "/api/chat-message" && method === "POST") {
-    const body = await req.json();
-    await sql`
-      INSERT INTO chat_messages (occurred_at, session_id, project_id, agent_id, role, content, token_count, metadata)
-      VALUES (NOW(), ${body.sessionId}, ${body.projectId}, ${body.agentId ?? null}, ${body.role ?? "assistant"}, ${body.content}, ${body.tokenCount ?? null}, ${JSON.stringify(body.metadata ?? {})})
-    `;
-    return json({ ok: true });
-  }
+    // ── Performance ───────────────────────────────────────────────
+    if (path === "/api/stats-update" && method === "POST") {
+      const body = await parseBody(req, PerformanceMetricSchema);
+      await writePerformanceMetric(body);
+      return json({ ok: true });
+    }
 
-  // --- Dashboard aggregates ---
-  if (path === "/api/dashboard/performance" && method === "GET") {
-    const projectId = url.searchParams.get("project_id");
-    const days = parseInt(url.searchParams.get("days") ?? "7");
-    const data = await sql`
-      SELECT bucket, model, api_calls, total_tokens, total_cost_usd, avg_duration_ms
-      FROM daily_performance
-      WHERE bucket >= NOW() - make_interval(days => ${days})
-      ${projectId ? sql`AND project_id = ${projectId}` : sql``}
-      ORDER BY bucket
-    `;
-    return json(data);
-  }
+    // ── Memories ──────────────────────────────────────────────────
+    if (path === "/api/memories" && method === "POST") {
+      const body = await parseBody(req, MemorySchema);
+      const id = await storeMemory(body);
+      return json({ id });
+    }
 
-  if (path === "/api/dashboard/activity" && method === "GET") {
-    const projectId = url.searchParams.get("project_id");
-    const hours = parseInt(url.searchParams.get("hours") ?? "24");
-    const data = await sql`
-      SELECT bucket, event_type, SUM(event_count) as count
-      FROM agent_activity_hourly
-      WHERE bucket >= NOW() - make_interval(hours => ${hours})
-      ${projectId ? sql`AND project_id = ${projectId}` : sql``}
-      GROUP BY bucket, event_type
-      ORDER BY bucket
-    `;
-    return json(data);
-  }
+    if (path === "/api/memories/search" && method === "POST") {
+      const { query, projectId, limit, threshold } = await parseBody(req, MemorySearchSchema);
+      const results = await searchMemories(query, projectId, limit, threshold);
+      return json(results);
+    }
 
-  return json({ error: "Not found" }, 404);
+    // ── Chat Messages ─────────────────────────────────────────────
+    if (path === "/api/chat-message" && method === "POST") {
+      const body = await parseBody(req, ChatMessageSchema);
+      await sql`
+        INSERT INTO chat_messages (occurred_at, session_id, project_id, agent_id, role, content, token_count, metadata)
+        VALUES (NOW(), ${body.sessionId}, ${body.projectId}, ${body.agentId ?? null}, ${body.role}, ${body.content}, ${body.tokenCount ?? null}, ${JSON.stringify(body.metadata)})
+      `;
+      return json({ ok: true });
+    }
+
+    if (path === "/api/chat-messages" && method === "GET") {
+      const sessionId = url.searchParams.get("session_id");
+      if (!sessionId) return json({ error: "session_id query param required" }, 400);
+      const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "100"), 1000);
+      const messages = await sql`
+        SELECT * FROM chat_messages WHERE session_id = ${sessionId} ORDER BY occurred_at ASC LIMIT ${limit}
+      `;
+      return json(messages);
+    }
+
+    // ── Data Sync ─────────────────────────────────────────────────
+    if (path === "/api/data-sync" && method === "POST") {
+      const body = await parseBody(req, DataSyncSchema);
+      logDebug("Data sync received:", body.type, body.projectId);
+      // Store as an agent event with type "data_sync"
+      await sql`
+        INSERT INTO agent_events (occurred_at, agent_id, session_id, project_id, event_type, payload, message)
+        VALUES (NOW(), ${null}::uuid, ${body.sessionId ?? null}::uuid, ${body.projectId}, 'data_sync', ${JSON.stringify(body.data)}, ${body.type})
+      `;
+      return json({ ok: true });
+    }
+
+    // ── PR Created ────────────────────────────────────────────────
+    if (path === "/api/pr-created" && method === "POST") {
+      const body = await parseBody(req, PrCreatedSchema);
+      await sql`
+        INSERT INTO git_events (occurred_at, project_id, session_id, agent_id, event_type, ref, commit_msg, metadata)
+        VALUES (NOW(), ${body.projectId}, ${body.sessionId ?? null}, ${body.agentId ?? null}, 'pr_created', ${body.branch}, ${body.title}, ${JSON.stringify({ prUrl: body.prUrl, baseBranch: body.baseBranch, ...body.metadata })})
+      `;
+      return json({ ok: true });
+    }
+
+    // ── Dashboard aggregates ──────────────────────────────────────
+    if (path === "/api/dashboard/performance" && method === "GET") {
+      const projectId = url.searchParams.get("project_id");
+      const days = Math.min(parseInt(url.searchParams.get("days") ?? "7"), 365);
+      const data = await sql`
+        SELECT bucket, model, api_calls, total_tokens, total_cost_usd, avg_duration_ms
+        FROM daily_performance
+        WHERE bucket >= NOW() - make_interval(days => ${days})
+        ${projectId ? sql`AND project_id = ${projectId}` : sql``}
+        ORDER BY bucket
+      `;
+      return json(data);
+    }
+
+    if (path === "/api/dashboard/activity" && method === "GET") {
+      const projectId = url.searchParams.get("project_id");
+      const hours = Math.min(parseInt(url.searchParams.get("hours") ?? "24"), 720);
+      const data = await sql`
+        SELECT bucket, event_type, SUM(event_count) as count
+        FROM agent_activity_hourly
+        WHERE bucket >= NOW() - make_interval(hours => ${hours})
+        ${projectId ? sql`AND project_id = ${projectId}` : sql``}
+        GROUP BY bucket, event_type
+        ORDER BY bucket
+      `;
+      return json(data);
+    }
+
+    if (path === "/api/dashboard/costs" && method === "GET") {
+      const data = await sql`
+        SELECT * FROM agent_cost_leaderboard LIMIT 50
+      `;
+      return json(data);
+    }
+
+    if (path === "/api/dashboard/git" && method === "GET") {
+      const projectId = url.searchParams.get("project_id");
+      const days = Math.min(parseInt(url.searchParams.get("days") ?? "7"), 365);
+      const data = await sql`
+        SELECT bucket, event_type, event_count, total_additions, total_deletions, total_files_changed
+        FROM daily_git_activity
+        WHERE bucket >= NOW() - make_interval(days => ${days})
+        ${projectId ? sql`AND project_id = ${projectId}` : sql``}
+        ORDER BY bucket
+      `;
+      return json(data);
+    }
+
+    return json({ error: "Not found" }, 404);
+  } catch (error) {
+    return handleError(error);
+  }
 }
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
+async function handleHealth(): Promise<Response> {
+  const dbOk = await healthCheck();
+  const ollamaOk = await ollamaHealthCheck();
+  const poolStats = getPoolStats();
+  const uptimeMs = Date.now() - startedAt;
+
+  const status = dbOk ? "ok" : "degraded";
+  const httpCode = dbOk ? 200 : 503;
+
+  return json({
     status,
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-  });
+    version: APP_VERSION,
+    uptime: {
+      ms: uptimeMs,
+      human: formatUptime(uptimeMs),
+    },
+    services: {
+      database: {
+        connected: dbOk,
+        pool: poolStats,
+      },
+      ollama: {
+        connected: ollamaOk,
+      },
+    },
+    timestamp: new Date().toISOString(),
+  }, httpCode);
+}
+
+function formatUptime(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) return `${days}d ${hours % 24}h ${minutes % 60}m`;
+  if (hours > 0) return `${hours}h ${minutes % 60}m`;
+  if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+  return `${seconds}s`;
 }
