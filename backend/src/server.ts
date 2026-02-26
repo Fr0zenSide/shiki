@@ -3,7 +3,7 @@ import { handleWsUpgrade, closeAllClients, getWsStats } from "./ws.ts";
 import { authenticateRequest, corsHeaders, json, logRequest, logError } from "./middleware.ts";
 import { closePool } from "./db.ts";
 
-const WS_PORT = parseInt(Deno.env.get("WS_PORT") ?? "3800");
+const WS_PORT = parseInt(Deno.env.get("WS_PORT") ?? "3900");
 
 // ── Server ──────────────────────────────────────────────────────────
 
