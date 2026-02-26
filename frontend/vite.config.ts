@@ -14,15 +14,15 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "http://localhost:3800",
+        target: "http://localhost:3900",
         changeOrigin: true,
       },
       "/health": {
-        target: "http://localhost:3800",
+        target: "http://localhost:3900",
         changeOrigin: true,
       },
       "/ws": {
-        target: "ws://localhost:3800",
+        target: "ws://localhost:3900",
         ws: true,
       },
     },
