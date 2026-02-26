@@ -36,6 +36,15 @@ const ws = useWebSocket();
       </span>
     </div>
 
+    <!-- WS clients from health endpoint -->
+    <div v-if="store.health?.services.websocket" class="flex items-center gap-2 text-xs">
+      <span class="w-2 h-2 rounded-full bg-teal-400/50" />
+      <span class="text-surface-500">
+        {{ store.health.services.websocket.clientCount }} WS client{{ store.health.services.websocket.clientCount !== 1 ? 's' : '' }},
+        {{ store.health.services.websocket.channelCount }} channel{{ store.health.services.websocket.channelCount !== 1 ? 's' : '' }}
+      </span>
+    </div>
+
     <!-- Version -->
     <div v-if="store.health" class="text-xs text-surface-600">
       v{{ store.health.version }}

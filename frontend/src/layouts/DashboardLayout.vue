@@ -13,10 +13,24 @@ const ws = useWebSocket();
 
 // Wire WebSocket messages into the store
 ws.onMessage((msg: WsIncoming) => {
-  if (msg.type === "chat") {
-    store.handleWsChat(msg);
-  } else if (msg.type === "agent_event") {
-    store.handleWsAgentEvent(msg.event);
+  switch (msg.type) {
+    case "chat":
+      store.handleWsChat(msg);
+      break;
+    case "agent_event":
+      store.handleWsAgentEvent(msg.event);
+      break;
+    case "pr_created":
+      // Refresh events to show PR activity
+      store.fetchEvents();
+      break;
+    case "data_sync":
+      // Data sync events update the activity feed
+      store.fetchEvents();
+      break;
+    case "stats_update":
+      // Could trigger dashboard performance refresh
+      break;
   }
 });
 

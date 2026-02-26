@@ -12,6 +12,7 @@ import {
   DataSyncSchema,
 } from "./schemas.ts";
 import { json, parseBody, handleError, logDebug } from "./middleware.ts";
+import { broadcastToProject, broadcastEvent, getWsStats } from "./ws.ts";
 
 const APP_VERSION = "3.0.0";
 const startedAt = Date.now();
@@ -61,6 +62,20 @@ export async function handleRequest(req: Request): Promise<Response> {
     if (path === "/api/agent-update" && method === "POST") {
       const body = await parseBody(req, AgentEventSchema);
       await writeAgentEvent(body);
+      // Broadcast to WS clients watching this project
+      broadcastToProject(body.projectId, {
+        type: "agent_event",
+        event: {
+          occurred_at: new Date().toISOString(),
+          agent_id: body.agentId,
+          session_id: body.sessionId,
+          project_id: body.projectId,
+          event_type: body.eventType,
+          payload: body.payload ?? {},
+          progress_pct: body.progressPct ?? null,
+          message: body.message ?? null,
+        },
+      });
       return json({ ok: true });
     }
 
@@ -77,6 +92,11 @@ export async function handleRequest(req: Request): Promise<Response> {
     if (path === "/api/stats-update" && method === "POST") {
       const body = await parseBody(req, PerformanceMetricSchema);
       await writePerformanceMetric(body);
+      broadcastToProject(body.projectId, {
+        type: "stats_update",
+        metric: body,
+        timestamp: new Date().toISOString(),
+      });
       return json({ ok: true });
     }
 
@@ -96,10 +116,21 @@ export async function handleRequest(req: Request): Promise<Response> {
     // ── Chat Messages ─────────────────────────────────────────────
     if (path === "/api/chat-message" && method === "POST") {
       const body = await parseBody(req, ChatMessageSchema);
+      const now = new Date().toISOString();
       await sql`
         INSERT INTO chat_messages (occurred_at, session_id, project_id, agent_id, role, content, token_count, metadata)
-        VALUES (NOW(), ${body.sessionId}, ${body.projectId}, ${body.agentId ?? null}, ${body.role}, ${body.content}, ${body.tokenCount ?? null}, ${JSON.stringify(body.metadata)})
+        VALUES (${now}::timestamptz, ${body.sessionId}, ${body.projectId}, ${body.agentId ?? null}, ${body.role}, ${body.content}, ${body.tokenCount ?? null}, ${JSON.stringify(body.metadata)})
       `;
+      // Broadcast chat to WS clients watching this project/session
+      broadcastToProject(body.projectId, {
+        type: "chat",
+        sessionId: body.sessionId,
+        projectId: body.projectId,
+        agentId: body.agentId ?? null,
+        role: body.role,
+        content: body.content,
+        timestamp: now,
+      });
       return json({ ok: true });
     }
 
@@ -122,6 +153,12 @@ export async function handleRequest(req: Request): Promise<Response> {
         INSERT INTO agent_events (occurred_at, agent_id, session_id, project_id, event_type, payload, message)
         VALUES (NOW(), ${null}::uuid, ${body.sessionId ?? null}::uuid, ${body.projectId}, 'data_sync', ${JSON.stringify(body.data)}, ${body.type})
       `;
+      broadcastToProject(body.projectId, {
+        type: "data_sync",
+        syncType: body.type,
+        data: body.data,
+        timestamp: new Date().toISOString(),
+      });
       return json({ ok: true });
     }
 
@@ -132,6 +169,13 @@ export async function handleRequest(req: Request): Promise<Response> {
         INSERT INTO git_events (occurred_at, project_id, session_id, agent_id, event_type, ref, commit_msg, metadata)
         VALUES (NOW(), ${body.projectId}, ${body.sessionId ?? null}, ${body.agentId ?? null}, 'pr_created', ${body.branch}, ${body.title}, ${JSON.stringify({ prUrl: body.prUrl, baseBranch: body.baseBranch, ...body.metadata })})
       `;
+      broadcastToProject(body.projectId, {
+        type: "pr_created",
+        prUrl: body.prUrl,
+        title: body.title,
+        branch: body.branch,
+        timestamp: new Date().toISOString(),
+      });
       return json({ ok: true });
     }
 
@@ -193,6 +237,7 @@ async function handleHealth(): Promise<Response> {
   const dbOk = await healthCheck();
   const ollamaOk = await ollamaHealthCheck();
   const poolStats = getPoolStats();
+  const wsStats = getWsStats();
   const uptimeMs = Date.now() - startedAt;
 
   const status = dbOk ? "ok" : "degraded";
@@ -213,6 +258,7 @@ async function handleHealth(): Promise<Response> {
       ollama: {
         connected: ollamaOk,
       },
+      websocket: wsStats,
     },
     timestamp: new Date().toISOString(),
   }, httpCode);
