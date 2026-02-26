@@ -4,7 +4,7 @@
 # Usage:
 #   cp .env.example .env   # edit credentials
 #   docker compose up -d
-#   open http://localhost:5173
+#   open http://localhost:5174
 #
 # Requirements: Docker Desktop 4.x+, ~2GB RAM, ~2GB disk
 
@@ -78,6 +78,7 @@ services:
       OLLAMA_URL:       http://ollama:11434
       EMBED_MODEL:      nomic-embed-text
       WS_PORT:          "3800"
+      ACC_API_KEY:      ${ACC_API_KEY:-}
       NODE_ENV:         ${NODE_ENV:-development}
       LOG_LEVEL:        ${LOG_LEVEL:-info}
     ports:
@@ -104,7 +105,7 @@ services:
       VITE_WS_URL:    ws://localhost:3800
       VITE_API_URL:   http://localhost:3800
     ports:
-      - "127.0.0.1:5173:5173"
+      - "127.0.0.1:5174:5174"
     volumes:
       - ./frontend:/app:ro
       - /app/node_modules

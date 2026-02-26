@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* WabiSabi Design Tokens — ACC v3 */
+@theme {
+  /* Forest Teal palette */
+  --color-teal-50: #f0f7f4;
+  --color-teal-100: #d8ede4;
+  --color-teal-200: #b3dccb;
+  --color-teal-300: #82c4ab;
+  --color-teal-400: #5E8E7A;
+  --color-teal-500: #4a7a67;
+  --color-teal-600: #3b6353;
+  --color-teal-700: #2d4c40;
+  --color-teal-800: #1f362d;
+  --color-teal-900: #12201a;
+
+  /* Warm surface palette */
+  --color-surface-50: #fafaf8;
+  --color-surface-100: #f0efe9;
+  --color-surface-200: #e0ddd4;
+  --color-surface-300: #c5c1b5;
+  --color-surface-400: #a5a093;
+  --color-surface-500: #847e71;
+  --color-surface-600: #686358;
+  --color-surface-700: #4a473e;
+  --color-surface-800: #2e2c26;
+  --color-surface-850: #242219;
+  --color-surface-900: #1a1914;
+  --color-surface-950: #0f0e0b;
+
+  /* Accent colors */
+  --color-amber-400: #f5b942;
+  --color-amber-500: #d9a035;
+  --color-red-400: #e07264;
+  --color-red-500: #c95a4e;
+  --color-green-400: #6ec99a;
+  --color-green-500: #52b37e;
+  --color-blue-400: #6ba8d4;
+  --color-blue-500: #5290bc;
+
+  /* Font stack */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", monospace;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-surface-900);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-700);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-surface-600);
+}
+
+/* Selection */
+::selection {
+  background: color-mix(in srgb, var(--color-teal-400) 40%, transparent);
+}
