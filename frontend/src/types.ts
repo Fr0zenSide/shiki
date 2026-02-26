@@ -113,6 +113,11 @@ export interface HealthStatus {
     ollama: {
       connected: boolean;
     };
+    websocket: {
+      clientCount: number;
+      channelCount: number;
+      channels: Record<string, number>;
+    };
   };
   timestamp: string;
 }
@@ -125,6 +130,9 @@ export type WsIncoming =
   | { type: "unsubscribed"; channel: string; timestamp: string }
   | { type: "chat"; sessionId: string; projectId: string; agentId?: string; role: string; content: string; timestamp: string }
   | { type: "agent_event"; event: AgentEvent }
+  | { type: "stats_update"; metric: Record<string, unknown>; timestamp: string }
+  | { type: "data_sync"; syncType: string; data: Record<string, unknown>; timestamp: string }
+  | { type: "pr_created"; prUrl: string; title: string; branch: string; timestamp: string }
   | { type: "error"; message: string };
 
 export type WsOutgoing =
