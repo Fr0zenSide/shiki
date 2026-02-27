@@ -12,7 +12,7 @@ import {
   DataSyncSchema,
 } from "./schemas.ts";
 import { json, parseBody, handleError, logDebug } from "./middleware.ts";
-import { broadcastToProject } from "./ws.ts";
+import { broadcastToProject, getWsStats } from "./ws.ts";
 
 const APP_VERSION = "3.0.0";
 const startedAt = Date.now();
@@ -120,6 +120,38 @@ export async function handleRequest(req: Request): Promise<Response> {
       const { query, projectId, limit, threshold } = await parseBody(req, MemorySearchSchema);
       const results = await searchMemories(query, projectId, limit, threshold);
       return json(results);
+    }
+
+    // ── Memory Sources (file backup tracker) ────────────────────
+    if (path === "/api/memories/sources" && method === "GET") {
+      const projectId = url.searchParams.get("project_id");
+      const sources = projectId
+        ? await sql`
+            SELECT
+              metadata->>'sourceFile' as source_file,
+              metadata->>'fileModifiedAt' as file_modified_at,
+              MAX(created_at) as last_backed_up,
+              COUNT(*) as chunk_count,
+              ROUND(AVG(importance)::numeric, 1) as avg_importance
+            FROM agent_memories
+            WHERE project_id = ${projectId}
+              AND metadata->>'sourceFile' IS NOT NULL
+            GROUP BY metadata->>'sourceFile', metadata->>'fileModifiedAt'
+            ORDER BY MAX(created_at) DESC
+          `
+        : await sql`
+            SELECT
+              metadata->>'sourceFile' as source_file,
+              metadata->>'fileModifiedAt' as file_modified_at,
+              MAX(created_at) as last_backed_up,
+              COUNT(*) as chunk_count,
+              ROUND(AVG(importance)::numeric, 1) as avg_importance
+            FROM agent_memories
+            WHERE metadata->>'sourceFile' IS NOT NULL
+            GROUP BY metadata->>'sourceFile', metadata->>'fileModifiedAt'
+            ORDER BY MAX(created_at) DESC
+          `;
+      return json(sources);
     }
 
     // ── Chat Messages ─────────────────────────────────────────────
@@ -296,6 +328,29 @@ export async function handleRequest(req: Request): Promise<Response> {
         ORDER BY bucket
       `;
       return json(data);
+    }
+
+    // ── Database Backup Info ─────────────────────────────────────
+    if (path === "/api/admin/backup-status" && method === "GET") {
+      const dbStats = await sql`
+        SELECT
+          (SELECT COUNT(*) FROM agent_memories) as memories,
+          (SELECT COUNT(*) FROM agent_events) as events,
+          (SELECT COUNT(*) FROM chat_messages) as chats,
+          (SELECT COUNT(*) FROM agents) as agents,
+          (SELECT COUNT(*) FROM sessions) as sessions,
+          (SELECT COUNT(*) FROM decisions) as decisions,
+          (SELECT COUNT(*) FROM git_events) as git_events,
+          (SELECT COUNT(*) FROM performance_metrics) as metrics
+      `;
+      return json({
+        database: dbStats[0],
+        backupScript: "sp/acc/scripts/backup-db.sh",
+        restoreScript: "sp/acc/scripts/restore-db.sh",
+        backupDir: "sp/acc/backups/",
+        retentionDays: 14,
+        timestamp: new Date().toISOString(),
+      });
     }
 
     return json({ error: "Not found" }, 404);

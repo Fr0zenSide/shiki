@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useAgencyStore } from "@/composables/useAgencyStore";
 import { useApi } from "@/composables/useApi";
-import type { MemorySearchResult } from "@/types";
+import type { MemorySearchResult, MemorySource } from "@/types";
 
 const store = useAgencyStore();
 const api = useApi();
@@ -11,22 +11,42 @@ const searchQuery = ref("");
 const searchResults = ref<MemorySearchResult[]>([]);
 const isSearching = ref(false);
 const showSearch = ref(false);
+const searchError = ref<string | null>(null);
+
+// Sources popover state
+const showSources = ref(false);
+const sources = ref<MemorySource[]>([]);
+const sourcesFilter = ref("");
+const loadingSources = ref(false);
 
 onMounted(async () => {
+  if (!store.selectedProjectId) {
+    await store.init();
+  }
   await store.fetchMemories();
 });
 
 async function doSearch() {
   const query = searchQuery.value.trim();
-  if (!query || !store.selectedProjectId) return;
+  searchError.value = null;
+
+  if (!query) return;
+
+  if (!store.selectedProjectId) {
+    searchError.value = "No project selected. Select a project first.";
+    return;
+  }
 
   isSearching.value = true;
   try {
-    searchResults.value = await api.searchMemories(query, store.selectedProjectId);
+    searchResults.value = await api.searchMemories(query, store.selectedProjectId, 20, 0.3);
     showSearch.value = true;
-  } catch {
-    // Search may fail if Ollama is not running
+    if (searchResults.value.length === 0) {
+      searchError.value = "No matching memories found. Try a broader query.";
+    }
+  } catch (err) {
     searchResults.value = [];
+    searchError.value = err instanceof Error ? err.message : "Search failed — check that the embedding server is running.";
   } finally {
     isSearching.value = false;
   }
@@ -36,6 +56,36 @@ function clearSearch() {
   searchQuery.value = "";
   searchResults.value = [];
   showSearch.value = false;
+  searchError.value = null;
+}
+
+async function toggleSources() {
+  showSources.value = !showSources.value;
+  if (showSources.value && sources.value.length === 0) {
+    loadingSources.value = true;
+    try {
+      sources.value = await api.getMemorySources(store.selectedProjectId ?? undefined);
+    } catch {
+      sources.value = [];
+    } finally {
+      loadingSources.value = false;
+    }
+  }
+}
+
+const filteredSources = computed(() => {
+  const filter = sourcesFilter.value.toLowerCase().trim();
+  if (!filter) return sources.value;
+  return sources.value.filter((s) =>
+    s.source_file.toLowerCase().includes(filter),
+  );
+});
+
+function shortPath(fullPath: string): string {
+  // Shorten long paths for display
+  const parts = fullPath.split("/");
+  if (parts.length <= 3) return fullPath;
+  return ".../" + parts.slice(-3).join("/");
 }
 
 function formatDate(iso: string): string {
@@ -44,6 +94,14 @@ function formatDate(iso: string): string {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+  });
+}
+
+function formatDateShort(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
   });
 }
 
@@ -59,6 +117,11 @@ const categoryColors: Record<string, string> = {
   bug: "bg-red-400/15 text-red-400",
   feature: "bg-green-400/15 text-green-400",
   context: "bg-teal-400/15 text-teal-400",
+  roadmap: "bg-purple-400/15 text-purple-400",
+  process: "bg-indigo-400/15 text-indigo-400",
+  vision: "bg-pink-400/15 text-pink-400",
+  commands: "bg-cyan-400/15 text-cyan-400",
+  environment: "bg-emerald-400/15 text-emerald-400",
 };
 
 const groupedMemories = computed(() => {
@@ -69,6 +132,14 @@ const groupedMemories = computed(() => {
     groups[cat].push(m);
   }
   return groups;
+});
+
+const categoryCount = computed(() => Object.keys(groupedMemories.value).length);
+
+const totalImportance = computed(() => {
+  if (store.memories.length === 0) return 0;
+  const sum = store.memories.reduce((acc, m) => acc + (m.importance ?? 1), 0);
+  return (sum / store.memories.length).toFixed(1);
 });
 </script>
 
@@ -83,12 +154,84 @@ const groupedMemories = computed(() => {
           <template v-if="store.selectedProject"> for {{ store.selectedProject.name }}</template>
         </p>
       </div>
-      <button
-        class="px-3 py-1.5 rounded-lg bg-surface-800 text-surface-300 text-sm hover:bg-surface-700 transition-colors"
-        @click="store.fetchMemories()"
-      >
-        Refresh
-      </button>
+      <div class="flex items-center gap-2 relative">
+        <!-- Sources popover toggle -->
+        <button
+          class="px-3 py-1.5 rounded-lg text-sm transition-colors"
+          :class="showSources
+            ? 'bg-teal-400/15 text-teal-400 border border-teal-400/30'
+            : 'bg-surface-800 text-surface-300 hover:bg-surface-700'"
+          @click="toggleSources"
+        >
+          Sources
+          <span v-if="sources.length" class="ml-1 text-xs opacity-60">({{ sources.length }})</span>
+        </button>
+        <!-- Refresh -->
+        <button
+          class="px-3 py-1.5 rounded-lg bg-surface-800 text-surface-300 text-sm hover:bg-surface-700 transition-colors"
+          @click="store.fetchMemories()"
+        >
+          Refresh
+        </button>
+
+        <!-- Sources popover -->
+        <Transition name="fade">
+          <div
+            v-if="showSources"
+            class="absolute right-0 top-full mt-2 w-[480px] z-50 bg-surface-900 border border-surface-800 rounded-xl shadow-2xl overflow-hidden"
+          >
+            <div class="px-4 py-3 border-b border-surface-800">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-semibold text-surface-200">Backed-up Sources</h3>
+                <span class="text-xs text-surface-600">{{ filteredSources.length }} files</span>
+              </div>
+              <input
+                v-model="sourcesFilter"
+                type="text"
+                placeholder="Filter files..."
+                class="w-full bg-surface-850 border border-surface-700 rounded-lg px-3 py-1.5 text-xs text-surface-200 placeholder-surface-600 focus:outline-none focus:border-teal-400/50"
+              />
+            </div>
+            <div class="max-h-80 overflow-y-auto">
+              <div v-if="loadingSources" class="p-4 text-center text-xs text-surface-600">
+                Loading sources...
+              </div>
+              <div v-else-if="filteredSources.length === 0" class="p-4 text-center text-xs text-surface-600">
+                No source files found.
+              </div>
+              <div v-else>
+                <div
+                  v-for="src in filteredSources"
+                  :key="src.source_file"
+                  class="px-4 py-2.5 border-b border-surface-800/50 hover:bg-surface-850 transition-colors"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs text-surface-300 font-mono truncate max-w-[280px]" :title="src.source_file">
+                      {{ shortPath(src.source_file) }}
+                    </span>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <span class="text-xs text-surface-600">
+                        {{ src.chunk_count }} chunks
+                      </span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3 mt-1">
+                    <span class="text-[10px] text-surface-600">
+                      modified: <span class="text-surface-500">{{ formatDateShort(src.file_modified_at) }}</span>
+                    </span>
+                    <span class="text-[10px] text-surface-600">
+                      backed up: <span class="text-teal-400/70">{{ formatDateShort(src.last_backed_up) }}</span>
+                    </span>
+                    <span class="text-[10px] text-amber-400/60 font-mono">
+                      imp {{ src.avg_importance }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </div>
     </div>
 
     <!-- Search bar -->
@@ -97,7 +240,7 @@ const groupedMemories = computed(() => {
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Semantic search across memories (requires Ollama)..."
+          placeholder="Ask anything about the project — architecture, decisions, roadmap..."
           class="flex-1 bg-surface-850 border border-surface-700 rounded-lg px-4 py-2.5 text-sm text-surface-200 placeholder-surface-600 focus:outline-none focus:border-teal-400/50 focus:ring-1 focus:ring-teal-400/20"
           @keydown.enter="doSearch"
         />
@@ -116,6 +259,9 @@ const groupedMemories = computed(() => {
           Clear
         </button>
       </div>
+      <p v-if="searchError" class="mt-2 text-xs text-red-400">
+        {{ searchError }}
+      </p>
     </div>
 
     <!-- Search results -->
@@ -205,5 +351,40 @@ const groupedMemories = computed(() => {
         </section>
       </div>
     </div>
+
+    <!-- Memory Status Footer -->
+    <div class="bg-surface-900/60 border border-surface-800 rounded-xl px-5 py-3 flex items-center justify-between text-xs text-surface-500">
+      <div class="flex items-center gap-4">
+        <span>
+          <span class="text-surface-300 font-medium">{{ store.memories.length }}</span> memories
+        </span>
+        <span>
+          <span class="text-surface-300 font-medium">{{ categoryCount }}</span> categories
+        </span>
+        <span>
+          avg importance <span class="text-amber-400 font-mono">{{ totalImportance }}</span>
+        </span>
+      </div>
+      <div class="flex items-center gap-4">
+        <span v-if="store.selectedProject" class="text-surface-600">
+          project: <span class="text-surface-400">{{ store.selectedProject.name }}</span>
+        </span>
+        <span :class="store.isHealthy ? 'text-emerald-400' : 'text-red-400'">
+          {{ store.isHealthy ? 'embeddings online' : 'embeddings offline' }}
+        </span>
+      </div>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+</style>

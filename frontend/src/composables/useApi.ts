@@ -12,6 +12,7 @@ import type {
   GitEvent,
   Memory,
   MemorySearchResult,
+  MemorySource,
   DashboardSummary,
 } from "@/types";
 
@@ -120,5 +121,11 @@ export function useApi() {
         method: "POST",
         body: JSON.stringify({ query, projectId, limit, threshold }),
       }),
+
+    getMemorySources: (projectId?: string) => {
+      const params = new URLSearchParams();
+      if (projectId) params.set("project_id", projectId);
+      return fetchJson<MemorySource[]>(`/api/memories/sources?${params}`);
+    },
   };
 }
