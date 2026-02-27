@@ -130,6 +130,14 @@ export interface MemorySearchResult {
   fromAgent: string | null;
 }
 
+export interface MemorySource {
+  source_file: string;
+  file_modified_at: string | null;
+  last_backed_up: string;
+  chunk_count: number;
+  avg_importance: number;
+}
+
 export interface DashboardSummary {
   activeSessions: number;
   activeAgents: number;
