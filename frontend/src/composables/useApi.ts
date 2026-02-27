@@ -9,6 +9,10 @@ import type {
   ActivityBucket,
   CostLeaderEntry,
   HealthStatus,
+  GitEvent,
+  Memory,
+  MemorySearchResult,
+  DashboardSummary,
 } from "@/types";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "";
@@ -89,5 +93,32 @@ export function useApi() {
     },
 
     getCosts: () => fetchJson<CostLeaderEntry[]>("/api/dashboard/costs"),
+
+    getSummary: (projectId?: string) => {
+      const params = new URLSearchParams();
+      if (projectId) params.set("project_id", projectId);
+      return fetchJson<DashboardSummary>(`/api/dashboard/summary?${params}`);
+    },
+
+    // Git / PRs
+    getGitEvents: (projectId?: string, eventType?: string, limit = 50) => {
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (projectId) params.set("project_id", projectId);
+      if (eventType) params.set("event_type", eventType);
+      return fetchJson<GitEvent[]>(`/api/git-events?${params}`);
+    },
+
+    // Memories
+    getMemories: (projectId?: string, limit = 50) => {
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (projectId) params.set("project_id", projectId);
+      return fetchJson<Memory[]>(`/api/memories?${params}`);
+    },
+
+    searchMemories: (query: string, projectId: string, limit = 10, threshold = 0.7) =>
+      fetchJson<MemorySearchResult[]>("/api/memories/search", {
+        method: "POST",
+        body: JSON.stringify({ query, projectId, limit, threshold }),
+      }),
   };
 }

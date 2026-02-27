@@ -64,8 +64,8 @@ CREATE INDEX idx_decisions_session ON decisions(session_id);
 -- TIME-SERIES TABLES (hypertables)
 CREATE TABLE agent_events (
     occurred_at  TIMESTAMPTZ NOT NULL,
-    agent_id     UUID NOT NULL REFERENCES agents(id),
-    session_id   UUID NOT NULL,
+    agent_id     UUID REFERENCES agents(id),
+    session_id   UUID,
     project_id   UUID NOT NULL,
     event_type   TEXT NOT NULL,
     payload      JSONB NOT NULL DEFAULT '{}',

@@ -12,6 +12,8 @@ onMounted(async () => {
   await Promise.all([
     store.fetchActiveSessions(),
     store.fetchEvents(undefined, 30),
+    store.fetchSummary(),
+    store.fetchGitEvents(),
     fetchCosts(),
   ]);
 });
@@ -22,6 +24,17 @@ async function fetchCosts() {
   } catch {
     // Dashboard degradation is fine
   }
+}
+
+async function refresh() {
+  await Promise.all([
+    store.fetchHealth(),
+    store.fetchActiveSessions(),
+    store.fetchEvents(undefined, 30),
+    store.fetchSummary(),
+    store.fetchGitEvents(),
+    fetchCosts(),
+  ]);
 }
 
 const totalCost = computed(() =>
@@ -50,6 +63,18 @@ const statusColors: Record<string, string> = {
   failed: "text-red-400",
   cancelled: "text-surface-600",
 };
+
+const recentPRs = computed(() =>
+  store.gitEvents
+    .filter((e) => e.event_type === "pr_created")
+    .slice(0, 5),
+);
+
+function getPrUrl(event: typeof store.gitEvents.value[0]): string | null {
+  const md = event.metadata as Record<string, unknown>;
+  if (typeof md.prUrl === "string") return md.prUrl;
+  return null;
+}
 </script>
 
 <template>
@@ -67,7 +92,7 @@ const statusColors: Record<string, string> = {
       </div>
       <button
         class="px-3 py-1.5 rounded-lg bg-surface-800 text-surface-300 text-sm hover:bg-surface-700 transition-colors"
-        @click="store.fetchHealth()"
+        @click="refresh()"
       >
         Refresh
       </button>
@@ -78,25 +103,39 @@ const statusColors: Record<string, string> = {
       <!-- Active sessions -->
       <div class="bg-surface-900 border border-surface-800 rounded-xl p-4">
         <div class="text-xs text-surface-500 uppercase tracking-wider">Active Sessions</div>
-        <div class="text-3xl font-bold text-surface-100 mt-2">{{ store.activeSessions.length }}</div>
+        <div class="text-3xl font-bold text-surface-100 mt-2">
+          {{ store.summary?.activeSessions ?? store.activeSessions.length }}
+        </div>
       </div>
 
       <!-- Agents running -->
       <div class="bg-surface-900 border border-surface-800 rounded-xl p-4">
         <div class="text-xs text-surface-500 uppercase tracking-wider">Agents Running</div>
-        <div class="text-3xl font-bold text-green-400 mt-2">{{ store.activeAgentCount }}</div>
+        <div class="text-3xl font-bold text-green-400 mt-2">
+          {{ store.summary?.activeAgents ?? store.activeAgentCount }}
+        </div>
+        <div v-if="store.summary" class="text-xs text-surface-600 mt-1">
+          {{ store.summary.totalAgents }} total
+        </div>
       </div>
 
-      <!-- Total agents -->
+      <!-- PRs created -->
       <div class="bg-surface-900 border border-surface-800 rounded-xl p-4">
-        <div class="text-xs text-surface-500 uppercase tracking-wider">Total Agents</div>
-        <div class="text-3xl font-bold text-surface-100 mt-2">{{ store.agents.length }}</div>
+        <div class="text-xs text-surface-500 uppercase tracking-wider">PRs Created</div>
+        <div class="text-3xl font-bold text-teal-400 mt-2">
+          {{ store.summary?.prsCreated ?? recentPRs.length }}
+        </div>
       </div>
 
-      <!-- Total cost -->
+      <!-- Recent activity -->
       <div class="bg-surface-900 border border-surface-800 rounded-xl p-4">
-        <div class="text-xs text-surface-500 uppercase tracking-wider">Total Cost</div>
-        <div class="text-3xl font-bold text-amber-400 mt-2">{{ formatCost(totalCost) }}</div>
+        <div class="text-xs text-surface-500 uppercase tracking-wider">Events (24h)</div>
+        <div class="text-3xl font-bold text-amber-400 mt-2">
+          {{ store.summary?.recentEvents24h ?? store.events.length }}
+        </div>
+        <div v-if="store.summary" class="text-xs text-surface-600 mt-1">
+          {{ store.summary.messagesCount }} messages &middot; {{ store.summary.decisionsCount }} decisions
+        </div>
       </div>
     </div>
 
@@ -161,6 +200,42 @@ const statusColors: Record<string, string> = {
       </section>
     </div>
 
+    <!-- Recent PRs -->
+    <section v-if="recentPRs.length > 0" class="bg-surface-900 border border-surface-800 rounded-xl">
+      <div class="px-5 py-4 border-b border-surface-800 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-surface-200">Recent Pull Requests</h2>
+        <RouterLink to="/prs" class="text-xs text-teal-400 hover:text-teal-300 transition-colors">
+          View all
+        </RouterLink>
+      </div>
+      <div class="p-4 space-y-2">
+        <div
+          v-for="(pr, idx) in recentPRs"
+          :key="idx"
+          class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-surface-850 transition-colors"
+        >
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="px-1.5 py-0.5 rounded text-xs font-medium bg-green-400/15 text-green-400 flex-shrink-0">
+              PR
+            </span>
+            <span class="text-sm text-surface-200 truncate">{{ pr.commit_msg ?? "Untitled" }}</span>
+            <span v-if="pr.ref" class="text-xs font-mono text-surface-500 bg-surface-800 px-2 py-0.5 rounded flex-shrink-0">
+              {{ pr.ref }}
+            </span>
+          </div>
+          <a
+            v-if="getPrUrl(pr)"
+            :href="getPrUrl(pr)!"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-xs text-teal-400 hover:text-teal-300 transition-colors flex-shrink-0 ml-3"
+          >
+            GitHub
+          </a>
+        </div>
+      </div>
+    </section>
+
     <!-- Cost Leaderboard -->
     <section v-if="costs.length > 0" class="bg-surface-900 border border-surface-800 rounded-xl">
       <div class="px-5 py-4 border-b border-surface-800">
@@ -199,6 +274,25 @@ const statusColors: Record<string, string> = {
             </tr>
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <!-- Empty state when nothing is running -->
+    <section
+      v-if="store.activeSessions.length === 0 && store.events.length === 0 && costs.length === 0"
+      class="bg-surface-900 border border-surface-800 rounded-xl p-12 text-center"
+    >
+      <div class="text-surface-600 space-y-3">
+        <div class="text-5xl font-light text-surface-700">ACC v3</div>
+        <p class="text-sm">Agency Command Center is ready. No agents are currently reporting.</p>
+        <div class="pt-4 space-y-1 text-xs text-surface-700">
+          <p>To start tracking agents, send events to:</p>
+          <p class="font-mono text-surface-500">POST /api/agent-update</p>
+          <p class="font-mono text-surface-500">POST /api/chat-message</p>
+          <p class="font-mono text-surface-500">POST /api/pr-created</p>
+          <p class="font-mono text-surface-500">POST /api/data-sync</p>
+          <p class="font-mono text-surface-500">POST /api/stats-update</p>
+        </div>
       </div>
     </section>
   </div>

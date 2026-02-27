@@ -3,5 +3,5 @@ WORKDIR /app
 COPY deno.json .
 RUN deno install
 COPY src/ src/
-EXPOSE 3800
+EXPOSE 3900
 CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read", "src/server.ts"]

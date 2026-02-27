@@ -94,6 +94,52 @@ export interface CostLeaderEntry {
   total_cost_usd: number;
 }
 
+export interface GitEvent {
+  occurred_at: string;
+  project_id: string;
+  session_id: string | null;
+  agent_id: string | null;
+  event_type: string;
+  ref: string | null;
+  commit_sha: string | null;
+  commit_msg: string | null;
+  author: string | null;
+  files_changed: number | null;
+  additions: number | null;
+  deletions: number | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface Memory {
+  id: string;
+  project_id: string;
+  session_id: string | null;
+  agent_id: string | null;
+  content: string;
+  category: string;
+  importance: number;
+  created_at: string;
+}
+
+export interface MemorySearchResult {
+  id: string;
+  content: string;
+  category: string;
+  similarity: number;
+  createdAt: string;
+  fromAgent: string | null;
+}
+
+export interface DashboardSummary {
+  activeSessions: number;
+  activeAgents: number;
+  totalAgents: number;
+  prsCreated: number;
+  decisionsCount: number;
+  messagesCount: number;
+  recentEvents24h: number;
+}
+
 export interface HealthStatus {
   status: "ok" | "degraded";
   version: string;
