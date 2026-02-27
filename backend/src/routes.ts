@@ -12,7 +12,7 @@ import {
   DataSyncSchema,
 } from "./schemas.ts";
 import { json, parseBody, handleError, logDebug } from "./middleware.ts";
-import { broadcastToProject, broadcastEvent, getWsStats } from "./ws.ts";
+import { broadcastToProject } from "./ws.ts";
 
 const APP_VERSION = "3.0.0";
 const startedAt = Date.now();
@@ -107,6 +107,15 @@ export async function handleRequest(req: Request): Promise<Response> {
       return json({ id });
     }
 
+    if (path === "/api/memories" && method === "GET") {
+      const projectId = url.searchParams.get("project_id");
+      const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50"), 500);
+      const memories = projectId
+        ? await sql`SELECT id, project_id, session_id, agent_id, content, category, importance, created_at FROM agent_memories WHERE project_id = ${projectId} ORDER BY created_at DESC LIMIT ${limit}`
+        : await sql`SELECT id, project_id, session_id, agent_id, content, category, importance, created_at FROM agent_memories ORDER BY created_at DESC LIMIT ${limit}`;
+      return json(memories);
+    }
+
     if (path === "/api/memories/search" && method === "POST") {
       const { query, projectId, limit, threshold } = await parseBody(req, MemorySearchSchema);
       const results = await searchMemories(query, projectId, limit, threshold);
@@ -177,6 +186,68 @@ export async function handleRequest(req: Request): Promise<Response> {
         timestamp: new Date().toISOString(),
       });
       return json({ ok: true });
+    }
+
+    // ── Git Events / PRs ────────────────────────────────────────
+    if (path === "/api/git-events" && method === "GET") {
+      const projectId = url.searchParams.get("project_id");
+      const eventType = url.searchParams.get("event_type");
+      const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50"), 500);
+      let events;
+      if (projectId && eventType) {
+        events = await sql`SELECT * FROM git_events WHERE project_id = ${projectId} AND event_type = ${eventType} ORDER BY occurred_at DESC LIMIT ${limit}`;
+      } else if (projectId) {
+        events = await sql`SELECT * FROM git_events WHERE project_id = ${projectId} ORDER BY occurred_at DESC LIMIT ${limit}`;
+      } else if (eventType) {
+        events = await sql`SELECT * FROM git_events WHERE event_type = ${eventType} ORDER BY occurred_at DESC LIMIT ${limit}`;
+      } else {
+        events = await sql`SELECT * FROM git_events ORDER BY occurred_at DESC LIMIT ${limit}`;
+      }
+      return json(events);
+    }
+
+    // ── Dashboard summary (aggregate stats) ────────────────────
+    if (path === "/api/dashboard/summary" && method === "GET") {
+      const projectId = url.searchParams.get("project_id");
+
+      const [activeSessionsResult] = await sql`
+        SELECT COUNT(*) as count FROM sessions WHERE status = 'active'
+        ${projectId ? sql`AND project_id = ${projectId}` : sql``}
+      `;
+      const [activeAgentsResult] = await sql`
+        SELECT COUNT(*) as count FROM agents WHERE status IN ('spawned', 'running')
+        ${projectId ? sql`AND project_id = ${projectId}` : sql``}
+      `;
+      const [totalAgentsResult] = await sql`
+        SELECT COUNT(*) as count FROM agents
+        ${projectId ? sql`WHERE project_id = ${projectId}` : sql``}
+      `;
+      const [prCountResult] = await sql`
+        SELECT COUNT(*) as count FROM git_events WHERE event_type = 'pr_created'
+        ${projectId ? sql`AND project_id = ${projectId}` : sql``}
+      `;
+      const [decisionsCountResult] = await sql`
+        SELECT COUNT(*) as count FROM decisions
+        ${projectId ? sql`WHERE session_id IN (SELECT id FROM sessions WHERE project_id = ${projectId})` : sql``}
+      `;
+      const [messagesCountResult] = await sql`
+        SELECT COUNT(*) as count FROM chat_messages
+        ${projectId ? sql`WHERE project_id = ${projectId}` : sql``}
+      `;
+      const [recentEventsCountResult] = await sql`
+        SELECT COUNT(*) as count FROM agent_events WHERE occurred_at > NOW() - INTERVAL '24 hours'
+        ${projectId ? sql`AND project_id = ${projectId}` : sql``}
+      `;
+
+      return json({
+        activeSessions: parseInt(activeSessionsResult.count),
+        activeAgents: parseInt(activeAgentsResult.count),
+        totalAgents: parseInt(totalAgentsResult.count),
+        prsCreated: parseInt(prCountResult.count),
+        decisionsCount: parseInt(decisionsCountResult.count),
+        messagesCount: parseInt(messagesCountResult.count),
+        recentEvents24h: parseInt(recentEventsCountResult.count),
+      });
     }
 
     // ── Dashboard aggregates ──────────────────────────────────────

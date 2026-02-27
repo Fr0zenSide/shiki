@@ -21,15 +21,14 @@ ws.onMessage((msg: WsIncoming) => {
       store.handleWsAgentEvent(msg.event);
       break;
     case "pr_created":
-      // Refresh events to show PR activity
+      store.handleWsPrCreated(msg);
       store.fetchEvents();
       break;
     case "data_sync":
-      // Data sync events update the activity feed
       store.fetchEvents();
       break;
     case "stats_update":
-      // Could trigger dashboard performance refresh
+      store.handleWsStatsUpdate();
       break;
   }
 });

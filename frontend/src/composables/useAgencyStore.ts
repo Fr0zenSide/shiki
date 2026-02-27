@@ -9,6 +9,9 @@ import type {
   AgentEvent,
   ChatMessage,
   HealthStatus,
+  GitEvent,
+  Memory,
+  DashboardSummary,
 } from "@/types";
 
 export const useAgencyStore = defineStore("agency", () => {
@@ -22,6 +25,9 @@ export const useAgencyStore = defineStore("agency", () => {
   const events = ref<AgentEvent[]>([]);
   const chatMessages = ref<ChatMessage[]>([]);
   const health = ref<HealthStatus | null>(null);
+  const gitEvents = ref<GitEvent[]>([]);
+  const memories = ref<Memory[]>([]);
+  const summary = ref<DashboardSummary | null>(null);
 
   const loading = ref(false);
   const error = ref<string | null>(null);
@@ -48,6 +54,10 @@ export const useAgencyStore = defineStore("agency", () => {
   );
 
   const isHealthy = computed(() => health.value?.status === "ok");
+
+  const pullRequests = computed(() =>
+    gitEvents.value.filter((e) => e.event_type === "pr_created"),
+  );
 
   // ── Actions ───────────────────────────────────────────────────────
 
@@ -133,6 +143,30 @@ export const useAgencyStore = defineStore("agency", () => {
     }
   }
 
+  async function fetchGitEvents(projectId?: string) {
+    try {
+      gitEvents.value = await api.getGitEvents(projectId ?? selectedProjectId.value ?? undefined);
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : "Failed to fetch git events";
+    }
+  }
+
+  async function fetchMemories(projectId?: string) {
+    try {
+      memories.value = await api.getMemories(projectId ?? selectedProjectId.value ?? undefined);
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : "Failed to fetch memories";
+    }
+  }
+
+  async function fetchSummary(projectId?: string) {
+    try {
+      summary.value = await api.getSummary(projectId ?? selectedProjectId.value ?? undefined);
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : "Failed to fetch summary";
+    }
+  }
+
   function selectProject(id: string) {
     selectedProjectId.value = id;
     selectedSessionId.value = null;
@@ -172,6 +206,34 @@ export const useAgencyStore = defineStore("agency", () => {
     }
   }
 
+  function handleWsPrCreated(data: { prUrl: string; title: string; branch: string; timestamp: string }) {
+    // Add to git events for live display
+    gitEvents.value.unshift({
+      occurred_at: data.timestamp,
+      project_id: selectedProjectId.value ?? "",
+      session_id: null,
+      agent_id: null,
+      event_type: "pr_created",
+      ref: data.branch,
+      commit_sha: null,
+      commit_msg: data.title,
+      author: null,
+      files_changed: null,
+      additions: null,
+      deletions: null,
+      metadata: { prUrl: data.prUrl },
+    });
+    // Also update summary
+    if (summary.value) {
+      summary.value.prsCreated++;
+    }
+  }
+
+  function handleWsStatsUpdate() {
+    // Refresh summary on stats updates
+    fetchSummary();
+  }
+
   return {
     // State
     projects,
@@ -181,6 +243,9 @@ export const useAgencyStore = defineStore("agency", () => {
     events,
     chatMessages,
     health,
+    gitEvents,
+    memories,
+    summary,
     loading,
     error,
     selectedProjectId,
@@ -192,6 +257,7 @@ export const useAgencyStore = defineStore("agency", () => {
     sessionAgents,
     activeAgentCount,
     isHealthy,
+    pullRequests,
 
     // Actions
     init,
@@ -203,9 +269,14 @@ export const useAgencyStore = defineStore("agency", () => {
     fetchChatMessages,
     sendChatMessage,
     fetchHealth,
+    fetchGitEvents,
+    fetchMemories,
+    fetchSummary,
     selectProject,
     selectSession,
     handleWsChat,
     handleWsAgentEvent,
+    handleWsPrCreated,
+    handleWsStatsUpdate,
   };
 });
