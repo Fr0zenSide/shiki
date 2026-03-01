@@ -41,7 +41,7 @@ async function refresh() {
 }
 
 function formatCost(usd: number | null): string {
-  if (usd == null) return "$0.00";
+  if (usd == null || typeof usd !== "number" || isNaN(usd)) return "$0.0000";
   return `$${usd.toFixed(4)}`;
 }
 
@@ -91,10 +91,10 @@ function getPrUrl(event: (typeof store.gitEvents)[number]): string | null {
 
 // Token usage aggregation from costs
 const totalTokens = computed(() =>
-  costs.value.reduce((sum, c) => sum + (c.total_tokens ?? 0), 0),
+  costs.value.reduce((sum, c) => sum + (Number(c.total_tokens) || 0), 0),
 );
 const totalCostUsd = computed(() =>
-  costs.value.reduce((sum, c) => sum + (c.total_cost_usd ?? 0), 0),
+  costs.value.reduce((sum, c) => sum + (Number(c.total_cost_usd) || 0), 0),
 );
 
 // Phase progress sessions
