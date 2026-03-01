@@ -125,7 +125,7 @@ const categoryColors: Record<string, string> = {
 };
 
 const groupedMemories = computed(() => {
-  const groups: Record<string, typeof store.memories.value> = {};
+  const groups: Record<string, (typeof store.memories)[number][]> = {};
   for (const m of store.memories) {
     const cat = m.category || "general";
     if (!groups[cat]) groups[cat] = [];

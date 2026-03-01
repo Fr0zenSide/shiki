@@ -21,6 +21,9 @@ export interface Session {
   ended_at: string | null;
   summary: string | null;
   metadata: Record<string, unknown>;
+  phase?: string;
+  completionRate?: number;
+  tags?: string[];
 }
 
 export interface ActiveSession {

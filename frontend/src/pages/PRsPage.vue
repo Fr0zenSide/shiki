@@ -17,13 +17,13 @@ function formatDate(iso: string): string {
   });
 }
 
-function getPrUrl(event: typeof store.gitEvents.value[0]): string | null {
+function getPrUrl(event: (typeof store.gitEvents)[number]): string | null {
   const md = event.metadata as Record<string, unknown>;
   if (typeof md.prUrl === "string") return md.prUrl;
   return null;
 }
 
-function getBaseBranch(event: typeof store.gitEvents.value[0]): string | null {
+function getBaseBranch(event: (typeof store.gitEvents)[number]): string | null {
   const md = event.metadata as Record<string, unknown>;
   if (typeof md.baseBranch === "string") return md.baseBranch;
   return null;

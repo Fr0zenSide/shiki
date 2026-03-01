@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useRoute } from "vue-router";
+import { useAgencyStore } from "@/composables/useAgencyStore";
 
 const route = useRoute();
+const store = useAgencyStore();
 
 const links = [
   { to: "/", label: "Dashboard", icon: "grid" },
@@ -66,7 +68,15 @@ function isActive(path: string): boolean {
               </svg>
             </template>
           </span>
-          {{ link.label }}
+          <span class="flex-1">{{ link.label }}</span>
+
+          <!-- Chat notification badge -->
+          <span
+            v-if="link.icon === 'message' && store.unreadChatCount > 0"
+            class="flex-shrink-0 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center"
+          >
+            {{ store.unreadChatCount > 99 ? '99+' : store.unreadChatCount }}
+          </span>
         </RouterLink>
       </li>
     </ul>

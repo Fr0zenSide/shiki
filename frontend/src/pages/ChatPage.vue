@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, nextTick, watch, onMounted, computed } from "vue";
+import { ref, nextTick, watch, onMounted, onUnmounted, computed } from "vue";
 import { useAgencyStore } from "@/composables/useAgencyStore";
 import { useWebSocket } from "@/composables/useWebSocket";
+import { registerShortcut, unregisterShortcut } from "@/composables/useKeyboardShortcuts";
 import type { WsIncoming } from "@/types";
 
 const store = useAgencyStore();
@@ -9,7 +10,42 @@ const ws = useWebSocket();
 
 const messageInput = ref("");
 const chatContainer = ref<HTMLDivElement | null>(null);
+const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const isSending = ref(false);
+const chatFilter = ref<"all" | "active">("all");
+
+// Track chat page visit for unread badge
+onMounted(() => {
+  store.enterChatPage();
+  if (store.selectedSessionId) {
+    store.fetchChatMessages(store.selectedSessionId);
+  }
+  scrollToBottom();
+
+  // Register chat-specific shortcuts
+  registerShortcut({
+    keys: "Cmd+Shift+k",
+    label: "Clear chat input",
+    group: "Chat",
+    handler: () => {
+      messageInput.value = "";
+      textareaRef.value?.focus();
+    },
+  });
+
+  registerShortcut({
+    keys: "Cmd+j",
+    label: "Scroll to latest",
+    group: "Chat",
+    handler: scrollToBottom,
+  });
+});
+
+onUnmounted(() => {
+  store.leaveChatPage();
+  unregisterShortcut("Cmd+Shift+k");
+  unregisterShortcut("Cmd+j");
+});
 
 // Listen for incoming WS chat messages
 ws.onMessage((msg: WsIncoming) => {
@@ -23,6 +59,29 @@ const sortedMessages = computed(() =>
     (a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime(),
   ),
 );
+
+// Filter messages based on Active/All toggle
+const filteredMessages = computed(() => {
+  if (chatFilter.value === "all") return sortedMessages.value;
+
+  // "Active" filter: messages from agents with status 'running' or recent (last 5 min)
+  const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+  const runningAgentIds = new Set(
+    store.agents
+      .filter((a) => a.status === "running" || a.status === "spawned")
+      .map((a) => a.id),
+  );
+
+  return sortedMessages.value.filter((msg) => {
+    // Always show user messages
+    if (msg.role === "user") return true;
+    // Show messages from running agents
+    if (msg.agent_id && runningAgentIds.has(msg.agent_id)) return true;
+    // Show recent messages (last 5 min)
+    if (new Date(msg.occurred_at).getTime() > fiveMinAgo) return true;
+    return false;
+  });
+});
 
 const hasSession = computed(() => !!store.selectedSessionId);
 
@@ -84,27 +143,46 @@ watch(() => store.selectedSessionId, (sessionId) => {
   }
 });
 
-onMounted(() => {
-  if (store.selectedSessionId) {
-    store.fetchChatMessages(store.selectedSessionId);
-  }
-  scrollToBottom();
-});
-
-watch(sortedMessages, scrollToBottom);
+watch(filteredMessages, scrollToBottom);
 </script>
 
 <template>
   <div class="flex flex-col h-full">
     <!-- Header -->
     <header class="flex-shrink-0 px-6 py-4 border-b border-surface-800 bg-surface-900/50">
-      <h1 class="text-lg font-semibold text-surface-100">Chat</h1>
-      <p class="text-xs text-surface-500 mt-0.5">
-        <template v-if="store.selectedSession">
-          {{ store.selectedSession.name }}
-        </template>
-        <template v-else>Select a session to start chatting</template>
-      </p>
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-lg font-semibold text-surface-100">Chat</h1>
+          <p class="text-xs text-surface-500 mt-0.5">
+            <template v-if="store.selectedSession">
+              {{ store.selectedSession.name }}
+            </template>
+            <template v-else>Select a session to start chatting</template>
+          </p>
+        </div>
+
+        <!-- Active/All toggle -->
+        <div v-if="hasSession" class="flex items-center gap-1 bg-surface-850 rounded-lg p-0.5">
+          <button
+            class="px-3 py-1 rounded-md text-xs font-medium transition-colors"
+            :class="chatFilter === 'all'
+              ? 'bg-surface-700 text-surface-200'
+              : 'text-surface-500 hover:text-surface-300'"
+            @click="chatFilter = 'all'"
+          >
+            All
+          </button>
+          <button
+            class="px-3 py-1 rounded-md text-xs font-medium transition-colors"
+            :class="chatFilter === 'active'
+              ? 'bg-teal-400/15 text-teal-400'
+              : 'text-surface-500 hover:text-surface-300'"
+            @click="chatFilter = 'active'"
+          >
+            Active
+          </button>
+        </div>
+      </div>
     </header>
 
     <!-- Messages -->
@@ -119,18 +197,20 @@ watch(sortedMessages, scrollToBottom);
 
       <!-- Empty chat -->
       <div
-        v-else-if="sortedMessages.length === 0"
+        v-else-if="filteredMessages.length === 0"
         class="flex items-center justify-center h-full"
       >
         <div class="text-center text-surface-600">
-          <p class="text-lg">No messages yet</p>
-          <p class="text-sm mt-1">Start the conversation below.</p>
+          <p class="text-lg">{{ chatFilter === 'active' ? 'No active messages' : 'No messages yet' }}</p>
+          <p class="text-sm mt-1">
+            {{ chatFilter === 'active' ? 'Switch to All to see the full history.' : 'Start the conversation below.' }}
+          </p>
         </div>
       </div>
 
       <!-- Message list -->
       <div
-        v-for="msg in sortedMessages"
+        v-for="msg in filteredMessages"
         :key="msg.id"
         class="flex gap-3 max-w-3xl"
         :class="msg.role === 'user' ? 'ml-auto' : ''"
@@ -159,6 +239,7 @@ watch(sortedMessages, scrollToBottom);
     <div class="flex-shrink-0 border-t border-surface-800 bg-surface-900/50 px-6 py-4">
       <div class="flex gap-3 max-w-3xl mx-auto">
         <textarea
+          ref="textareaRef"
           v-model="messageInput"
           :disabled="!hasSession || isSending"
           :placeholder="hasSession ? 'Type a message...' : 'Select a session first'"
