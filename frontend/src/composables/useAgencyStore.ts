@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, onUnmounted } from "vue";
 import { useApi } from "./useApi";
 import type {
   Project,
@@ -36,6 +36,11 @@ export const useAgencyStore = defineStore("agency", () => {
   const unreadChatCount = ref(0);
   const isOnChatPage = ref(false);
 
+  // Stable-active detection
+  const agentLastChange = ref<Map<string, number>>(new Map());
+  const tick = ref(0);
+  const tickInterval = setInterval(() => { tick.value++; }, 1000);
+
   // ── Computed ──────────────────────────────────────────────────────
   const selectedProject = computed(() =>
     projects.value.find((p) => p.id === selectedProjectId.value) ?? null,
@@ -60,6 +65,18 @@ export const useAgencyStore = defineStore("agency", () => {
   const pullRequests = computed(() =>
     gitEvents.value.filter((e) => e.event_type === "pr_created"),
   );
+
+  // Agents that have been running for > 2 seconds (uses tick for reactivity)
+  const stableActiveAgents = computed(() => {
+    void tick.value; // reactive dependency on tick
+    const now = Date.now();
+    return agents.value.filter((a) => {
+      if (a.status !== "running" && a.status !== "spawned") return false;
+      const lastChange = agentLastChange.value.get(a.id);
+      if (!lastChange) return true; // no recent change = stable
+      return (now - lastChange) > 2000;
+    });
+  });
 
   // ── Actions ───────────────────────────────────────────────────────
 
@@ -219,6 +236,8 @@ export const useAgencyStore = defineStore("agency", () => {
     if (events.value.length > 200) {
       events.value = events.value.slice(0, 200);
     }
+    // Track status change time for stable-active detection
+    agentLastChange.value.set(event.agent_id, Date.now());
   }
 
   function handleWsPrCreated(data: { prUrl: string; title: string; branch: string; timestamp: string }) {
@@ -275,6 +294,7 @@ export const useAgencyStore = defineStore("agency", () => {
     activeAgentCount,
     isHealthy,
     pullRequests,
+    stableActiveAgents,
 
     // Actions
     init,
