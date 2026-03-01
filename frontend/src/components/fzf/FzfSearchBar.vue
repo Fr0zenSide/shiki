@@ -32,6 +32,7 @@ const modeBadges: Record<SearchMode, { label: string; color: string } | null> = 
   all: null,
   session: { label: "Sessions", color: "bg-blue-400/15 text-blue-400" },
   agent: { label: "Agents", color: "bg-green-400/15 text-green-400" },
+  alias: { label: "Aliases", color: "bg-pink-400/15 text-pink-400" },
   memory: { label: "Memory", color: "bg-teal-400/15 text-teal-400" },
   pr: { label: "PRs", color: "bg-amber-400/15 text-amber-400" },
   git: { label: "Git", color: "bg-surface-700 text-surface-300" },
