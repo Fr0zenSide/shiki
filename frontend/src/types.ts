@@ -179,6 +179,17 @@ export interface HealthStatus {
   timestamp: string;
 }
 
+// ── Agent Alias ─────────────────────────────────────────────────────
+
+export interface AgentAlias {
+  id: string;
+  name: string;
+  description: string;
+  memberIds: string[];
+  projectId: string | null; // null = global alias
+  createdAt: string;
+}
+
 // ── WebSocket message types ─────────────────────────────────────────
 
 export type WsIncoming =

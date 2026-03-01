@@ -1,12 +1,14 @@
 import { ref, computed } from "vue";
 import Fuse from "fuse.js";
 import { useAgencyStore } from "./useAgencyStore";
+import { useAliasStore } from "./useAliasStore";
 import { useApi } from "./useApi";
+import { aliasOpen } from "./usePanelState";
 import { useRouter } from "vue-router";
 
 // ── Types ────────────────────────────────────────────────────────────
 
-export type EntityCategory = "session" | "agent" | "memory" | "pr" | "git" | "command";
+export type EntityCategory = "session" | "agent" | "memory" | "pr" | "git" | "command" | "alias";
 
 export interface FzfResult {
   category: EntityCategory;
@@ -23,7 +25,7 @@ export interface RecentItem {
   label: string;
 }
 
-export type SearchMode = "all" | "session" | "agent" | "memory" | "pr" | "git" | "command";
+export type SearchMode = "all" | "session" | "agent" | "memory" | "pr" | "git" | "command" | "alias";
 
 // ── Prefix mapping ───────────────────────────────────────────────────
 
@@ -34,6 +36,7 @@ const PREFIX_MAP: Record<string, SearchMode> = {
   "p:": "pr",
   "g:": "git",
   ">": "command",
+  "@:": "alias",
 };
 
 const MODE_LABELS: Record<SearchMode, string> = {
@@ -44,6 +47,7 @@ const MODE_LABELS: Record<SearchMode, string> = {
   pr: "Search pull requests...",
   git: "Search git events...",
   command: "Run a command...",
+  alias: "Search aliases...",
 };
 
 // ── Commands ─────────────────────────────────────────────────────────
@@ -126,6 +130,16 @@ function buildCommands(router: ReturnType<typeof useRouter>, store: ReturnType<t
       sublabel: "Search past Daimyo Review decisions in memory",
       score: 1,
       action: () => router.push("/memory"),
+    },
+    {
+      category: "command",
+      id: "cmd-alias",
+      label: "Manage Aliases",
+      sublabel: "Create and edit agent group aliases (@team)",
+      score: 1,
+      action: () => {
+        aliasOpen.value = true;
+      },
     },
   ];
 }
@@ -266,6 +280,31 @@ export function useFzfSearch() {
             } else {
               router.push("/prs");
             }
+          },
+        });
+      }
+    }
+
+    // Aliases
+    if (m === "all" || m === "alias") {
+      const aliasStoreInstance = useAliasStore();
+      const aliasList = aliasStoreInstance.activeAliases;
+      const aliasFuse = new Fuse(aliasList, {
+        keys: ["name", "description"],
+        threshold: 0.4,
+      });
+      const aliasResults = q ? aliasFuse.search(q) : aliasList.map((a, i) => ({ item: a, score: i * 0.01 }));
+      for (const r of aliasResults.slice(0, 5)) {
+        const members = aliasStoreInstance.resolveMembers(r.item);
+        const memberNames = members.map((m) => m.handle).join(", ");
+        local.push({
+          category: "alias",
+          id: `alias-${r.item.id}`,
+          label: `@${r.item.name}`,
+          sublabel: `${r.item.memberIds.length} member${r.item.memberIds.length !== 1 ? "s" : ""}: ${memberNames || "none"}`,
+          score: 1 - (r.score ?? 0.5),
+          action: () => {
+            aliasOpen.value = true;
           },
         });
       }
