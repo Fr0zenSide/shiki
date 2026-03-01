@@ -2,14 +2,20 @@
 import { onMounted } from "vue";
 import { useAgencyStore } from "@/composables/useAgencyStore";
 import { useWebSocket } from "@/composables/useWebSocket";
+import { useKeyboardShortcuts } from "@/composables/useKeyboardShortcuts";
 import SidebarNav from "@/components/sidebar/SidebarNav.vue";
 import SidebarHealth from "@/components/sidebar/SidebarHealth.vue";
 import SidebarProjects from "@/components/sidebar/SidebarProjects.vue";
 import SidebarAgents from "@/components/sidebar/SidebarAgents.vue";
+import ShortcutHelpModal from "@/components/ShortcutHelpModal.vue";
+import FzfPanel from "@/components/fzf/FzfPanel.vue";
 import type { WsIncoming } from "@/types";
 
 const store = useAgencyStore();
 const ws = useWebSocket();
+
+// Initialize keyboard shortcuts at layout level
+useKeyboardShortcuts();
 
 // Wire WebSocket messages into the store
 ws.onMessage((msg: WsIncoming) => {
@@ -74,4 +80,8 @@ onMounted(async () => {
       <RouterView />
     </main>
   </div>
+
+  <!-- Global overlays -->
+  <ShortcutHelpModal />
+  <FzfPanel />
 </template>

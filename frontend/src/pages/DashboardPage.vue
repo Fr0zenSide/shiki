@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useAgencyStore } from "@/composables/useAgencyStore";
 import { useApi } from "@/composables/useApi";
+import ActivityChart from "@/components/dashboard/ActivityChart.vue";
 import type { CostLeaderEntry } from "@/types";
 
 const store = useAgencyStore();
@@ -37,9 +38,6 @@ async function refresh() {
   ]);
 }
 
-const totalCost = computed(() =>
-  costs.value.reduce((sum, c) => sum + (c.total_cost_usd ?? 0), 0),
-);
 
 function formatCost(usd: number | null): string {
   if (usd == null) return "$0.00";
@@ -70,7 +68,7 @@ const recentPRs = computed(() =>
     .slice(0, 5),
 );
 
-function getPrUrl(event: typeof store.gitEvents.value[0]): string | null {
+function getPrUrl(event: (typeof store.gitEvents)[number]): string | null {
   const md = event.metadata as Record<string, unknown>;
   if (typeof md.prUrl === "string") return md.prUrl;
   return null;
@@ -139,6 +137,9 @@ function getPrUrl(event: typeof store.gitEvents.value[0]): string | null {
       </div>
     </div>
 
+    <!-- Activity Chart -->
+    <ActivityChart />
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Active Sessions -->
       <section class="bg-surface-900 border border-surface-800 rounded-xl">
@@ -162,8 +163,16 @@ function getPrUrl(event: typeof store.gitEvents.value[0]): string | null {
                   {{ session.project_name }} &middot; {{ session.branch ?? "no branch" }}
                 </div>
               </div>
-              <div class="text-xs text-teal-400 font-mono">
-                {{ formatDuration(session.hours_active) }}
+              <div class="flex items-center gap-2">
+                <span
+                  v-if="(session as any).phase"
+                  class="text-xs px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400"
+                >
+                  {{ (session as any).phase }}
+                </span>
+                <span class="text-xs text-teal-400 font-mono">
+                  {{ formatDuration(session.hours_active) }}
+                </span>
               </div>
             </li>
           </ul>

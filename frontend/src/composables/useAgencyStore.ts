@@ -33,6 +33,8 @@ export const useAgencyStore = defineStore("agency", () => {
   const error = ref<string | null>(null);
   const selectedProjectId = ref<string | null>(null);
   const selectedSessionId = ref<string | null>(null);
+  const unreadChatCount = ref(0);
+  const isOnChatPage = ref(false);
 
   // ── Computed ──────────────────────────────────────────────────────
   const selectedProject = computed(() =>
@@ -196,6 +198,19 @@ export const useAgencyStore = defineStore("agency", () => {
         metadata: {},
       });
     }
+    // Increment unread count if user is not on chat page
+    if (!isOnChatPage.value) {
+      unreadChatCount.value++;
+    }
+  }
+
+  function enterChatPage() {
+    isOnChatPage.value = true;
+    unreadChatCount.value = 0;
+  }
+
+  function leaveChatPage() {
+    isOnChatPage.value = false;
   }
 
   function handleWsAgentEvent(event: AgentEvent) {
@@ -250,6 +265,8 @@ export const useAgencyStore = defineStore("agency", () => {
     error,
     selectedProjectId,
     selectedSessionId,
+    unreadChatCount,
+    isOnChatPage,
 
     // Computed
     selectedProject,
@@ -278,5 +295,7 @@ export const useAgencyStore = defineStore("agency", () => {
     handleWsAgentEvent,
     handleWsPrCreated,
     handleWsStatsUpdate,
+    enterChatPage,
+    leaveChatPage,
   };
 });

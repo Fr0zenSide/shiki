@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { useAgencyStore } from "@/composables/useAgencyStore";
 import { useWebSocket } from "@/composables/useWebSocket";
+import { helpOpen } from "@/composables/useKeyboardShortcuts";
 
 const store = useAgencyStore();
 const ws = useWebSocket();
 </script>
 
 <template>
-  <footer class="px-4 py-3 border-t border-surface-800 space-y-2">
+  <footer class="px-4 py-3 border-t border-surface-800 space-y-2 relative">
     <!-- WebSocket status -->
     <div class="flex items-center gap-2 text-xs">
       <span
@@ -45,9 +46,18 @@ const ws = useWebSocket();
       </span>
     </div>
 
-    <!-- Version -->
-    <div v-if="store.health" class="text-xs text-surface-600">
-      v{{ store.health.version }}
+    <!-- Version + Help -->
+    <div class="flex items-center justify-between">
+      <div v-if="store.health" class="text-xs text-surface-600">
+        v{{ store.health.version }}
+      </div>
+      <button
+        class="w-6 h-6 rounded-lg bg-surface-800 text-surface-500 hover:text-surface-300 hover:bg-surface-700 flex items-center justify-center text-xs font-bold transition-colors"
+        title="Keyboard shortcuts (Cmd+/)"
+        @click="helpOpen = true"
+      >
+        ?
+      </button>
     </div>
   </footer>
 </template>
