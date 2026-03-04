@@ -14,8 +14,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SHIKI_DIR="$(dirname "$SCRIPT_DIR")"
 BACKUP_DIR="$SHIKI_DIR/backups"
 CONTAINER_NAME="shiki-db-1"
-DB_USER="acc"
-DB_NAME="acc"
+DB_USER="${POSTGRES_USER:-shiki}"
+DB_NAME="${POSTGRES_DB:-shiki}"
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M)
 BACKUP_FILE="$BACKUP_DIR/shiki-${TIMESTAMP}.sql.gz"
 
