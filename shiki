@@ -123,7 +123,7 @@ do_init() {
 
   echo -ne "  Waiting for PostgreSQL..."
   for i in $(seq 1 30); do
-    if docker compose exec -T db pg_isready -U "${POSTGRES_USER:-acc}" -d "${POSTGRES_DB:-acc}" &>/dev/null; then
+    if docker compose exec -T db pg_isready -U "${POSTGRES_USER:-shiki}" -d "${POSTGRES_DB:-shiki}" &>/dev/null; then
       echo -e " ${GREEN}ready${NC}"
       break
     fi
@@ -150,7 +150,7 @@ do_init() {
   echo ""
   echo -e "${CYAN}Starting Deno backend on port 3900...${NC}"
 
-  export DATABASE_URL="postgres://${POSTGRES_USER:-acc}:${POSTGRES_PASSWORD}@localhost:5433/${POSTGRES_DB:-acc}"
+  export DATABASE_URL="postgres://${POSTGRES_USER:-shiki}:${POSTGRES_PASSWORD}@localhost:5433/${POSTGRES_DB:-shiki}"
   export OLLAMA_URL="http://localhost:11435"
   export EMBED_MODEL="nomic-embed-text"
   export WS_PORT=3900
@@ -315,7 +315,7 @@ do_start() {
 
   echo -ne "  Waiting for PostgreSQL..."
   for i in $(seq 1 30); do
-    if docker compose exec -T db pg_isready -U "${POSTGRES_USER:-acc}" -d "${POSTGRES_DB:-acc}" &>/dev/null; then
+    if docker compose exec -T db pg_isready -U "${POSTGRES_USER:-shiki}" -d "${POSTGRES_DB:-shiki}" &>/dev/null; then
       echo -e " ${GREEN}ready${NC}"
       break
     fi
@@ -342,7 +342,7 @@ do_start() {
   if ! is_running backend; then
     echo -e "${CYAN}Starting Deno backend on port 3900...${NC}"
 
-    export DATABASE_URL="postgres://${POSTGRES_USER:-acc}:${POSTGRES_PASSWORD}@localhost:5433/${POSTGRES_DB:-acc}"
+    export DATABASE_URL="postgres://${POSTGRES_USER:-shiki}:${POSTGRES_PASSWORD}@localhost:5433/${POSTGRES_DB:-shiki}"
     export OLLAMA_URL="http://localhost:11435"
     export EMBED_MODEL="nomic-embed-text"
     export WS_PORT=3900
