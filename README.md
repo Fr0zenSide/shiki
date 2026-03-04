@@ -1,5 +1,7 @@
 # 四季 Shiki — Dev OS Workspace
 
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+
 Shiki is a workspace platform for AI-assisted development. It provides shared process skills, agent personas, semantic memory, and real-time observability across all your projects.
 
 Your projects live inside Shiki. Each project is its own git repo with its own Claude configuration. Shiki provides the shared infrastructure: the dashboard, the API, the memory system, and the process skills that make your AI agents more effective.
