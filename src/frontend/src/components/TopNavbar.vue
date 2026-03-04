@@ -71,9 +71,9 @@ function healthTooltip(): string {
       <!-- Logo -->
       <RouterLink to="/" class="flex items-center gap-2 mr-4 flex-shrink-0">
         <div class="w-7 h-7 rounded-lg bg-teal-400 flex items-center justify-center">
-          <span class="text-xs font-bold text-surface-900">A3</span>
+          <span class="text-xs font-bold text-surface-900">四季</span>
         </div>
-        <span class="text-sm font-semibold text-surface-200 hidden sm:inline">ACC</span>
+        <span class="text-sm font-semibold text-surface-200 hidden sm:inline">Shiki</span>
       </RouterLink>
 
       <!-- Nav links -->
