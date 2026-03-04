@@ -1,6 +1,6 @@
 import postgres from "postgres";
 
-const DATABASE_URL = Deno.env.get("DATABASE_URL") ?? "postgres://acc:acc@localhost:5432/acc";
+const DATABASE_URL = Deno.env.get("DATABASE_URL") ?? "postgres://shiki:shiki@localhost:5433/shiki";
 
 export const sql = postgres(DATABASE_URL, {
   max: 10,

@@ -198,7 +198,7 @@ psql -U acc -d acc -f src/db/init/01-schema.sql
 
 | Variable         | Default                              | Description                |
 |------------------|--------------------------------------|----------------------------|
-| `DATABASE_URL`   | `postgres://acc:acc@localhost:5433/acc` | PostgreSQL connection      |
+| `DATABASE_URL`   | `postgres://shiki:shiki@localhost:5433/shiki` | PostgreSQL connection      |
 | `OLLAMA_URL`     | `http://localhost:11435`             | Ollama API endpoint        |
 | `EMBED_MODEL`    | `nomic-embed-text`                   | Embedding model name       |
 | `WS_PORT`        | `3900`                               | Server port                |
