@@ -1,10 +1,9 @@
 #!/bin/bash
 # ========================================
-# ACC v3 — Agency Command Center
+# Shiki (四季) — Dev OS Workspace
 # Single script to launch the full stack
 #
-# Ports (v3): DB=5433  Ollama=11435  API=3900  UI=5174
-# Ports (v2): —        —             API=3800  UI=5173
+# Ports: DB=5433  Ollama=11435  API=3900  UI=5174
 #
 # Usage:
 #   ./start.sh          # start everything
@@ -31,7 +30,7 @@ NC='\033[0m'
 # ── Stop ────────────────────────────────────────────────────────────
 
 do_stop() {
-  echo -e "${YELLOW}Shutting down ACC v3...${NC}"
+  echo -e "${YELLOW}Shutting down Shiki...${NC}"
 
   # Stop Deno backend
   if [ -f "$PID_DIR/backend.pid" ]; then
@@ -59,13 +58,13 @@ do_stop() {
     docker compose down
   fi
 
-  echo -e "${GREEN}ACC v3 stopped.${NC}"
+  echo -e "${GREEN}Shiki stopped.${NC}"
 }
 
 # ── Status ──────────────────────────────────────────────────────────
 
 do_status() {
-  echo -e "${GREEN}ACC v3 — Status${NC}"
+  echo -e "${GREEN}四季 Shiki — Status${NC}"
   echo ""
 
   # Docker
@@ -92,13 +91,24 @@ do_status() {
   else
     echo -e "${DIM}not running${NC}"
   fi
+
+  # Projects
+  echo ""
+  echo -e "${CYAN}Projects:${NC}"
+  if [ -d "projects" ] && [ "$(ls -A projects/ 2>/dev/null | grep -v '.gitkeep')" ]; then
+    for dir in projects/*/; do
+      [ -d "$dir" ] && echo -e "  ${GREEN}$(basename "$dir")${NC}"
+    done
+  else
+    echo -e "  ${DIM}none${NC}"
+  fi
   echo ""
 }
 
 # ── Start ───────────────────────────────────────────────────────────
 
 do_start() {
-  echo -e "${GREEN}ACC v3 — Agency Command Center${NC}"
+  echo -e "${GREEN}四季 Shiki — Dev OS Workspace${NC}"
   echo ""
 
   # ── Prerequisites ──
@@ -171,7 +181,7 @@ do_start() {
   export EMBED_MODEL="nomic-embed-text"
   export WS_PORT=3900
 
-  cd backend
+  cd src/backend
   deno run --allow-net --allow-env --allow-read src/server.ts &
   BACKEND_PID=$!
   echo "$BACKEND_PID" > "$PID_DIR/backend.pid"
@@ -188,7 +198,7 @@ do_start() {
 
   echo -e "${CYAN}Starting Vue frontend on port 5174...${NC}"
 
-  cd frontend
+  cd src/frontend
   if [ ! -d "node_modules" ]; then
     echo -e "  ${DIM}Installing npm dependencies...${NC}"
     npm install --silent
@@ -204,7 +214,7 @@ do_start() {
 
   echo ""
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  echo -e "${GREEN}  ACC v3 is running${NC}"
+  echo -e "${GREEN}  四季 Shiki is running${NC}"
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo -e "  Dashboard:  ${CYAN}http://localhost:5174${NC}"
   echo -e "  API:        ${CYAN}http://localhost:3900${NC}"

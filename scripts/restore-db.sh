@@ -1,21 +1,21 @@
 #!/bin/bash
-# ACC v3 — PostgreSQL Restore Script
+# Shiki — PostgreSQL Restore Script
 # Restores the database from a backup file
 #
 # Usage:
 #   ./scripts/restore-db.sh                        # Interactive: pick from list
-#   ./scripts/restore-db.sh backups/acc-2026-02-27_18-00.sql.gz  # Specific file
+#   ./scripts/restore-db.sh backups/shiki-2026-03-01_18-00.sql.gz  # Specific file
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ACC_DIR="$(dirname "$SCRIPT_DIR")"
-BACKUP_DIR="$ACC_DIR/backups"
-CONTAINER_NAME="acc-v3-db-1"
+SHIKI_DIR="$(dirname "$SCRIPT_DIR")"
+BACKUP_DIR="$SHIKI_DIR/backups"
+CONTAINER_NAME="shiki-db-1"
 DB_USER="acc"
 DB_NAME="acc"
 
-echo "=== ACC v3 Database Restore ==="
+echo "=== Shiki Database Restore ==="
 
 # Check container
 if ! docker ps --format '{{.Names}}' | grep -q "$CONTAINER_NAME"; then
@@ -29,13 +29,13 @@ if [ $# -gt 0 ]; then
   # Specific file provided
   BACKUP_FILE="$1"
   if [[ ! "$BACKUP_FILE" = /* ]]; then
-    BACKUP_FILE="$ACC_DIR/$BACKUP_FILE"
+    BACKUP_FILE="$SHIKI_DIR/$BACKUP_FILE"
   fi
 else
   # Interactive: list available backups
   echo ""
   echo "Available backups:"
-  BACKUPS=($(ls -1t "$BACKUP_DIR"/acc-*.sql.gz 2>/dev/null))
+  BACKUPS=($(ls -1t "$BACKUP_DIR"/shiki-*.sql.gz 2>/dev/null))
 
   if [ ${#BACKUPS[@]} -eq 0 ]; then
     echo "  No backups found in $BACKUP_DIR"
@@ -77,7 +77,7 @@ if [ "$CONFIRM" != "y" ] && [ "$CONFIRM" != "Y" ]; then
 fi
 
 # Create a safety backup before restore
-SAFETY_FILE="$BACKUP_DIR/acc-pre-restore-$(date +%Y-%m-%d_%H-%M).sql.gz"
+SAFETY_FILE="$BACKUP_DIR/shiki-pre-restore-$(date +%Y-%m-%d_%H-%M).sql.gz"
 echo ""
 echo "Creating safety backup before restore..."
 docker exec "$CONTAINER_NAME" pg_dump -U "$DB_USER" -d "$DB_NAME" \

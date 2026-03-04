@@ -1,14 +1,31 @@
-# ACC v3 -- Agency Command Center
+# 四季 Shiki — Dev OS Workspace
 
-ACC v3 is a real-time command center for monitoring and managing AI agent workflows. It provides a unified dashboard for tracking agent sessions, performance metrics, cost accounting, git activity, and semantic memory across multiple projects. Built on a time-series database with vector search, it captures every agent event, chat message, and decision for full observability and post-hoc analysis.
+Shiki is a workspace platform for AI-assisted development. It provides shared process skills, agent personas, semantic memory, and real-time observability across all your projects.
+
+Your projects live inside Shiki. Each project is its own git repo with its own Claude configuration. Shiki provides the shared infrastructure: the dashboard, the API, the memory system, and the process skills that make your AI agents more effective.
 
 ## Architecture
+
+```
+shiki/                         <- workspace root (this repo)
++-- .claude/
+|   +-- skills/shiki-process/  <- shared process skills
+|   +-- commands/              <- slash commands (/quick, /md-feature, /pre-pr...)
++-- src/
+|   +-- backend/               <- Deno REST API + WebSocket
+|   +-- frontend/              <- Vue 3 dashboard
+|   +-- db/                    <- PostgreSQL schema + migrations
++-- scripts/                   <- backup, restore, ingestion
++-- projects/                  <- GITIGNORED — each is its own git repo
++-- features/                  <- Shiki's own feature tracking
++-- shiki                      <- CLI script
+```
 
 ```
 +------------------+       +------------------+       +------------------+
 |                  |  ws   |                  |  sql  |                  |
 |   Vue 3 SPA      +------>+   Deno Backend   +------>+ TimescaleDB/PG17 |
-|   :5173          |  rest |   :3800          |       |   :5432          |
+|   :5174          |  rest |   :3900          |       |   :5433          |
 |                  +------>+                  |       |                  |
 +------------------+       +--------+---------+       +------------------+
                                     |
@@ -17,186 +34,135 @@ ACC v3 is a real-time command center for monitoring and managing AI agent workfl
                            +--------+---------+
                            |                  |
                            |   Ollama         |
-                           |   :11434         |
+                           |   :11435         |
                            |  nomic-embed-txt |
                            +------------------+
-
- Volumes:
-   db_data      -> PostgreSQL data
-   ollama_data  -> Model weights
 ```
 
 **Services:**
 
 | Service       | Port  | Description                                      |
 |---------------|-------|--------------------------------------------------|
-| `db`          | 5432  | PostgreSQL 17 + TimescaleDB + pgvector + pgvectorscale |
-| `ollama`      | 11434 | Local embedding model server                     |
+| `db`          | 5433  | PostgreSQL 17 + TimescaleDB + pgvector + pgvectorscale |
+| `ollama`      | 11435 | Local embedding model server                     |
 | `ollama-init` | --    | One-shot: pulls `nomic-embed-text` model         |
-| `backend`     | 3800  | Deno REST API + WebSocket server                 |
-| `frontend`    | 5173  | Vue 3 + Vite dashboard (placeholder)             |
+| `backend`     | 3900  | Deno REST API + WebSocket server                 |
+| `frontend`    | 5174  | Vue 3 + Vite dashboard                           |
 
 ## Quick Start
 
 ```bash
-# 1. Clone and enter the project
-cd acc-v3
+# 1. Clone the workspace
+git clone https://github.com/Fr0zenSide/shiki.git
+cd shiki
 
-# 2. Create environment file
-cp .env.example .env
-# Edit .env and set a real POSTGRES_PASSWORD
+# 2. Initialize (starts Docker, backend, frontend)
+./shiki init
 
-# 3. Start all services
-docker compose up -d
+# 3. Create a project
+./shiki new my-app
 
-# 4. Wait for health checks to pass
-docker compose ps
+# 4. Start working
+cd projects/my-app && claude
+```
 
-# 5. Verify
-curl http://localhost:3800/health
-# {"status":"ok","db":true,"ollama":true}
+## CLI Reference
+
+```bash
+./shiki              # Show status (or guide to init if first run)
+./shiki init         # First-time setup
+./shiki new <name>   # Create a new project
+./shiki start        # Start all services
+./shiki stop         # Stop all services
+./shiki status       # Show services + projects
+./shiki -h           # Help
+```
+
+## Process Skills
+
+Shiki ships with a complete development process system:
+
+- `/quick` — 4-step pipeline for small changes (< 3 files)
+- `/md-feature` — 8-phase pipeline for new features
+- `/pre-pr` — 9-gate quality pipeline with multi-agent review
+- `/review` — Interactive PR review
+- `/dispatch` — Autonomous parallel feature implementation
+- `/validate-pr` — Checklist validation before merge
+- `/pre-release-scan` — AI marker scan before release
+
+### Agent Personas
+
+| Agent | Role | Focus |
+|-------|------|-------|
+| @Sensei | CTO | Architecture, code quality, feasibility |
+| @Hanami | Designer | UX, accessibility, emotional design |
+| @Kintsugi | Philosophy | Design philosophy, imperfection as beauty |
+| @Enso | Brand | Voice, tone consistency, mindfulness |
+| @Tsubaki | Copy | Conversion copy, storytelling, SEO |
+| @Shogun | Strategy | Market positioning, competitive analysis |
+| @Ronin | Reviewer | Adversarial review, security, edge cases |
+| @Daimyo | Founder | Final authority on decisions |
+
+## Project Adapter
+
+Each project gets a `project-adapter.md` that configures the process skills for its tech stack:
+
+```markdown
+# Project Adapter
+
+## Tech Stack
+- Language: Swift
+- Framework: SwiftUI
+- Architecture: Clean + MVVM + Coordinator
+
+## Commands
+- Test: `swift test`
+- Build: `xcodebuild -scheme MyApp`
+- Lint: `swiftlint`
+
+## Conventions
+- Branching: feature/* from develop
+- Naming: camelCase
 ```
 
 ## API Reference
 
 ### Health
-
 ```bash
-curl http://localhost:3800/health
-# {"status":"ok","db":true,"ollama":true}
+curl http://localhost:3900/health
 ```
 
 ### Projects
-
 ```bash
-# List all projects
-curl http://localhost:3800/api/projects
+curl http://localhost:3900/api/projects
 ```
 
-### Sessions
-
+### Memories (semantic search)
 ```bash
-# List all sessions (latest 50)
-curl http://localhost:3800/api/sessions
-
-# Filter by project
-curl "http://localhost:3800/api/sessions?project_id=<uuid>"
-```
-
-### Agent Events
-
-```bash
-# Log an agent event
-curl -X POST http://localhost:3800/api/agent-update \
+# Store
+curl -X POST http://localhost:3900/api/memories \
   -H "Content-Type: application/json" \
-  -d '{
-    "agentId": "<uuid>",
-    "sessionId": "<uuid>",
-    "projectId": "<uuid>",
-    "eventType": "task_started",
-    "message": "Starting code review",
-    "progressPct": 10
-  }'
-```
+  -d '{"projectId":"<uuid>","content":"...","category":"architecture","importance":0.8}'
 
-### Performance Metrics
-
-```bash
-# Log a performance metric
-curl -X POST http://localhost:3800/api/stats-update \
+# Search
+curl -X POST http://localhost:3900/api/memories/search \
   -H "Content-Type: application/json" \
-  -d '{
-    "agentId": "<uuid>",
-    "sessionId": "<uuid>",
-    "projectId": "<uuid>",
-    "metricType": "api_call",
-    "tokensInput": 1500,
-    "tokensOutput": 800,
-    "durationMs": 2340,
-    "costUsd": 0.0042,
-    "model": "claude-opus-4-6"
-  }'
+  -d '{"query":"How does auth work?","projectId":"<uuid>","limit":5,"threshold":0.3}'
 ```
 
-### Chat Messages
-
+### Dashboard
 ```bash
-# Store a chat message
-curl -X POST http://localhost:3800/api/chat-message \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sessionId": "<uuid>",
-    "projectId": "<uuid>",
-    "role": "assistant",
-    "content": "I have completed the refactoring task.",
-    "tokenCount": 42
-  }'
-```
-
-### Memories
-
-```bash
-# Store a memory (embedding generated automatically)
-curl -X POST http://localhost:3800/api/memories \
-  -H "Content-Type: application/json" \
-  -d '{
-    "projectId": "<uuid>",
-    "content": "The user prefers functional programming patterns over OOP.",
-    "category": "preference",
-    "importance": 1.5
-  }'
-
-# Semantic search memories
-curl -X POST http://localhost:3800/api/memories/search \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "What coding style does the user prefer?",
-    "projectId": "<uuid>",
-    "limit": 5,
-    "threshold": 0.6
-  }'
-```
-
-### Dashboard Aggregates
-
-```bash
-# Performance summary (last 7 days)
-curl "http://localhost:3800/api/dashboard/performance?days=7"
-
-# Filter by project
-curl "http://localhost:3800/api/dashboard/performance?project_id=<uuid>&days=30"
-
-# Activity feed (last 24 hours)
-curl "http://localhost:3800/api/dashboard/activity?hours=24"
-
-# Filter by project
-curl "http://localhost:3800/api/dashboard/activity?project_id=<uuid>&hours=48"
-```
-
-### WebSocket
-
-Connect to `ws://localhost:3800` for real-time event streaming. Messages sent by one client are broadcast to all other connected clients.
-
-```javascript
-const ws = new WebSocket("ws://localhost:3800");
-ws.onmessage = (event) => console.log("Received:", event.data);
-ws.send(JSON.stringify({ type: "agent_update", data: { ... } }));
+curl http://localhost:3900/api/dashboard/summary
+curl http://localhost:3900/api/dashboard/performance?days=7
+curl http://localhost:3900/api/dashboard/activity?hours=24
 ```
 
 ## Backup & Restore
 
 ```bash
-# Create a compressed backup
-./db/scripts/backup.sh ./backups
-
-# Restore from a backup file
-./db/scripts/restore.sh ./backups/acc_20260225_143000.dump
-
-# Manual backup via docker compose
-docker compose exec db pg_dump -U acc -d acc --format=custom --compress=9 > backup.dump
-
-# Manual restore
-docker compose exec -T db pg_restore -U acc -d acc --clean --if-exists < backup.dump
+./scripts/backup-db.sh                # Create timestamped backup
+./scripts/restore-db.sh               # Interactive restore
+./scripts/ingest-memories.sh <proj-id> # Seed project knowledge
 ```
 
 ## Tech Stack
@@ -205,70 +171,37 @@ docker compose exec -T db pg_restore -U acc -d acc --clean --if-exists < backup.
 |-----------|-----------------------------------------------------|
 | Database  | PostgreSQL 17 + TimescaleDB + pgvector + pgvectorscale |
 | Embeddings| Ollama with `nomic-embed-text` (768 dimensions)     |
-| Backend   | Deno 2.0 + postgres.js                              |
-| Frontend  | Vue 3 + TypeScript + Vite (planned)                 |
+| Backend   | Deno 2.0 + postgres.js + Zod                       |
+| Frontend  | Vue 3 + TypeScript + Vite                           |
 | Infra     | Docker Compose                                      |
-
-## Development
-
-### Run backend locally (without Docker)
-
-```bash
-# Prerequisites: Deno 2.x, PostgreSQL 17 with TimescaleDB, Ollama
-
-# 1. Start PostgreSQL and Ollama locally
-# 2. Apply schema
-psql -U acc -d acc -f db/init/01-schema.sql
-psql -U acc -d acc -f db/init/02-seed.sql
-
-# 3. Pull the embedding model
-ollama pull nomic-embed-text
-
-# 4. Set environment variables
-export DATABASE_URL="postgres://acc:your_password@localhost:5432/acc"
-export OLLAMA_URL="http://localhost:11434"
-export WS_PORT="3800"
-
-# 5. Run with hot reload
-cd backend
-deno task dev
-```
-
-### Environment variables
-
-| Variable         | Default                              | Description                |
-|------------------|--------------------------------------|----------------------------|
-| `DATABASE_URL`   | `postgres://acc:acc@localhost:5432/acc` | PostgreSQL connection      |
-| `OLLAMA_URL`     | `http://localhost:11434`             | Ollama API endpoint        |
-| `EMBED_MODEL`    | `nomic-embed-text`                   | Embedding model name       |
-| `WS_PORT`        | `3800`                               | Server port                |
-| `NODE_ENV`       | `development`                        | Environment mode           |
-| `LOG_LEVEL`      | `info`                               | Log verbosity              |
 
 ## Memory System
 
-ACC v3 includes a semantic memory system powered by vector embeddings:
+Shiki includes a semantic memory system powered by vector embeddings:
 
-1. **Storage**: When a memory is stored via `POST /api/memories`, it is immediately inserted into the `agent_memories` table with a null embedding. The embedding is generated asynchronously by Ollama using the `nomic-embed-text` model (768 dimensions).
+1. **Storage**: Memories stored via `POST /api/memories` get embedded by Ollama using `nomic-embed-text` (768 dimensions)
+2. **Search**: `POST /api/memories/search` converts queries to vectors and finds similar memories via cosine similarity + DiskANN index
+3. **Use cases**: Cross-session recall, project knowledge bases, user preferences, decision tracking
+4. **Lifecycle**: TimescaleDB handles compression and retention automatically
 
-2. **Embedding**: The `nomic-embed-text` model converts text into a 768-dimensional vector that captures semantic meaning. Similar concepts produce vectors that are close together in vector space.
+## Development
 
-3. **Search**: Semantic search via `POST /api/memories/search` works by:
-   - Converting the query text into a vector using the same embedding model
-   - Computing cosine similarity between the query vector and all stored memory vectors
-   - Returning memories above the similarity threshold, ranked by relevance
-   - Using the DiskANN index (pgvectorscale) for efficient approximate nearest neighbor search
+```bash
+# Run backend locally (without Docker for DB/Ollama)
+cd src/backend && deno task dev
 
-4. **Use cases**:
-   - Store agent learnings and decisions for cross-session recall
-   - Build project-specific knowledge bases that agents can query
-   - Track user preferences and patterns across interactions
-   - Enable agents to "remember" context from previous sessions
+# Apply schema manually
+psql -U acc -d acc -f src/db/init/01-schema.sql
+```
 
-5. **Automatic management**:
-   - TimescaleDB handles data lifecycle (compression, retention)
-   - Continuous aggregates pre-compute dashboard metrics hourly/daily
-   - The `importance` field allows prioritizing critical memories in search results
+| Variable         | Default                              | Description                |
+|------------------|--------------------------------------|----------------------------|
+| `DATABASE_URL`   | `postgres://acc:acc@localhost:5433/acc` | PostgreSQL connection      |
+| `OLLAMA_URL`     | `http://localhost:11435`             | Ollama API endpoint        |
+| `EMBED_MODEL`    | `nomic-embed-text`                   | Embedding model name       |
+| `WS_PORT`        | `3900`                               | Server port                |
+| `NODE_ENV`       | `development`                        | Environment mode           |
+| `LOG_LEVEL`      | `info`                               | Log verbosity              |
 
 ## Contributing
 
@@ -278,5 +211,3 @@ Contributions are welcome. This project is in active development.
 2. Create a feature branch
 3. Make your changes
 4. Submit a pull request
-
-Please follow existing code style and include appropriate tests.

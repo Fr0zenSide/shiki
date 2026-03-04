@@ -1,4 +1,4 @@
-# ACC v3 — Agency Command Center
+# Shiki (四季) — Dev OS Workspace
 # Docker Compose — full local stack
 #
 # Usage:
@@ -8,7 +8,7 @@
 #
 # Requirements: Docker Desktop 4.x+, ~2GB RAM, ~2GB disk
 
-name: acc-v3
+name: shiki
 
 services:
   db:
@@ -20,7 +20,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - db_data:/home/postgres/pgdata/data
-      - ./db/init:/docker-entrypoint-initdb.d:ro
+      - ./src/db/init:/docker-entrypoint-initdb.d:ro
     ports:
       - "127.0.0.1:5433:5432"
     healthcheck:
@@ -65,7 +65,7 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: ./src/backend
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
@@ -90,12 +90,12 @@ services:
       retries: 3
       start_period: 15s
     volumes:
-      - ./backend:/app:ro
+      - ./src/backend:/app:ro
       - /app/node_modules
 
   frontend:
     build:
-      context: ./frontend
+      context: ./src/frontend
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
@@ -107,7 +107,7 @@ services:
     ports:
       - "127.0.0.1:5174:5174"
     volumes:
-      - ./frontend:/app:ro
+      - ./src/frontend:/app:ro
       - /app/node_modules
 
 volumes:

@@ -1,0 +1,6 @@
+-- Shiki — Default seed data
+-- Add your projects here after running ./shiki init
+-- Example:
+--   INSERT INTO projects (slug, name, description, repo_url) VALUES
+--       ('my-app', 'My App', 'Description of my project', 'https://github.com/user/repo')
+--   ON CONFLICT (slug) DO NOTHING;
