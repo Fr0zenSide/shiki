@@ -6,4 +6,4 @@ Future schema changes should be added as numbered migration files:
 - `001_add_column.sql`
 - `002_new_table.sql`
 
-Apply manually: `docker compose exec db psql -U acc -d acc -f /path/to/migration.sql`
+Apply manually: `docker compose exec db psql -U shiki -d shiki -f /path/to/migration.sql`

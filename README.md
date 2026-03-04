@@ -193,7 +193,7 @@ Shiki includes a semantic memory system powered by vector embeddings:
 cd src/backend && deno task dev
 
 # Apply schema manually
-psql -U acc -d acc -f src/db/init/01-schema.sql
+psql -U shiki -d shiki -f src/db/init/01-schema.sql
 ```
 
 | Variable         | Default                              | Description                |

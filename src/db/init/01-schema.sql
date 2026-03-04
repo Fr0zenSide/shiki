@@ -1,4 +1,4 @@
--- ACC v3 Database Schema
+-- Shiki (四季) Database Schema
 -- PostgreSQL 17 + TimescaleDB + pgvector + pgvectorscale
 
 CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;

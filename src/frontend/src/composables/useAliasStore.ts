@@ -3,7 +3,7 @@ import { ref, computed } from "vue";
 import { useAgencyStore } from "./useAgencyStore";
 import type { AgentAlias, Agent } from "@/types";
 
-const STORAGE_KEY = "acc-aliases";
+const STORAGE_KEY = "shiki-aliases";
 
 function loadAliases(): AgentAlias[] {
   try {

@@ -109,25 +109,9 @@ function buildCommands(router: ReturnType<typeof useRouter>, store: ReturnType<t
     },
     {
       category: "command",
-      id: "cmd-daimyo-review",
-      label: "Daimyo Review",
-      sublabel: "Request a structured backlog prioritization ballot",
-      score: 1,
-      action: () => {
-        const sessionId = store.selectedSessionId;
-        if (sessionId) {
-          store.sendChatMessage(sessionId, "@backlogger Start a Daimyo Review — structured decision ballot for pending features and backlog items.");
-          router.push("/chat");
-        } else {
-          router.push("/chat");
-        }
-      },
-    },
-    {
-      category: "command",
-      id: "cmd-decision-log",
-      label: "View Decision Log",
-      sublabel: "Search past Daimyo Review decisions in memory",
+      id: "cmd-search-memory",
+      label: "Search Memory",
+      sublabel: "Browse semantic memory entries",
       score: 1,
       action: () => router.push("/memory"),
     },
@@ -146,7 +130,7 @@ function buildCommands(router: ReturnType<typeof useRouter>, store: ReturnType<t
 
 // ── Recent searches (localStorage) ───────────────────────────────────
 
-const RECENTS_KEY = "acc-fzf-recents";
+const RECENTS_KEY = "shiki-fzf-recents";
 const MAX_RECENTS = 5;
 
 function loadRecents(): RecentItem[] {

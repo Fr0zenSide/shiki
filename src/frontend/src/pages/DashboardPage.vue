@@ -396,8 +396,8 @@ const displayAgents = computed(() => store.sessionAgents.slice(0, 20));
       class="bg-surface-900 border border-surface-800 rounded-xl p-12 text-center"
     >
       <div class="text-surface-600 space-y-3">
-        <div class="text-5xl font-light text-surface-700">ACC v3</div>
-        <p class="text-sm">Agency Command Center is ready. No agents are currently reporting.</p>
+        <div class="text-5xl font-light text-surface-700">四季 Shiki</div>
+        <p class="text-sm">Dev OS Workspace is ready. No agents are currently reporting.</p>
         <div class="pt-4 space-y-1 text-xs text-surface-700">
           <p>To start tracking agents, send events to:</p>
           <p class="font-mono text-surface-500">POST /api/agent-update</p>

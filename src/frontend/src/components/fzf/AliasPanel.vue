@@ -114,7 +114,7 @@ function getAgentInitial(handle: string): string {
           <input
             v-model="newAliasName"
             class="w-full bg-surface-800 border border-surface-700 rounded-lg px-3 py-1.5 text-sm text-surface-200 placeholder-surface-600 focus:outline-none focus:border-teal-400/50"
-            placeholder="Alias name (e.g. acc team)"
+            placeholder="Alias name (e.g. shi team)"
             @keydown.enter="createAlias"
             @keydown.escape="cancelCreating"
           />

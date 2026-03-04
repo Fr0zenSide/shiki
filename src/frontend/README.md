@@ -1,9 +1,8 @@
-# ACC v3 -- Frontend
+# Shiki (四季) — Frontend
 
 Vue 3 + TypeScript + Vite dashboard.
 
-The frontend will be migrated from ACC v2 in a future phase.
-For now, the backend API is fully functional and can be tested via curl or the WebSocket.
+The backend API is fully functional and can be tested via curl or the WebSocket.
 
 ## API Endpoints
 

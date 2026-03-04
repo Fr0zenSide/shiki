@@ -2,7 +2,7 @@
 
 You are working in a Shiki workspace. These rules are always active.
 
-> **Alias**: @acc and @shiki both refer to the Shiki workspace system.
+> **Alias**: @shi and @shiki both refer to the Shiki workspace system. Legacy: @acc also works.
 
 ## Context Detection
 
