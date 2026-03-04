@@ -13,14 +13,14 @@ const server = Deno.serve({
   port: WS_PORT,
   signal: abortController.signal,
   onListen({ port }) {
-    console.log(`ACC v3 server running on http://localhost:${port}`);
+    console.log(`Shiki server running on http://localhost:${port}`);
     console.log(`WebSocket: ws://localhost:${port}`);
     console.log(`Health: http://localhost:${port}/health`);
-    const apiKey = Deno.env.get("ACC_API_KEY");
+    const apiKey = Deno.env.get("SHIKI_API_KEY");
     if (apiKey) {
       console.log("API key auth: enabled");
     } else {
-      console.log("API key auth: disabled (set ACC_API_KEY to enable)");
+      console.log("API key auth: disabled (set SHIKI_API_KEY to enable)");
     }
   },
 }, async (req) => {

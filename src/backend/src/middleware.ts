@@ -50,11 +50,11 @@ export function json(data: unknown, status = 200): Response {
 }
 
 // ── API Key auth middleware ─────────────────────────────────────────
-const ACC_API_KEY = Deno.env.get("ACC_API_KEY");
+const SHIKI_API_KEY = Deno.env.get("SHIKI_API_KEY");
 
 export function authenticateRequest(req: Request): Response | null {
   // If no API key configured, auth is disabled (dev mode)
-  if (!ACC_API_KEY) return null;
+  if (!SHIKI_API_KEY) return null;
 
   // Health endpoint is always public
   const url = new URL(req.url);
@@ -66,7 +66,7 @@ export function authenticateRequest(req: Request): Response | null {
   }
 
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : auth;
-  if (token !== ACC_API_KEY) {
+  if (token !== SHIKI_API_KEY) {
     return json({ error: "Invalid API key" }, 403);
   }
 

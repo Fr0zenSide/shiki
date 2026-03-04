@@ -15,8 +15,8 @@ services:
     image: timescale/timescaledb-ha:pg17
     restart: unless-stopped
     environment:
-      POSTGRES_DB:       ${POSTGRES_DB:-acc}
-      POSTGRES_USER:     ${POSTGRES_USER:-acc}
+      POSTGRES_DB:       ${POSTGRES_DB:-shiki}
+      POSTGRES_USER:     ${POSTGRES_USER:-shiki}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - db_data:/home/postgres/pgdata/data
@@ -24,7 +24,7 @@ services:
     ports:
       - "127.0.0.1:5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-acc} -d ${POSTGRES_DB:-acc}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shiki} -d ${POSTGRES_DB:-shiki}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -74,11 +74,11 @@ services:
       ollama:
         condition: service_healthy
     environment:
-      DATABASE_URL:     postgres://${POSTGRES_USER:-acc}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-acc}
+      DATABASE_URL:     postgres://${POSTGRES_USER:-shiki}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-shiki}
       OLLAMA_URL:       http://ollama:11434
       EMBED_MODEL:      nomic-embed-text
       WS_PORT:          "3900"
-      ACC_API_KEY:      ${ACC_API_KEY:-}
+      SHIKI_API_KEY:    ${SHIKI_API_KEY:-}
       NODE_ENV:         ${NODE_ENV:-development}
       LOG_LEVEL:        ${LOG_LEVEL:-info}
     ports:
