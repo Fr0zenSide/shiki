@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "excludedCommands": ["docker", "gh", "deno", "node", "npm", "npx"],
+    "network": {
+      "allowedDomains": ["github.com", "api.github.com", "*.npmjs.org", "registry.yarnpkg.com"],
+      "allowUnixSockets": [
+        "/var/run/docker.sock"
+      ],
+      "allowLocalBinding": true
+    }
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "Bash(curl:*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose:*)",
+      "Bash(deno:*)",
+      "Bash(node:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(brew:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(tail:*)",
+      "Bash(head:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(diff:*)",
+      "Bash(echo:*)",
+      "Bash(which:*)",
+      "Bash(pwd:*)",
+      "Bash(env:*)",
+      "Bash(killall:*)",
+      "Bash(open:*)"
+    ],
+    "deny": [
+      "Read(.envrc)",
+      "Read(~/.aws/**)"
+    ]
+  },
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "0"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/cat .claude/skills/shiki-process/bootstrap.md"
+          }
+        ]
+      }
+    ]
+  }
+}
