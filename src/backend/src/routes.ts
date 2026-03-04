@@ -345,9 +345,9 @@ export async function handleRequest(req: Request): Promise<Response> {
       `;
       return json({
         database: dbStats[0],
-        backupScript: "sp/acc/scripts/backup-db.sh",
-        restoreScript: "sp/acc/scripts/restore-db.sh",
-        backupDir: "sp/acc/backups/",
+        backupScript: "scripts/backup-db.sh",
+        restoreScript: "scripts/restore-db.sh",
+        backupDir: "backups/",
         retentionDays: 14,
         timestamp: new Date().toISOString(),
       });
