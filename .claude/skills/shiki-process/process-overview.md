@@ -164,16 +164,23 @@ Gate 8: AI SLOP SCAN ──> Gate 9: PR CREATION
 
 ## Agent Roster (8 personas)
 
-| Agent | Role | Invoked at |
-|-------|------|-----------|
-| @Sensei | CTO / Technical Architect | Phase 1, 3, 5, 5b, Gate 1a/1b |
-| @Hanami | Product Designer / UX Lead | Phase 1, Gate 1b (UI only) |
-| @Kintsugi | Philosophy & Repair | Phase 1, soul checks |
-| @Enso | Brand Identity & Mindfulness | Brand alignment, tone |
-| @Tsubaki | Content & Copywriting | Copy, marketing, descriptions |
-| @Shogun | Competitive Intelligence | Phase 1, market research |
-| @Ronin | Adversarial Reviewer | Gate 1c, 3-failure escalation |
-| @Daimyo | Founder (you) | All approvals, final decisions |
+Agents are **centralized in Shiki** and grow across all projects. Each agent has:
+- A **persona definition** in `agents.md` (how they behave)
+- A **growth file** in `shiki/team/<agent>.md` (what they've learned across projects)
+- Per-project adaptation via `project-adapter.md`
+
+See `shiki/team/README.md` for the 3-layer memory architecture.
+
+| Agent | Role | Growth File | Invoked at |
+|-------|------|-------------|-----------|
+| @Sensei | CTO / Technical Architect | `team/sensei.md` | Phase 1, 3, 5, 5b, Gate 1a/1b |
+| @Hanami | Product Designer / UX Lead | `team/hanami.md` | Phase 1, Gate 1b (UI only) |
+| @Kintsugi | Philosophy & Repair | `team/kintsugi.md` | Phase 1, soul checks |
+| @Enso | Brand Identity & Mindfulness | `team/enso.md` | Brand alignment, tone |
+| @Tsubaki | Content & Copywriting | `team/tsubaki.md` | Copy, marketing, descriptions |
+| @Shogun | Competitive Intelligence | `team/shogun.md` | Phase 1, market research |
+| @Ronin | Adversarial Reviewer | `team/ronin.md` | Gate 1c, 3-failure escalation |
+| @Daimyo | Founder (you) | — | All approvals, final decisions |
 
 ## Three-Pass Development Cycle
 
@@ -241,45 +248,62 @@ Before release: zero tolerance for AI agent references in shipped code.
 ## File Structure
 
 ```
-.claude/
-  commands/              <-- Slash command entry points (in git)
-    quick.md
-    md-feature.md
-    pre-pr.md
-    review.md
-    dispatch.md
-    course-correct.md
-    pre-release-scan.md
-    validate-pr.md
-    retry.md
-  skills/
-    shiki-process/       <-- Process knowledge base (in git)
-      README.md
-      agents.md          <-- 8 agent personas
-      bootstrap.md       <-- SessionStart hook (always-on rules)
-      feature-pipeline.md
-      pre-pr-pipeline.md
-      sdd-protocol.md
-      quick-flow.md
-      pr-review.md
-      parallel-dispatch.md
+shiki/
+  team/                    <-- Agent cross-project knowledge (Layer 1)
+    README.md              <-- 3-layer architecture doc
+    sensei.md              <-- @Sensei growth file
+    hanami.md              <-- @Hanami growth file
+    kintsugi.md            <-- @Kintsugi growth file
+    enso.md                <-- @Enso growth file
+    tsubaki.md             <-- @Tsubaki growth file
+    shogun.md              <-- @Shogun growth file
+    ronin.md               <-- @Ronin growth file
+  .claude/
+    commands/              <-- Slash command entry points (in git)
+      quick.md
+      md-feature.md
+      pre-pr.md
+      review.md
+      dispatch.md
       course-correct.md
-      elicitation.md
-      verification-protocol.md
-      ai-slop-scan.md
-      feature-tracking.md
-      pr-checklist-validation.md
-      process-overview.md  <-- This file
-      project-adapter-template.md
-      checklists/
-        cto-review.md     <-- @Sensei (universal)
-        ux-review.md      <-- @Hanami (universal)
-        code-quality.md   <-- @tech-expert (universal)
-        definition-of-done.md  <-- Phase 6 exit
-      addons/
-        cto-review-swift.md     <-- Swift-specific CTO review items
-        code-quality-swift.md   <-- Swift-specific code quality items
-  settings.json          <-- Hooks config (SessionStart bootstrap)
+      pre-release-scan.md
+      validate-pr.md
+      retry.md
+    skills/
+      shiki-process/       <-- Process knowledge base (in git)
+        README.md
+        agents.md          <-- 8 agent personas + 3-layer model ref
+        bootstrap.md       <-- SessionStart hook (always-on rules)
+        feature-pipeline.md
+        pre-pr-pipeline.md
+        sdd-protocol.md
+        quick-flow.md
+        pr-review.md
+        parallel-dispatch.md
+        course-correct.md
+        elicitation.md
+        verification-protocol.md
+        ai-slop-scan.md
+        feature-tracking.md
+        pr-checklist-validation.md
+        process-overview.md  <-- This file
+        project-adapter-template.md
+        checklists/
+          cto-review.md     <-- @Sensei (universal)
+          ux-review.md      <-- @Hanami (universal)
+          code-quality.md   <-- @tech-expert (universal)
+          definition-of-done.md  <-- Phase 6 exit
+        addons/
+          cto-review-swift.md     <-- Swift-specific CTO review items
+          code-quality-swift.md   <-- Swift-specific code quality items
+    settings.json          <-- Hooks config (SessionStart bootstrap)
+
+<project>/                 <-- Per-project (Layer 2 + 3)
+  .claude/
+    project-adapter.md     <-- Layer 2: tech stack, conventions, commands
+    commands/              <-- Project-specific commands (backlog, etc.)
+  memory/                  <-- Layer 3: project state
+    backlog.md, features/, planner-state.md, ...
 ```
 
 ## Portability
@@ -287,6 +311,7 @@ Before release: zero tolerance for AI agent references in shipped code.
 ### What moves with git (fully portable)
 - All commands (`.claude/commands/`)
 - All skills (`.claude/skills/shiki-process/`)
+- Agent team knowledge (`team/`) — cross-project growth files
 - Settings + hooks (`.claude/settings.json`)
 - Project adapter template
 - Scripts (`scripts/`)

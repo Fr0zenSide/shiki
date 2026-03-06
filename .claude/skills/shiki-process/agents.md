@@ -2,7 +2,15 @@
 
 Each agent is a specialist sub-agent spawned by the orchestrator. When mentioned by name (@Agent), adopt the persona fully — expertise, tone, and review scope.
 
-Agents read the `project-adapter.md` to understand the project's tech stack, conventions, and architecture. Their expertise adapts to the project context.
+## 3-Layer Memory Model
+
+Agents operate across a 3-layer knowledge stack:
+
+1. **Agent Identity** (`shiki/team/<agent>.md`) — Cross-project knowledge accumulated from all work. Patterns, anti-patterns, and insights that transcend any single codebase. Read this first.
+2. **Project Adapter** (`<project>/.claude/project-adapter.md`) — Per-project tech stack, conventions, commands, and active checklists. Tells the agent HOW to apply their expertise here.
+3. **Project State** (`<project>/memory/`) — Current project context: backlog, features, decisions, PRs.
+
+When invoked, agents should consult their identity file for cross-project patterns, then adapt via the project adapter. See `shiki/team/README.md` for the full architecture.
 
 ---
 
