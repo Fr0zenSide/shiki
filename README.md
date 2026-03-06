@@ -2,6 +2,7 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-blueviolet)](https://claude.ai/claude-code)
+[![Ko-fi](https://img.shields.io/badge/Support-Ko--fi-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/Fr0zenSide)
 
 > A workspace that gives your AI coding agent a team, a memory, and a quality process — across every project.
 
@@ -11,29 +12,29 @@ Shiki turns Claude Code from a stateless assistant into a persistent development
 
 ```
     ┌─────────────────────────────────────────────────┐
-    │                  YOU (ideas)                     │
-    │                     │                            │
-    │        ┌────────────┴────────────┐               │
-    │        │                         │               │
-    │    Small fix               New feature           │
-    │   /quick                  /md-feature            │
-    │        │                         │               │
-    │        │    ┌──── Agent Team ────┤               │
-    │        │    │  @Sensei (arch)    │               │
-    │        │    │  @Hanami (UX)      │               │
-    │        │    │  @Ronin (security) │               │
-    │        │    └────────────────────┘               │
-    │        │                         │               │
-    │        └──────────┬──────────────┘               │
-    │                   │                              │
-    │                /pre-pr                            │
-    │             9 quality gates                       │
-    │                   │                              │
-    │                /review                            │
-    │            You approve → merge                    │
-    │                   │                              │
-    │         Memory persists (vector DB)               │
-    │         Team grows across projects                │
+    │                  YOU (ideas)                    │
+    │                     │                           │
+    │        ┌────────────┴────────────┐              │
+    │        │                         │              │
+    │    Small fix               New feature          │
+    │   /quick                  /md-feature           │
+    │        │                         │              │
+    │        │    ┌──── Agent Team ────┤              │
+    │        │    │  @Sensei (arch)    │              │
+    │        │    │  @Hanami (UX)      │              │
+    │        │    │  @Ronin (security) │              │
+    │        │    └────────────────────┘              │
+    │        │                         │              │
+    │        └──────────┬──────────────┘              │
+    │                   │                             │
+    │                /pre-pr                          │
+    │             9 quality gates                     │
+    │                   │                             │
+    │                /review                          │
+    │            You approve → merge                  │
+    │                   │                             │
+    │         Memory persists (vector DB)             │
+    │         Team grows across projects              │
     └─────────────────────────────────────────────────┘
 ```
 
