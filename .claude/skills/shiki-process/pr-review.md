@@ -336,6 +336,12 @@ After user types their comment:
 #### Navigation Commands
 
 ```
+Bulk:
+  all                   Mark ALL files as read. Use when @Daimyo already
+                        reviewed on GH web UI. After "all", fetch any new
+                        GH review comments, fix everything, then proceed
+                        to approve/changes/comment decision.
+
 Code navigation:
   next / n              Next file (architecture order)
   prev / p              Previous file
@@ -350,8 +356,8 @@ File review:
   unread <N>            Unmark file N
 
 Commenting:
-  comment L<N>          Comment on line N
-  comment L<N>-L<M>     Comment on line range N-M
+  c L<N> <text>         Comment on line N with inline text
+  c L<N>-L<M> <text>    Comment on line range N-M with inline text
   discuss <finding#>    Open discussion about a specific finding
 
 Discussions:
@@ -366,7 +372,7 @@ Findings:
 
 Decisions:
   approve / a           Approve the PR
-  changes / c           Request changes
+  changes / ch          Request changes
   comment / m           Leave a comment (no approval/rejection)
   skip                  Move to next PR (batch mode)
   quit / q              Exit review
@@ -374,6 +380,49 @@ Decisions:
 Free-text:
   Any question about the code → answered from feature context + codebase analysis
 ```
+
+#### Compound Shortcuts
+
+Users can chain shortcuts in a single message. Parse left-to-right:
+
+```
+r           → read (mark current file reviewed)
+n           → next (move to next file)
+p           → prev (move to previous file)
+c L<N>(-<M>) <text>  → comment on line(s) with text
+```
+
+**Parsing rules:**
+1. Split input by single-letter commands: `r`, `n`, `p`
+2. `c` starts a comment block: consume `L<N>` or `L<N>-<M>`, then all text until
+   the next single-letter command or another `L<N>` pattern
+3. Multiple `c` blocks can appear: `c L18-20 first comment c L42 second comment`
+4. Execute actions left-to-right in order
+
+**Examples:**
+```
+rn                        → mark read, next file
+rnc l18-20 this is buggy  → mark read, next file, comment L18-20 "this is buggy"
+ncr                       → next file, comment (prompt for text), mark read
+prc l5 typo here          → prev file, mark read, comment L5 "typo here"
+c l18-20 explain this? c l42 rename this variable
+                          → two comments on current file
+```
+
+**Comment workflow:**
+1. Post comment to GH as the user (PR author review comment)
+2. Reply inline with Claude's analysis/answer
+3. Post Claude's reply to GH as well (threaded under the comment)
+4. If a fix is needed: plan the fix, apply it immediately or queue for end-of-review batch
+5. User can validate the fix inline or defer to next review loop
+
+**"all" workflow:**
+1. Mark every file `[✓]`
+2. Fetch latest GH review comments via `gh api`
+3. For each new comment: reply on GH, plan fixes
+4. Apply all fixes, commit, push
+5. Present summary: "N comments addressed, M fixes applied"
+6. Ask user: approve / review delta / another loop
 
 ### Phase 6: Post to GitHub
 
@@ -518,6 +567,44 @@ These files are excluded from line count for size detection:
 - Skipped: N
 - Fix agents dispatched: N
 ```
+
+---
+
+## GitHub Reply Protocol
+
+**Every review comment must receive a reply from Claude as the PR author.** This creates a traceable conversation history for future reference and onboarding.
+
+### Rules
+
+1. **Reply to ALL comments** — not just questions. Even simple acknowledgments get a reply.
+2. **Identity**: Reply as Claude (the PR author), not as a reviewer.
+3. **Include references**: When adding to backlog, cite the specific entry (e.g., "Added to backlog (ref: `backlog.md` — item 5: Header Section component)").
+4. **Action taken**: State what was done — "Fixed in commit `abc1234`", "Added TODO at line 42", "Added to backlog", etc.
+5. **For code fixes**: Briefly describe what changed and why.
+6. **For backlog items**: Acknowledge the suggestion, confirm it was added, and note any scope/priority decisions.
+7. **For questions**: Provide a clear technical explanation.
+
+### Reply Format
+
+```
+gh api repos/{owner}/{repo}/pulls/<PR#>/comments \
+  -f body="<reply text>" \
+  -F in_reply_to=<parent_comment_id>
+```
+
+### Example Replies
+
+| Comment type | Example reply |
+|---|---|
+| Fix request | "Fixed — consolidated to single constant (commit `5a6eb6c`). Both call sites now reference the same value." |
+| Backlog suggestion | "Added to backlog (ref: `backlog.md` — Architecture Improvements, item 3: DS migration)." |
+| Architecture question | "Good point. The current approach works for MVP but won't scale. Added to backlog for future improvement." |
+| Testing question | "Not yet — added to backlog (ref: video-based test for QC pipeline)." |
+
+### When to Post Replies
+
+- **During fix workflow**: After addressing review comments, post all replies in a batch before pushing.
+- **During `/review` Phase 6**: After posting the review, reply to any new inline comments from the review.
 
 ---
 
