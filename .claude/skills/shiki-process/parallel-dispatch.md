@@ -23,43 +23,131 @@ A feature must meet ALL conditions before dispatch:
 
 If prerequisites are not met, report what's missing and refuse to dispatch.
 
+## Worktree Isolation Protocol
+
+**MANDATORY for ALL parallel agent work.** Without isolation, agents share one working directory and clobber each other's git state.
+
+### Why This Exists
+
+When 2+ agents share the same repo directory:
+- Agent A runs `git checkout -b story/feature-a` → working tree on branch A
+- Agent B runs `git checkout -b story/feature-b` → working tree switches to branch B
+- Agent A edits files → changes land on branch B, not A
+- Result: mixed commits, lost work, hours of cleanup
+
+**Fix: each agent gets its own worktree (isolated copy of the repo).**
+
+### Worktree Location Rules
+
+| Location | Use case | Notes |
+|----------|----------|-------|
+| `/tmp/wt-<feature>/` | Agent implementation work | Fast SSD, auto-cleaned on reboot, no symlink issues |
+| `.claude/worktrees/<name>/` | Long-lived side projects (epic branches) | Persists across sessions |
+| **NEVER** the main repo dir | — | Reserved for orchestrator + manual work |
+
+**Why `/tmp/` over `.claude/worktrees/`:**
+- Claude Code's `isolation: "worktree"` Agent parameter fails when CWD is a symlink (e.g. `.wsx/` paths)
+- `/tmp/` worktrees are disposable — merge the branch, delete the worktree
+- No accumulation of stale directories (reboot cleans them)
+
+### Agent Prompt Rules
+
+Every agent prompt MUST include:
+
+```
+## CRITICAL: Working Directory
+Your working directory is an ISOLATED git worktree at `/tmp/wt-<feature>`.
+Branch: `story/<feature>` (already checked out from develop).
+ALL file operations MUST use paths starting with `/tmp/wt-<feature>/`.
+Do NOT touch the main repo at <main-repo-path> — that's the orchestrator's worktree.
+```
+
+**Never rely on agents to create their own branches.** The orchestrator creates the worktree + branch BEFORE launching the agent.
+
+### Lifecycle
+
+```
+CREATE → DISPATCH → MONITOR → REVIEW → MERGE → CLEANUP
+```
+
+1. **CREATE**: `git worktree add /tmp/wt-<feature> -b story/<feature> develop`
+2. **DISPATCH**: Launch agent with explicit `/tmp/wt-<feature>` path
+3. **MONITOR**: Check agent progress, handle blockers
+4. **REVIEW**: `/review <PR#>` or manual review
+5. **MERGE**: `git merge --no-ff story/<feature>` into develop
+6. **CLEANUP**: `git worktree remove /tmp/wt-<feature> && git branch -d story/<feature>`
+
+### Stale Worktree Cleanup
+
+Run periodically (or in `/context`):
+
+```bash
+# List all worktrees
+git worktree list
+
+# Remove stale agent worktrees (no uncommitted changes)
+git worktree remove /tmp/wt-<feature>
+
+# Prune references to deleted worktrees
+git worktree prune
+```
+
+**Rule**: clean up immediately after PR merge. Stale worktrees cause confusion, disk bloat, and branch lock conflicts.
+
+### Cross-Project Worktrees (Shiki ecosystem)
+
+For projects managed via Shiki (`shiki/projects/<name>/`):
+- Agent works in `/tmp/wt-<feature>` (worktree of the sub-project)
+- Orchestrator reviews the diff
+- On approval: push the branch, create PR targeting the sub-project's `develop`
+- The Shiki project clone stays read-only during agent work
+
+---
+
 ## Dispatch Protocol
 
 ### Step 1: Create Worktree
 
 ```bash
-git worktree add -b story/<feature> .claude/worktrees/<feature>-impl develop
+git worktree add /tmp/wt-<feature> -b story/<feature> develop
 ```
 
 - Branch from `develop` (latest stable)
-- Worktree in `.claude/worktrees/<feature>-impl/`
+- Worktree in `/tmp/wt-<feature>/`
 - Branch name: `story/<feature>`
+- Verify: `ls /tmp/wt-<feature>/` shows full repo
 
 ### Step 2: Launch Background Agent
 
-Dispatch a background Task agent (run_in_background=true) with this prompt structure:
+Dispatch a background agent (run_in_background=true) with this prompt structure:
 
 ```
 You are implementing feature "<feature>" autonomously using the SDD protocol.
 
-Feature file: features/<feature>.md
-Working directory: .claude/worktrees/<feature>-impl/
+## CRITICAL: Working Directory
+Your working directory is an ISOLATED git worktree at `/tmp/wt-<feature>`.
+Branch: `story/<feature>` (already checked out from develop).
+ALL file operations MUST use paths starting with `/tmp/wt-<feature>/`.
+Do NOT touch the main repo.
+
+Feature file: features/<feature>.md (read-only reference)
 
 Your mission:
 1. Read the feature file completely
-2. Read .claude/skills/shiki-process/sdd-protocol.md
-3. Read .claude/skills/shiki-process/verification-protocol.md
-4. Execute Phase 6 (SDD) -- dispatch subagents per task in the execution plan
+2. Read .claude/skills/shiki-process/sdd-protocol.md (from main repo, read-only)
+3. Read .claude/skills/shiki-process/verification-protocol.md (from main repo, read-only)
+4. Execute Phase 6 (SDD) -- implement each task in the execution plan
 5. After all tasks complete, run the Definition of Done checklist
-6. If DoD passes, run /pre-pr to create a PR
-7. The PR should target develop
+6. Commit all changes in your worktree
+7. Return summary: files created/modified, tests pass/fail, blockers
 
 Rules:
 - Follow TDD strictly (failing test first)
 - Verify before claiming completion (run tests, show output)
 - Three-failure escalation: after 3 fails, STOP and report
 - Do NOT modify files outside your worktree
-- Commit after each completed task
+- Commit after each completed task: cd /tmp/wt-<feature> && git add -A && git commit -m "..."
+- Build verify: cd /tmp/wt-<feature> && <build-command>
 ```
 
 ### Step 3: Track Progress
@@ -70,9 +158,9 @@ Maintain a dispatch board in the conversation:
 ## Dispatch Board
 | Feature | Branch | Worktree | Status | Tasks | PR |
 |---------|--------|----------|--------|-------|----|
-| habit-streaks | story/habit-streaks | .claude/worktrees/habit-streaks-impl | Phase 6: 3/8 tasks | ████░░░░ | -- |
-| imperfect-days | story/imperfect-days | .claude/worktrees/imperfect-days-impl | Phase 7: /pre-pr | ████████ | -- |
-| weekly-review | story/weekly-review | .claude/worktrees/weekly-review-impl | DONE | ████████ | #45 |
+| habit-streaks | story/habit-streaks | /tmp/wt-habit-streaks | Phase 6: 3/8 tasks | ████░░░░ | -- |
+| imperfect-days | story/imperfect-days | /tmp/wt-imperfect-days | Phase 7: /pre-pr | ████████ | -- |
+| weekly-review | story/weekly-review | /tmp/wt-weekly-review | DONE | ████████ | #45 |
 ```
 
 ### Step 4: Report Completion
@@ -101,7 +189,7 @@ When a dispatched agent finishes:
 ## Cancel (`/dispatch cancel "<feature>"`)
 
 1. Stop the background agent (TaskStop)
-2. Optionally remove the worktree: `git worktree remove .claude/worktrees/<feature>-impl`
+2. Optionally remove the worktree: `git worktree remove /tmp/wt-<feature>`
 3. Update dispatch board
 
 ## Constraints
@@ -122,8 +210,8 @@ Before dispatching multiple features, check for file overlaps:
 ## Conflict Check
 | File | Features | Action |
 |------|----------|--------|
-| HabitService.ts | habit-streaks, imperfect-days | CONFLICT -- dispatch sequentially |
-| WeeklyReview.ts | weekly-review | OK -- no overlap |
+| HabitService.swift | habit-streaks, imperfect-days | CONFLICT -- dispatch sequentially |
+| WeeklyReview.swift | weekly-review | OK -- no overlap |
 ```
 
 ## Anti-Rationalization
