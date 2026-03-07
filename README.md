@@ -76,13 +76,29 @@ That's it. Your agent now has access to Shiki's process skills, agent team, and 
 
 | Command | Description | When to use |
 |---------|-------------|-------------|
-| `/quick` | 4-step pipeline for small changes | Bug fixes, tweaks (< 3 files) |
-| `/md-feature` | 8-phase pipeline for new features | Anything that adds behavior |
+| `/quick "<desc>"` | 4-step pipeline for small changes | Bug fixes, tweaks (< 3 files) |
+| `/md-feature "<name>"` | 8-phase pipeline for new features | Anything that adds behavior |
 | `/pre-pr` | 9-gate quality pipeline | Before every pull request |
-| `/review` | Interactive PR review | Reviewing open PRs |
+| `/review <PR#>` | Interactive PR review with 3-agent pre-analysis | Reviewing open PRs |
+| `/backlog` | Show next 7 prioritized tasks | Planning what to work on next |
+| `/backlog-challenge` | Daimyo decision ballot (8 questions per session) | Prioritizing and unblocking decisions |
+| `/backlog-plan` | Continuous planning pipeline (see below) | Autonomous plan-build-merge loop |
 | `/dispatch` | Autonomous parallel implementation | Large features with independent parts |
+| `/course-correct` | Mid-feature scope change workflow | When requirements shift during implementation |
 | `/validate-pr` | Checklist validation before merge | Final merge check |
-| `/pre-release-scan` | AI marker scan | Before App Store / production release |
+| `/pre-release-scan` | AI slop scan before production release | Before App Store / production release |
+| `/retry` | Scan stuck agents and relaunch | When sub-agents are blocked or errored |
+
+#### `/backlog-plan` — Continuous Planning Pipeline
+
+Scans the backlog, launches parallel planning agents (max 3), surfaces 4 Q/A decisions per batch to @Daimyo, and queues approved specs for implementation in parallel worktrees. Auto-chains: when one feature finishes planning, the next starts.
+
+| Sub-command | Description |
+|-------------|-------------|
+| `/backlog-plan` | Start pipeline (scan + plan top 3 by priority) |
+| `/backlog-plan status` | Show pipeline state (planning / building / queued) |
+| `/backlog-plan next` | Force advance to next backlog item |
+| `/backlog-plan build` | Skip to implementation for features at Phase 5b+ |
 
 ### Agent Team
 
