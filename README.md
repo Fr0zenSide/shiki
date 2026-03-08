@@ -113,6 +113,7 @@ Every project gets access to specialized agent personas that review work through
 | **@Tsubaki** | Copy | Conversion copy, storytelling, SEO |
 | **@Shogun** | Strategy | Market positioning, competitive analysis |
 | **@Ronin** | Reviewer | Adversarial review, security, edge cases |
+| **@Katana** | DevOps/Security | Linux hardening, weekly audits, breach analysis, backups |
 | **@Daimyo** | Founder | Final authority on decisions |
 
 Agents are defined in `.claude/skills/shiki-process/agents.md` — you can customize them or create your own.
