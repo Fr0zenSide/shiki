@@ -289,7 +289,7 @@ case "$DECISION" in
     ;;
   always_allow)
     log_approval "always-allowed" "$TOOL_NAME" "$TOOL_INPUT_RAW"
-    send_confirmation "🔓"
+    send_confirmation "✅"
     # Return allow + add permission rule so this tool won't ask again
     echo "{
       \"hookSpecificOutput\": {
@@ -301,7 +301,7 @@ case "$DECISION" in
     ;;
   deny)
     log_approval "denied" "$TOOL_NAME" "$TOOL_INPUT_RAW"
-    send_confirmation "❌"
+    send_confirmation "✅"
     echo '{
       "hookSpecificOutput": {
         "hookEventName": "PermissionRequest",
