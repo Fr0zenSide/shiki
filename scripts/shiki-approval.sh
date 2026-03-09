@@ -301,7 +301,7 @@ case "$DECISION" in
     ;;
   deny)
     log_approval "denied" "$TOOL_NAME" "$TOOL_INPUT_RAW"
-    send_confirmation "✅"
+    send_confirmation "❌"
     echo '{
       "hookSpecificOutput": {
         "hookEventName": "PermissionRequest",
