@@ -1,3 +1,0 @@
-module ShikiKit {
-    header "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/ShikiKit.build/include/ShikiKit-Swift.h"
-}

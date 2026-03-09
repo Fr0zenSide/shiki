@@ -1,3 +1,0 @@
-module CoreKit {
-    header "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/include/CoreKit-Swift.h"
-}
