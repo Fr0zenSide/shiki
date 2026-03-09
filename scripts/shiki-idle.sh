@@ -62,6 +62,22 @@ if [[ -f "$IDLE_STATE_FILE" ]]; then
 fi
 echo "$NOW" > "$IDLE_STATE_FILE"
 
+# ── Build workspace context tag ───────────────────────────────
+
+FOLDER_NAME=$(basename "$(pwd)")
+WORKSPACE_TAG=""
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || echo "")
+if [[ "$GIT_DIR" == *"/worktrees/"* ]]; then
+  BRANCH=$(git branch --show-current 2>/dev/null || echo "")
+  if [[ -n "$BRANCH" ]]; then
+    WORKSPACE_TAG="[WS:${BRANCH}]"
+  else
+    WORKSPACE_TAG="[WS:${FOLDER_NAME}]"
+  fi
+elif [[ "$FOLDER_NAME" != "shiki" ]]; then
+  WORKSPACE_TAG="[${FOLDER_NAME}]"
+fi
+
 # ── Send "What's next?" notification ─────────────────────────
 
 AUTH_HEADER=""
@@ -74,9 +90,9 @@ import json
 
 payload = {
     "topic": "$NTFY_TOPIC",
-    "title": "Shiki: Your turn",
+    "title": "Shiki${WORKSPACE_TAG}: Your turn \ud83d\udc4b",
     "message": "Claude finished and is waiting for your next instruction.",
-    "tags": ["robot_face"],
+    "tags": ["wave"],
     "priority": 3
 }
 print(json.dumps(payload))

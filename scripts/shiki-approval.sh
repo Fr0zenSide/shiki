@@ -98,18 +98,37 @@ fi
 # Unique request ID for matching response
 REQUEST_ID="req-$(date +%s)-$$"
 
+# Build workspace context tag for title
+# - Worktree on branch → [WS:branch-name]
+# - Different folder than "shiki" → [FolderName]
+# - Shiki root → no tag
+FOLDER_NAME=$(basename "$(pwd)")
+WORKSPACE_TAG=""
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || echo "")
+if [[ "$GIT_DIR" == *"/worktrees/"* ]]; then
+  # We're in a git worktree — show branch name
+  BRANCH=$(git branch --show-current 2>/dev/null || echo "")
+  if [[ -n "$BRANCH" ]]; then
+    WORKSPACE_TAG="[WS:${BRANCH}]"
+  else
+    WORKSPACE_TAG="[WS:${FOLDER_NAME}]"
+  fi
+elif [[ "$FOLDER_NAME" != "shiki" ]]; then
+  WORKSPACE_TAG="[${FOLDER_NAME}]"
+fi
+
 # Build contextual title based on tool type
 case "$TOOL_NAME" in
-  Bash)   TITLE="Shiki: Run Command" ;;
-  Edit)   TITLE="Shiki: Edit File" ;;
-  Write)  TITLE="Shiki: Create File" ;;
-  Read)   TITLE="Shiki: Read File" ;;
-  Grep)   TITLE="Shiki: Search Code" ;;
-  Glob)   TITLE="Shiki: Find Files" ;;
-  Agent)  TITLE="Shiki: Launch Agent" ;;
-  WebFetch) TITLE="Shiki: Fetch URL" ;;
-  WebSearch) TITLE="Shiki: Web Search" ;;
-  *)      TITLE="Shiki: $TOOL_NAME" ;;
+  Bash)   TITLE="Shiki${WORKSPACE_TAG}: Run Command" ;;
+  Edit)   TITLE="Shiki${WORKSPACE_TAG}: Edit File" ;;
+  Write)  TITLE="Shiki${WORKSPACE_TAG}: Create File" ;;
+  Read)   TITLE="Shiki${WORKSPACE_TAG}: Read File" ;;
+  Grep)   TITLE="Shiki${WORKSPACE_TAG}: Search Code" ;;
+  Glob)   TITLE="Shiki${WORKSPACE_TAG}: Find Files" ;;
+  Agent)  TITLE="Shiki${WORKSPACE_TAG}: Launch Agent" ;;
+  WebFetch) TITLE="Shiki${WORKSPACE_TAG}: Fetch URL" ;;
+  WebSearch) TITLE="Shiki${WORKSPACE_TAG}: Web Search" ;;
+  *)      TITLE="Shiki${WORKSPACE_TAG}: $TOOL_NAME" ;;
 esac
 
 # Build message with tool detail as subtitle
