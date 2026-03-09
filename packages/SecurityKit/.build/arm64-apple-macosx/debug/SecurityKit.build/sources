@@ -1,0 +1,6 @@
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/SecurityKit/Sources/SecurityKit/Auth/AuthPersistenceError.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/SecurityKit/Sources/SecurityKit/Auth/AuthPersistenceManager.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/SecurityKit/Sources/SecurityKit/Keychain/KeychainError.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/SecurityKit/Sources/SecurityKit/Keychain/KeychainManager.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/SecurityKit/Sources/SecurityKit/Mocks/MockAuthPersistenceManager.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/SecurityKit/Sources/SecurityKit/Mocks/MockKeychainManager.swift

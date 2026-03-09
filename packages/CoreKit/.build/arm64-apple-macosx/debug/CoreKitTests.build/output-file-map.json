@@ -1,0 +1,26 @@
+{
+  "": {
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/master.swiftdeps"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Tests/CoreKitTests/CacheRepositoryTests.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/CacheRepositoryTests.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/CacheRepositoryTests.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/CacheRepositoryTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/CacheRepositoryTests.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/CacheRepositoryTests.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Tests/CoreKitTests/ContainerTests.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ContainerTests.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ContainerTests.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ContainerTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ContainerTests.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ContainerTests.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Tests/CoreKitTests/ResolveTests.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ResolveTests.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ResolveTests.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ResolveTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ResolveTests.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ResolveTests.dia"
+  }
+}

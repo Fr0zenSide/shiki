@@ -1,0 +1,54 @@
+{
+  "": {
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/master.swiftdeps"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/Sources/DesignKit/Components/ViewModifiers.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ViewModifiers.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ViewModifiers.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ViewModifiers~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ViewModifiers.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ViewModifiers.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/Sources/DesignKit/Theme/AppTheme.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/AppTheme.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/AppTheme.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/AppTheme~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/AppTheme.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/AppTheme.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/Sources/DesignKit/Theme/ThemeEnvironment.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ThemeEnvironment.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ThemeEnvironment.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ThemeEnvironment~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ThemeEnvironment.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ThemeEnvironment.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/Sources/DesignKit/Theme/ThemeManager.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ThemeManager.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ThemeManager.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ThemeManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ThemeManager.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ThemeManager.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/Sources/DesignKit/Tokens/ColorTokens.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ColorTokens.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ColorTokens.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ColorTokens~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ColorTokens.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/ColorTokens.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/Sources/DesignKit/Tokens/Spacing.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/Spacing.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/Spacing.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/Spacing~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/Spacing.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/Spacing.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/Sources/DesignKit/Tokens/Typography.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/Typography.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/Typography.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/Typography~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/Typography.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKit.build/Typography.dia"
+  }
+}

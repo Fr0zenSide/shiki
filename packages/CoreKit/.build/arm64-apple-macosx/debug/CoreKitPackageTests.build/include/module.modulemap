@@ -1,0 +1,3 @@
+module CoreKitPackageTests {
+    header "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/include/CoreKitPackageTests-Swift.h"
+}

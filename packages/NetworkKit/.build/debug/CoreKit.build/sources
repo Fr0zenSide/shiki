@@ -1,0 +1,17 @@
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Cache/CacheRepository.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Coordinator/Coordinator.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/Container.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/DI.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/DIAssembly.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/DIEnvironment.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/Resolve.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/Data+Extensions.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/DateFormatter+Extensions.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/Dictionary+Extensions.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/Encodable+Extensions.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/String+Extensions.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/View+Extensions.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Logger/AppLog.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Utilities/AppIdentity.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Utilities/NetworkStatus.swift
+/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Utilities/VersionComparator.swift

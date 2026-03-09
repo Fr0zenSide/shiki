@@ -1,0 +1,26 @@
+{
+  "": {
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/master.swiftdeps"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/Tests/DesignKitTests/ColorTokensTests.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/ColorTokensTests.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/ColorTokensTests.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/ColorTokensTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/ColorTokensTests.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/ColorTokensTests.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/Tests/DesignKitTests/SpacingTests.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/SpacingTests.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/SpacingTests.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/SpacingTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/SpacingTests.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/SpacingTests.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/Tests/DesignKitTests/ThemeTests.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/ThemeTests.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/ThemeTests.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/ThemeTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/ThemeTests.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/DesignKit/.build/arm64-apple-macosx/debug/DesignKitTests.build/ThemeTests.dia"
+  }
+}

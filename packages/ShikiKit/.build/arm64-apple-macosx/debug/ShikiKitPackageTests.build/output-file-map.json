@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/ShikiKitPackageTests.build/master.swiftdeps"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/ShikiKitPackageTests.derived/runner.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/ShikiKitPackageTests.build/runner.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/ShikiKitPackageTests.build/runner.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/ShikiKitPackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/ShikiKitPackageTests.build/runner.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/ShikiKitPackageTests.build/runner.dia"
+  }
+}

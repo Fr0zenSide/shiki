@@ -1,0 +1,3 @@
+module CoreKit {
+    header "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/CoreKit.build/include/CoreKit-Swift.h"
+}

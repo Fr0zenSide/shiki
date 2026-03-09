@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKitPackageTests.build/master.swiftdeps"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKitPackageTests.derived/runner.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKitPackageTests.build/runner.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKitPackageTests.build/runner.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKitPackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKitPackageTests.build/runner.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKitPackageTests.build/runner.dia"
+  }
+}
