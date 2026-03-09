@@ -252,20 +252,18 @@ print("")
 # already exits after the first valid response.
 
 send_confirmation() {
-  local decision_label="$1" icon="$2"
-  local tag
-  tag=$([ "$decision_label" = "Denied" ] && echo "x" || echo "white_check_mark")
+  local icon="$1"
   local confirm_payload
   confirm_payload=$(
     SHIKI_TOPIC="$NTFY_TOPIC" \
-    SHIKI_TITLE="$icon $decision_label: $TOOL_NAME" \
-    SHIKI_TAG="$tag" \
+    SHIKI_TITLE="$icon $TOOL_NAME" \
+    SHIKI_MESSAGE="$MESSAGE" \
     python3 -c '
 import json, os
 payload = {
     "topic": os.environ["SHIKI_TOPIC"],
     "title": os.environ["SHIKI_TITLE"],
-    "tags": [os.environ["SHIKI_TAG"]],
+    "message": os.environ["SHIKI_MESSAGE"].strip(),
     "priority": 1
 }
 print(json.dumps(payload))
@@ -281,7 +279,7 @@ print(json.dumps(payload))
 case "$DECISION" in
   approve)
     log_approval "approved" "$TOOL_NAME" "$TOOL_INPUT_RAW"
-    send_confirmation "Approved" "✅"
+    send_confirmation "✅"
     echo '{
       "hookSpecificOutput": {
         "hookEventName": "PermissionRequest",
@@ -291,7 +289,7 @@ case "$DECISION" in
     ;;
   always_allow)
     log_approval "always-allowed" "$TOOL_NAME" "$TOOL_INPUT_RAW"
-    send_confirmation "Always Allowed" "🔓"
+    send_confirmation "🔓"
     # Return allow + add permission rule so this tool won't ask again
     echo "{
       \"hookSpecificOutput\": {
@@ -303,7 +301,7 @@ case "$DECISION" in
     ;;
   deny)
     log_approval "denied" "$TOOL_NAME" "$TOOL_INPUT_RAW"
-    send_confirmation "Denied" "❌"
+    send_confirmation "❌"
     echo '{
       "hookSpecificOutput": {
         "hookEventName": "PermissionRequest",
