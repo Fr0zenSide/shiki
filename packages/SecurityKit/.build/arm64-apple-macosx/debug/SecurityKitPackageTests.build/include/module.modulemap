@@ -1,0 +1,3 @@
+module SecurityKitPackageTests {
+    header "/Users/jeoffrey/Documents/Workspaces/shiki/packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.build/include/SecurityKitPackageTests-Swift.h"
+}

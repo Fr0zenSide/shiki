@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/master.swiftdeps"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.derived/runner.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/runner.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/runner.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/runner.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/runner.dia"
+  }
+}

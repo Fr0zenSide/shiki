@@ -1,0 +1,47 @@
+{
+  "": {
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/master.swiftdeps"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/Sources/NetworkKit/EndPoint.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/EndPoint.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/EndPoint.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/EndPoint~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/EndPoint.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/EndPoint.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/Sources/NetworkKit/MockNetworkService.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/MockNetworkService.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/MockNetworkService.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/MockNetworkService~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/MockNetworkService.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/MockNetworkService.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/Sources/NetworkKit/NetworkError.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkError.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkError.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkError~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkError.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkError.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/Sources/NetworkKit/NetworkProtocol+Implementations.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkProtocol+Implementations.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkProtocol+Implementations.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkProtocol+Implementations~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkProtocol+Implementations.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkProtocol+Implementations.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/Sources/NetworkKit/NetworkProtocol.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkProtocol.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkProtocol.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkProtocol~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkProtocol.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkProtocol.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/Sources/NetworkKit/NetworkService.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkService.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkService.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkService~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkService.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/packages/NetworkKit/.build/arm64-apple-macosx/debug/NetworkKit.build/NetworkService.dia"
+  }
+}

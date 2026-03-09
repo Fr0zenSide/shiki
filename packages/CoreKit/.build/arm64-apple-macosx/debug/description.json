@@ -1,0 +1,980 @@
+{
+  "builtTestProducts" : [
+    {
+      "binaryPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.xctest/Contents/MacOS/CoreKitPackageTests",
+      "packagePath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit",
+      "productName" : "CoreKitPackageTests"
+    }
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.CoreKit-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/sources",
+      "importPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Cache/CacheRepository.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Coordinator/Coordinator.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/Container.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/DI.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/DIAssembly.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/DIEnvironment.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/Resolve.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/Data+Extensions.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/DateFormatter+Extensions.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/Dictionary+Extensions.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/Encodable+Extensions.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/String+Extensions.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/View+Extensions.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Logger/AppLog.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Utilities/AppIdentity.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Utilities/NetworkStatus.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Utilities/VersionComparator.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/swift-version-596C98914D6876CD.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "CoreKit",
+      "moduleOutputPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/Modules/CoreKit.swiftmodule",
+      "objects" : [
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/CacheRepository.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Coordinator.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Container.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/DI.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIAssembly.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIEnvironment.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Resolve.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Data+Extensions.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/DateFormatter+Extensions.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Dictionary+Extensions.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Encodable+Extensions.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/String+Extensions.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/View+Extensions.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppLog.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppIdentity.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/NetworkStatus.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/VersionComparator.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx13.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j12",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/include/CoreKit-Swift.h",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "corekit"
+      ],
+      "outputFileMapPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/CacheRepository.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Coordinator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Container.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/DI.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIAssembly.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIEnvironment.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Resolve.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Data+Extensions.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/DateFormatter+Extensions.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Dictionary+Extensions.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Encodable+Extensions.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/String+Extensions.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/View+Extensions.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppLog.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppIdentity.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/NetworkStatus.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/VersionComparator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/Modules/CoreKit.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Cache/CacheRepository.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Coordinator/Coordinator.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/Container.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/DI.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/DIAssembly.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/DIEnvironment.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/Resolve.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/Data+Extensions.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/DateFormatter+Extensions.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/Dictionary+Extensions.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/Encodable+Extensions.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/String+Extensions.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/View+Extensions.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Logger/AppLog.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Utilities/AppIdentity.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Utilities/NetworkStatus.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Utilities/VersionComparator.swift"
+      ],
+      "tempsPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.CoreKitPackageTests-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/sources",
+      "importPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.derived/runner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/swift-version-596C98914D6876CD.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/Modules/CoreKitTests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "CoreKitPackageTests",
+      "moduleOutputPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/Modules/CoreKitPackageTests.swiftmodule",
+      "objects" : [
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/runner.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx13.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j12",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/include/CoreKitPackageTests-Swift.h",
+        "-plugin-path",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "corekit"
+      ],
+      "outputFileMapPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/Modules/CoreKitPackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.derived/runner.swift"
+      ],
+      "tempsPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.CoreKitTests-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/sources",
+      "importPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Tests/CoreKitTests/CacheRepositoryTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Tests/CoreKitTests/ContainerTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Tests/CoreKitTests/ResolveTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/swift-version-596C98914D6876CD.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/Modules/CoreKit.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "CoreKitTests",
+      "moduleOutputPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/Modules/CoreKitTests.swiftmodule",
+      "objects" : [
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/CacheRepositoryTests.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ContainerTests.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ResolveTests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j12",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "corekit"
+      ],
+      "outputFileMapPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/CacheRepositoryTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ContainerTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ResolveTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/Modules/CoreKitTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Tests/CoreKitTests/CacheRepositoryTests.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Tests/CoreKitTests/ContainerTests.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Tests/CoreKitTests/ResolveTests.swift"
+      ],
+      "tempsPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "CoreKit" : [
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "CoreKit",
+      "-package-name",
+      "corekit",
+      "-c",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Cache/CacheRepository.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Coordinator/Coordinator.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/Container.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/DI.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/DIAssembly.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/DIEnvironment.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/Resolve.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/Data+Extensions.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/DateFormatter+Extensions.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/Dictionary+Extensions.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/Encodable+Extensions.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/String+Extensions.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/View+Extensions.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Logger/AppLog.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Utilities/AppIdentity.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Utilities/NetworkStatus.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Utilities/VersionComparator.swift",
+      "-I",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx13.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j12",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/include/CoreKit-Swift.h",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "corekit",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "CoreKitPackageTests" : [
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "CoreKitPackageTests",
+      "-package-name",
+      "corekit",
+      "-c",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.derived/runner.swift",
+      "-I",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx13.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j12",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/include/CoreKitPackageTests-Swift.h",
+      "-plugin-path",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "corekit",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "CoreKitTests" : [
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "CoreKitTests",
+      "-package-name",
+      "corekit",
+      "-c",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Tests/CoreKitTests/CacheRepositoryTests.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Tests/CoreKitTests/ContainerTests.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Tests/CoreKitTests/ResolveTests.swift",
+      "-I",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j12",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "corekit",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "CoreKit" : [
+
+    ],
+    "CoreKitPackageTests" : [
+      "CoreKitTests",
+      "CoreKit"
+    ],
+    "CoreKitTests" : [
+      "CoreKit"
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+    "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.derived/runner.swift" : {
+      "inputs" : [
+
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.derived/runner.swift"
+        }
+      ]
+    }
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Cache/CacheRepository.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Coordinator/Coordinator.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/Container.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/DI.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/DIAssembly.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/DIEnvironment.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/DI/Resolve.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/Data+Extensions.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/DateFormatter+Extensions.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/Dictionary+Extensions.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/Encodable+Extensions.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/String+Extensions.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Extensions/View+Extensions.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Logger/AppLog.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Utilities/AppIdentity.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Utilities/NetworkStatus.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Sources/CoreKit/Utilities/VersionComparator.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/sources"
+    },
+    "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/sources"
+    },
+    "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppIdentity.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppLog.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/CacheRepository.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Container.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Coordinator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/DI.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIAssembly.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIEnvironment.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Data+Extensions.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/DateFormatter+Extensions.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Dictionary+Extensions.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Encodable+Extensions.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/NetworkStatus.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/Resolve.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/String+Extensions.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/VersionComparator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKit.build/View+Extensions.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/CacheRepositoryTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ContainerTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/ResolveTests.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitPackageTests.product/Objects.LinkFileList"
+    },
+    "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Tests/CoreKitTests/CacheRepositoryTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Tests/CoreKitTests/ContainerTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/Tests/CoreKitTests/ResolveTests.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/CoreKitTests.build/sources"
+    },
+    "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/swift-version-596C98914D6876CD.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/jeoffrey/Documents/Workspaces/shiki/packages/CoreKit/.build/arm64-apple-macosx/debug/swift-version-596C98914D6876CD.txt"
+    }
+  }
+}

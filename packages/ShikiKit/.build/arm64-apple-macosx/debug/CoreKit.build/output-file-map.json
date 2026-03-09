@@ -1,0 +1,124 @@
+{
+  "": {
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/master.swiftdeps"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/Cache/CacheRepository.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/CacheRepository.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/CacheRepository.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/CacheRepository~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/CacheRepository.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/CacheRepository.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/Coordinator/Coordinator.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Coordinator.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Coordinator.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Coordinator~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Coordinator.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Coordinator.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/DI/Container.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Container.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Container.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Container~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Container.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Container.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/DI/DI.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DI.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DI.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DI~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DI.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DI.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/DI/DIAssembly.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIAssembly.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIAssembly.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIAssembly~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIAssembly.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIAssembly.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/DI/DIEnvironment.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIEnvironment.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIEnvironment.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIEnvironment~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIEnvironment.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DIEnvironment.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/DI/Resolve.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Resolve.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Resolve.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Resolve~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Resolve.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Resolve.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/Extensions/Data+Extensions.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Data+Extensions.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Data+Extensions.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Data+Extensions~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Data+Extensions.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Data+Extensions.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/Extensions/DateFormatter+Extensions.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DateFormatter+Extensions.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DateFormatter+Extensions.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DateFormatter+Extensions~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DateFormatter+Extensions.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/DateFormatter+Extensions.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/Extensions/Dictionary+Extensions.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Dictionary+Extensions.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Dictionary+Extensions.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Dictionary+Extensions~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Dictionary+Extensions.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Dictionary+Extensions.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/Extensions/Encodable+Extensions.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Encodable+Extensions.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Encodable+Extensions.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Encodable+Extensions~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Encodable+Extensions.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/Encodable+Extensions.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/Extensions/String+Extensions.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/String+Extensions.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/String+Extensions.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/String+Extensions~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/String+Extensions.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/String+Extensions.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/Extensions/View+Extensions.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/View+Extensions.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/View+Extensions.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/View+Extensions~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/View+Extensions.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/View+Extensions.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/Logger/AppLog.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppLog.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppLog.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppLog~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppLog.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppLog.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/Utilities/AppIdentity.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppIdentity.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppIdentity.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppIdentity~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppIdentity.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/AppIdentity.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/Utilities/NetworkStatus.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/NetworkStatus.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/NetworkStatus.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/NetworkStatus~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/NetworkStatus.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/NetworkStatus.dia"
+  },
+  "/private/tmp/wt-swift-platform-migration/packages/CoreKit/Sources/CoreKit/Utilities/VersionComparator.swift": {
+    "dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/VersionComparator.d",
+    "object": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/VersionComparator.swift.o",
+    "swiftmodule": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/VersionComparator~partial.swiftmodule",
+    "swift-dependencies": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/VersionComparator.swiftdeps",
+    "diagnostics": "/private/tmp/wt-swift-platform-migration/packages/ShikiKit/.build/arm64-apple-macosx/debug/CoreKit.build/VersionComparator.dia"
+  }
+}
