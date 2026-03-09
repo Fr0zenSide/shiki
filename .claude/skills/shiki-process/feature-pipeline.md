@@ -338,6 +338,36 @@ Move fast on bones, take time on skin.
 Between passes: stay creative. Challenge the process itself. Think out of the box.
 A competitive advantage comes from doing what others don't — not from following a script.
 
+## Pipeline Checkpointing
+
+If Shiki backend is available (`curl -sf http://localhost:3900/health`), checkpoint each phase for resume support. If unavailable, skip checkpointing silently — the pipeline works without it.
+
+**On start**: Create a pipeline run:
+```bash
+RUN_ID=$(curl -sf -X POST http://localhost:3900/api/pipelines \
+  -H 'Content-Type: application/json' \
+  -d '{"pipelineType":"md-feature","config":{}}' | jq -r '.id // empty')
+```
+
+**After each phase**: Record a checkpoint:
+```bash
+curl -sf -X POST http://localhost:3900/api/pipelines/$RUN_ID/checkpoints \
+  -H 'Content-Type: application/json' \
+  -d '{"phase":"<phase>","phaseIndex":<N>,"status":"completed","stateAfter":{...}}'
+```
+
+**Phase names**: `phase_1_inspiration` (0), `phase_2_synthesis` (1), `phase_3_business_rules` (2), `phase_4_test_plan` (3), `phase_5_architecture` (4), `phase_5b_execution_plan` (5), `phase_5b_readiness_gate` (6), `phase_6_implementation` (7), `phase_7_quality_gate` (8)
+
+**On failure**: Record with `"status":"failed"`, then check routing:
+```bash
+curl -sf -X POST http://localhost:3900/api/pipelines/$RUN_ID/route \
+  -H 'Content-Type: application/json' -d '{"failedPhase":"<phase>"}'
+```
+
+**On completion**: `curl -sf -X PATCH http://localhost:3900/api/pipelines/$RUN_ID -H 'Content-Type: application/json' -d '{"status":"completed"}'`
+
+**On resume** (via `/retry`): Skip phases with index < resumeFromIndex. Use the provided state.
+
 ## Anti-Rationalization
 
 | Thought | Response |
