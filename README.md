@@ -40,6 +40,13 @@ Shiki turns Claude Code from a stateless assistant into a persistent development
 
 You bring the idea. Shiki handles the process: the right pipeline kicks in, agent personas review the work, quality gates catch issues before merge, and everything your agent learns is stored in a searchable vector database. Next session, next project — context is preserved.
 
+### What's New in v3.1.0
+
+- **Knowledge Ingestion** (`/ingest`) — import external repos, URLs, and docs into your vector knowledge base
+- **Tech Radar** (`/radar`) — monitor GitHub repos and dependencies for breaking changes and updates
+- **Pipeline Resilience** — LangGraph-inspired checkpointing, resume from failure, and conditional routing
+- **Health Check System** — `./shiki status` with full diagnostics, uptime-kuma compatible `--ping` mode
+
 ## Quick Start
 
 ### The Easy Way (via Claude Code)
@@ -87,7 +94,9 @@ That's it. Your agent now has access to Shiki's process skills, agent team, and 
 | `/course-correct` | Mid-feature scope change workflow | When requirements shift during implementation |
 | `/validate-pr` | Checklist validation before merge | Final merge check |
 | `/pre-release-scan` | AI slop scan before production release | Before App Store / production release |
-| `/retry` | Scan stuck agents and relaunch | When sub-agents are blocked or errored |
+| `/retry` | Resume failed pipelines or stuck agents | When a pipeline fails mid-run or agents are blocked |
+| `/ingest` | Import external knowledge into memory | Repos, URLs, docs you want to learn from |
+| `/radar` | Monitor tech stack ecosystem | Track dependency updates and breaking changes |
 
 #### `/backlog-plan` — Continuous Planning Pipeline
 
@@ -129,6 +138,94 @@ Shiki includes a semantic memory system powered by vector embeddings:
 
 Your agent's context doesn't disappear when the session ends.
 
+### Knowledge Ingestion (`/ingest`)
+
+Import external knowledge sources directly into your vector database for cross-session recall:
+
+```bash
+# Ingest a GitHub repo's key insights
+/ingest https://github.com/org/repo
+
+# Ingest a website
+/ingest https://docs.example.com/architecture
+
+# Ingest local documentation
+/ingest ./docs/design-decisions.md
+
+# List all ingested sources
+/ingest sources
+
+# Re-ingest (updates existing knowledge)
+/ingest reingest <source-id>
+```
+
+**How it works:**
+1. **Extract** — Summarize architecture decisions, identify patterns, extract API contracts
+2. **Chunk** — Split into semantic units optimized for retrieval
+3. **Embed** — Generate vector embeddings via your local model
+4. **Dedup** — Cosine similarity check (threshold 0.92) prevents duplicate knowledge
+5. **Categorize** — Auto-tag chunks (architecture, security, testing, API, etc.)
+6. **Store** — Persist in the vector database for semantic search
+
+### Tech Radar (`/radar`)
+
+Monitor your technology ecosystem for updates, breaking changes, and competitive intelligence:
+
+```bash
+# Add a repo to your watchlist
+/radar watch https://github.com/denoland/deno
+
+# Run a scan of all watched repos
+/radar scan
+
+# View the latest digest report
+/radar show
+
+# Ingest notable findings into memory
+/radar ingest
+
+# List watched repos
+/radar list
+```
+
+The radar scans GitHub for releases and commits, detects semver major bumps and breaking change keywords, and generates grouped digests (breaking > update > error > stable). Notable findings are auto-ingested into your knowledge base.
+
+### Pipeline Resilience
+
+All Shiki pipelines (`/md-feature`, `/pre-pr`, `/quick`) support LangGraph-inspired checkpoint-based resilience:
+
+- **Checkpointing** — Each pipeline phase is recorded as a checkpoint with before/after state
+- **Resume from failure** — When a pipeline fails, `/retry` resumes from the last successful checkpoint
+- **State accumulation** — JSONB state merges across phases (like LangGraph's TypedDict pattern)
+- **Conditional routing** — Routing rules evaluate failures and decide: `auto_fix`, `retry_phase`, or `escalate`
+- **Retry budgets** — Max retries tracked across the entire resume chain to prevent infinite loops
+
+```bash
+# Pipeline fails at gate 3 → state is preserved
+# Later, resume from where it left off:
+/retry
+
+# View pipeline run history
+/retry status
+```
+
+### Health Check System
+
+Monitor your Shiki workspace health via CLI or HTTP:
+
+```bash
+# Full interactive status report
+./shiki status
+
+# Uptime-kuma compatible (exit 0/1)
+./shiki health --ping
+
+# HTTP endpoint for monitoring tools
+curl http://localhost:3900/health/full
+```
+
+The status report shows: service health, knowledge base stats (memories, sources, categories), pipeline activity, workspace projects, agent roster, and available commands.
+
 ### Project Adapter
 
 Each project gets a `project-adapter.md` that configures Shiki's process skills for its tech stack:
@@ -162,8 +259,15 @@ shiki/                         <- workspace root (this repo)
 │   └── commands/              <- slash commands (/quick, /md-feature, /pre-pr...)
 ├── src/
 │   ├── backend/               <- Deno REST API + WebSocket
+│   │   └── src/
+│   │       ├── routes.ts      <- all HTTP endpoints
+│   │       ├── ingest.ts      <- knowledge ingestion pipeline
+│   │       ├── radar.ts       <- tech radar scanning engine
+│   │       └── pipelines.ts   <- checkpoint & resume engine
 │   ├── frontend/              <- Vue 3 dashboard
-│   └── db/                    <- PostgreSQL schema + migrations
+│   └── db/
+│       ├── init/              <- base schema
+│       └── migrations/        <- incremental migrations
 ├── scripts/                   <- backup, restore, ingestion
 ├── projects/                  <- GITIGNORED — each is its own git repo
 ├── features/                  <- Shiki's own feature tracking
@@ -214,6 +318,10 @@ shiki/                         <- workspace root (this repo)
 - [x] CLI with auto-install dependency detection (Homebrew + apt)
 - [x] Semantic memory system (vector DB + embeddings)
 - [x] Process skills (Swift projects)
+- [x] Knowledge ingestion pipeline (`/ingest`)
+- [x] Tech radar monitoring (`/radar`)
+- [x] Pipeline resilience (checkpointing, resume, routing)
+- [x] Health check system (`./shiki status`, uptime-kuma compatible)
 - [ ] Linux support (Ubuntu/Debian — CLI ready, full testing planned)
 - [ ] Dashboard: agent timeline, memory browser, decision history
 - [ ] Language addons: TypeScript, Python, Go, Rust
@@ -228,7 +336,9 @@ shiki/                         <- workspace root (this repo)
 ./shiki new <name>   # Create a new project
 ./shiki start        # Start all services
 ./shiki stop         # Stop all services
-./shiki status       # Show services + projects
+./shiki status       # Full health report (services, memory, pipelines, agents)
+./shiki health       # Alias for status
+./shiki health --ping  # Uptime-kuma mode (exit 0 = healthy, 1 = unhealthy)
 ./shiki -h           # Help
 ```
 
@@ -255,6 +365,49 @@ curl -X POST http://localhost:3900/api/memories \
 curl -X POST http://localhost:3900/api/memories/search \
   -H "Content-Type: application/json" \
   -d '{"query":"How does auth work?","projectId":"<uuid>","limit":5,"threshold":0.3}'
+```
+
+### Knowledge Ingestion
+```bash
+# Ingest chunks from an external source
+curl -X POST http://localhost:3900/api/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"sourceUrl":"https://github.com/org/repo","sourceType":"github","chunks":[{"content":"...","title":"..."}]}'
+
+# List ingested sources
+curl http://localhost:3900/api/ingest/sources
+
+# Re-ingest a source (updates existing knowledge)
+curl -X POST http://localhost:3900/api/ingest/reingest/<source-id>
+```
+
+### Tech Radar
+```bash
+# Trigger a scan of all watched repos
+curl -X POST http://localhost:3900/api/radar/scan
+
+# Get latest digest
+curl http://localhost:3900/api/radar/digests/latest
+
+# List watchlist
+curl http://localhost:3900/api/radar/watchlist
+```
+
+### Pipelines (Checkpoint & Resume)
+```bash
+# Create a pipeline run
+curl -X POST http://localhost:3900/api/pipelines \
+  -H "Content-Type: application/json" \
+  -d '{"pipelineType":"pre-pr","config":{"mode":"standard"}}'
+
+# Add a checkpoint
+curl -X POST http://localhost:3900/api/pipelines/<run-id>/checkpoints \
+  -H "Content-Type: application/json" \
+  -d '{"phase":"gate_1a","phaseIndex":0,"status":"completed","stateAfter":{}}'
+
+# Resume from a failed run
+curl -X POST http://localhost:3900/api/pipelines/<run-id>/resume \
+  -H "Content-Type: application/json" -d '{}'
 ```
 
 ### Dashboard

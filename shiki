@@ -566,6 +566,121 @@ do_status() {
   echo ""
 }
 
+# ── Health ─────────────────────────────────────────────────────────
+
+do_health() {
+  local api_url="http://localhost:3900"
+
+  # Quick uptime-kuma compatible check (just exit 0/1)
+  if [ "${1:-}" = "--ping" ]; then
+    curl -sf "$api_url/health" > /dev/null 2>&1 && exit 0 || exit 1
+  fi
+
+  echo -e "${GREEN}四季 Shiki — Health Report${NC}"
+  echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo ""
+
+  # Fetch full health from backend
+  local health_json
+  health_json=$(curl -sf "$api_url/health/full" 2>/dev/null)
+
+  if [ -z "$health_json" ]; then
+    echo -e "  ${RED}✗${NC} Backend          ${RED}unreachable${NC} ($api_url)"
+    echo ""
+
+    # Check Docker services directly
+    echo -e "${CYAN}Docker Services:${NC}"
+    if docker compose ps 2>/dev/null | grep -q "running"; then
+      docker compose ps --format "  {{.Name}}: {{.Status}}" 2>/dev/null
+    else
+      echo -e "  ${RED}✗${NC} Docker services not running"
+    fi
+    echo ""
+    echo -e "${YELLOW}Run: ./shiki start${NC}"
+    return 1
+  fi
+
+  # Parse and display with python3
+  python3 << 'PYEOF' - "$health_json"
+import sys, json
+
+data = json.loads(sys.argv[1])
+G = "\033[0;32m"
+R = "\033[0;31m"
+C = "\033[0;36m"
+D = "\033[2m"
+B = "\033[1m"
+NC = "\033[0m"
+
+status = data["status"]
+version = data["version"]
+uptime = data["uptime"]["human"]
+ok = status == "ok"
+
+print(f"  Status:    {G if ok else R}{'✓' if ok else '✗'} {status.upper()}{NC}")
+print(f"  Version:   {B}{version}{NC}")
+print(f"  Uptime:    {uptime}")
+print()
+
+# Services
+print(f"{C}Services:{NC}")
+db = data["services"]["database"]
+emb = data["services"]["embeddings"]
+print(f"  {G+'✓'+NC if db else R+'✗'+NC} Database       {'connected' if db else 'disconnected'}")
+print(f"  {G+'✓'+NC if emb else R+'✗'+NC} Embeddings     {'connected' if emb else 'disconnected'}")
+print()
+
+# Knowledge Base
+mem = data.get("memory", {})
+total = mem.get("total", 0)
+embedded = mem.get("withEmbedding", 0)
+sources = mem.get("sources", 0)
+cats = mem.get("categories", {})
+print(f"{C}Knowledge Base:{NC}")
+print(f"  Memories:    {B}{total}{NC} ({embedded} embedded)")
+print(f"  Sources:     {sources} ingested")
+if cats:
+    cat_str = ", ".join(f"{k} ({v})" for k, v in sorted(cats.items(), key=lambda x: -x[1])[:6])
+    print(f"  Categories:  {D}{cat_str}{NC}")
+print()
+
+# Pipelines
+pl = data.get("pipelines", {})
+if pl.get("total", 0) > 0:
+    print(f"{C}Pipelines:{NC}")
+    print(f"  Total: {pl['total']}  |  Running: {pl.get('running', 0)}  |  Completed: {pl.get('completed', 0)}  |  Failed: {pl.get('failed', 0)}")
+    print()
+
+# Workspace
+projects = data.get("projects", 0)
+radar = data.get("radar", {}).get("watchedRepos", 0)
+print(f"{C}Workspace:{NC}")
+print(f"  Projects:    {projects}")
+print(f"  Radar:       {radar} repos watched")
+print()
+
+# Agents
+print(f"{C}Agent Team ({len(data.get('agents', []))} personas):{NC}")
+for a in data.get("agents", []):
+    print(f"  {G}{a['handle']:12}{NC} {D}({a['alias']}){NC}  {a['role']}")
+print()
+
+# Commands
+cmds = data.get("commands", [])
+print(f"{C}Commands ({len(cmds)} available):{NC}")
+for c in cmds:
+    print(f"  {B}{c['name']:20}{NC} {c['desc']}")
+
+PYEOF
+
+  echo ""
+  echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  echo -e "  API:    ${CYAN}http://localhost:3900${NC}"
+  echo -e "  Health: ${CYAN}http://localhost:3900/health/full${NC}"
+  echo -e "  Ping:   ${DIM}./shiki health --ping${NC} (uptime-kuma)"
+  echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
 # ── Main ───────────────────────────────────────────────────────────
 
 case "${1:-}" in
@@ -573,12 +688,13 @@ case "${1:-}" in
   new)        do_new "$2" ;;
   start)      do_start ;;
   stop)       do_stop ;;
-  status)     do_status ;;
+  status)     do_health "$2" ;;
+  health)     do_health "$2" ;;
   -h|--help)  do_help ;;
   "")
     # No args: show status if initialized, otherwise guide to init
     if is_initialized; then
-      do_status
+      do_health
     else
       echo -e "${GREEN}四季 Shiki — Dev OS Workspace${NC}"
       echo ""

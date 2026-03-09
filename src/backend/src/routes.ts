@@ -10,11 +10,33 @@ import {
   MemorySearchSchema,
   PrCreatedSchema,
   DataSyncSchema,
+  IngestRequestSchema,
+  RadarWatchItemSchema,
+  RadarScanTriggerSchema,
+  RadarIngestSchema,
+  PipelineRunCreateSchema,
+  PipelineRunUpdateSchema,
+  PipelineCheckpointSchema,
+  PipelineResumeSchema,
+  PipelineRoutingRuleSchema,
+  PipelineRouteEvalSchema,
 } from "./schemas.ts";
+import { ingestChunks, listSources, getSource, deleteSource } from "./ingest.ts";
+import {
+  triggerScan, listWatchlist, addWatchlistItem, updateWatchlistItem,
+  deleteWatchlistItem, getScanResults, getDigest, getLatestDigest,
+  listScanHistory, ingestDigest,
+} from "./radar.ts";
+import {
+  createPipelineRun, getPipelineRun, updatePipelineRun, listPipelineRuns,
+  getLatestPipelineRun, addCheckpoint, getCheckpoints, getCheckpoint,
+  resumePipelineRun, evaluateRouting, listRoutingRules, createRoutingRule,
+  updateRoutingRule, deleteRoutingRule, getPipelineRunSummary,
+} from "./pipelines.ts";
 import { json, parseBody, handleError, logDebug } from "./middleware.ts";
 import { broadcastToProject, getWsStats } from "./ws.ts";
 
-const APP_VERSION = "3.0.0";
+const APP_VERSION = "3.1.0";
 const startedAt = Date.now();
 
 export async function handleRequest(req: Request): Promise<Response> {
@@ -26,6 +48,11 @@ export async function handleRequest(req: Request): Promise<Response> {
     // ── Health check ──────────────────────────────────────────────
     if (path === "/health") {
       return await handleHealth();
+    }
+
+    // ── Extended health (uptime-kuma compatible + agents + memory stats) ──
+    if (path === "/health/full" && method === "GET") {
+      return await handleHealthFull();
     }
 
     // ── Projects ──────────────────────────────────────────────────
@@ -330,6 +357,217 @@ export async function handleRequest(req: Request): Promise<Response> {
       return json(data);
     }
 
+    // ── Ingestion ─────────────────────────────────────────────────
+    if (path === "/api/ingest" && method === "POST") {
+      const body = await parseBody(req, IngestRequestSchema);
+      const result = await ingestChunks(body);
+      return json(result);
+    }
+
+    if (path === "/api/ingest/sources" && method === "GET") {
+      const projectId = url.searchParams.get("project_id");
+      if (!projectId) return json({ error: "project_id query param required" }, 400);
+      const sources = await listSources(projectId);
+      return json(sources);
+    }
+
+    if (path.startsWith("/api/ingest/sources/") && method === "GET") {
+      const id = path.split("/").pop()!;
+      const source = await getSource(id);
+      if (!source) return json({ error: "Source not found" }, 404);
+      return json(source);
+    }
+
+    if (path.startsWith("/api/ingest/sources/") && method === "DELETE") {
+      const id = path.split("/").pop()!;
+      const deleted = await deleteSource(id);
+      if (!deleted) return json({ error: "Source not found" }, 404);
+      return json({ ok: true });
+    }
+
+    if (path.startsWith("/api/ingest/reingest/") && method === "POST") {
+      const id = path.split("/").pop()!;
+      const source = await getSource(id);
+      if (!source) return json({ error: "Source not found" }, 404);
+      // Re-ingest requires the client to re-send chunks
+      return json({ sourceId: id, status: source.status, message: "Re-send chunks via POST /api/ingest with the same sourceUri" });
+    }
+
+    // ── Radar ───────────────────────────────────────────────────────
+    if (path === "/api/radar/watchlist" && method === "GET") {
+      const kind = url.searchParams.get("kind") ?? undefined;
+      const tag = url.searchParams.get("tag") ?? undefined;
+      const items = await listWatchlist(kind, tag);
+      return json(items);
+    }
+
+    if (path === "/api/radar/watchlist" && method === "POST") {
+      const body = await parseBody(req, RadarWatchItemSchema);
+      const item = await addWatchlistItem(body);
+      return json(item, 201);
+    }
+
+    if (path.startsWith("/api/radar/watchlist/") && method === "PUT") {
+      const id = path.split("/").pop()!;
+      const body = await req.json();
+      const updated = await updateWatchlistItem(id, body);
+      if (!updated) return json({ error: "Item not found" }, 404);
+      return json(updated);
+    }
+
+    if (path.startsWith("/api/radar/watchlist/") && method === "DELETE") {
+      const id = path.split("/").pop()!;
+      const deleted = await deleteWatchlistItem(id);
+      if (!deleted) return json({ error: "Item not found" }, 404);
+      return json({ ok: true });
+    }
+
+    if (path === "/api/radar/scan" && method === "POST") {
+      const body = await parseBody(req, RadarScanTriggerSchema);
+      const scanRunId = await triggerScan(body.sinceDays, body.itemIds);
+      return json({ scanRunId, status: "started" });
+    }
+
+    if (path.startsWith("/api/radar/scans/") && method === "GET") {
+      const runId = path.split("/").pop()!;
+      const results = await getScanResults(runId);
+      return json(results);
+    }
+
+    if (path === "/api/radar/scans" && method === "GET") {
+      const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "10"), 50);
+      const history = await listScanHistory(limit);
+      return json(history);
+    }
+
+    if (path === "/api/radar/digest/latest" && method === "GET") {
+      const digest = await getLatestDigest();
+      if (!digest) return json({ error: "No digests found" }, 404);
+      return json(digest);
+    }
+
+    if (path.startsWith("/api/radar/digest/") && method === "GET") {
+      const runId = path.split("/").pop()!;
+      const digest = await getDigest(runId);
+      if (!digest) return json({ error: "Digest not found" }, 404);
+      return json(digest);
+    }
+
+    if (path === "/api/radar/ingest" && method === "POST") {
+      const body = await parseBody(req, RadarIngestSchema);
+      const count = await ingestDigest(body.scanRunId, body.projectId);
+      return json({ ok: true, memoriesCreated: count });
+    }
+
+    // ── Pipelines ─────────────────────────────────────────────────
+    if (path === "/api/pipelines" && method === "POST") {
+      const body = await parseBody(req, PipelineRunCreateSchema);
+      const result = await createPipelineRun(body);
+      return json(result, 201);
+    }
+
+    if (path === "/api/pipelines" && method === "GET") {
+      const pipelineType = url.searchParams.get("pipeline_type") ?? undefined;
+      const status = url.searchParams.get("status") ?? undefined;
+      const projectId = url.searchParams.get("project_id") ?? undefined;
+      const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "20"), 100);
+      const runs = await listPipelineRuns({ pipelineType, status, projectId, limit });
+      return json(runs);
+    }
+
+    if (path === "/api/pipelines/latest" && method === "GET") {
+      const pipelineType = url.searchParams.get("pipeline_type") ?? undefined;
+      const run = await getLatestPipelineRun(pipelineType);
+      if (!run) return json({ error: "No pipeline runs found" }, 404);
+      return json(run);
+    }
+
+    // Pipeline sub-routes: /api/pipelines/:id/...
+    if (path.startsWith("/api/pipelines/") && path !== "/api/pipelines/latest") {
+      const segments = path.split("/");
+      // /api/pipelines/:id → segments = ["", "api", "pipelines", "<id>", ...]
+      const runId = segments[3];
+
+      // GET /api/pipelines/:id
+      if (segments.length === 4 && method === "GET") {
+        const run = await getPipelineRunSummary(runId);
+        if (!run) return json({ error: "Pipeline run not found" }, 404);
+        return json(run);
+      }
+
+      // PATCH /api/pipelines/:id
+      if (segments.length === 4 && method === "PATCH") {
+        const body = await parseBody(req, PipelineRunUpdateSchema);
+        const run = await updatePipelineRun(runId, body);
+        if (!run) return json({ error: "Pipeline run not found" }, 404);
+        return json(run);
+      }
+
+      // POST /api/pipelines/:id/checkpoints
+      if (segments[4] === "checkpoints" && segments.length === 5 && method === "POST") {
+        const body = await parseBody(req, PipelineCheckpointSchema);
+        const result = await addCheckpoint(runId, body);
+        return json(result, 201);
+      }
+
+      // GET /api/pipelines/:id/checkpoints
+      if (segments[4] === "checkpoints" && segments.length === 5 && method === "GET") {
+        const checkpoints = await getCheckpoints(runId);
+        return json(checkpoints);
+      }
+
+      // GET /api/pipelines/:id/checkpoints/:phase
+      if (segments[4] === "checkpoints" && segments.length === 6 && method === "GET") {
+        const phase = segments[5];
+        const checkpoint = await getCheckpoint(runId, phase);
+        if (!checkpoint) return json({ error: "Checkpoint not found" }, 404);
+        return json(checkpoint);
+      }
+
+      // POST /api/pipelines/:id/resume
+      if (segments[4] === "resume" && method === "POST") {
+        const body = await parseBody(req, PipelineResumeSchema);
+        const result = await resumePipelineRun(runId, body);
+        return json(result);
+      }
+
+      // POST /api/pipelines/:id/route
+      if (segments[4] === "route" && method === "POST") {
+        const body = await parseBody(req, PipelineRouteEvalSchema);
+        const result = await evaluateRouting(runId, body.failedPhase);
+        if (!result) return json({ action: null, message: "No routing rule matched" });
+        return json(result);
+      }
+    }
+
+    // ── Pipeline Routing Rules ──────────────────────────────────────
+    if (path === "/api/pipeline-rules" && method === "GET") {
+      const pipelineType = url.searchParams.get("pipeline_type") ?? undefined;
+      const rules = await listRoutingRules(pipelineType);
+      return json(rules);
+    }
+
+    if (path === "/api/pipeline-rules" && method === "POST") {
+      const body = await parseBody(req, PipelineRoutingRuleSchema);
+      const result = await createRoutingRule(body);
+      return json(result, 201);
+    }
+
+    if (path.startsWith("/api/pipeline-rules/") && method === "PUT") {
+      const id = path.split("/").pop()!;
+      const body = await req.json();
+      const updated = await updateRoutingRule(id, body);
+      if (!updated) return json({ error: "Rule not found" }, 404);
+      return json(updated);
+    }
+
+    if (path.startsWith("/api/pipeline-rules/") && method === "DELETE") {
+      const id = path.split("/").pop()!;
+      const deleted = await deleteRoutingRule(id);
+      if (!deleted) return json({ error: "Rule not found" }, 404);
+      return json({ ok: true });
+    }
+
     // ── Database Backup Info ─────────────────────────────────────
     if (path === "/api/admin/backup-status" && method === "GET") {
       const dbStats = await sql`
@@ -386,6 +624,104 @@ async function handleHealth(): Promise<Response> {
       },
       websocket: wsStats,
     },
+    timestamp: new Date().toISOString(),
+  }, httpCode);
+}
+
+async function handleHealthFull(): Promise<Response> {
+  const dbOk = await healthCheck();
+  const ollamaOk = await ollamaHealthCheck();
+  const uptimeMs = Date.now() - startedAt;
+
+  // Memory stats
+  let memoryStats = { total: 0, withEmbedding: 0, categories: {} as Record<string, number>, sources: 0 };
+  try {
+    const [memCount] = await sql`SELECT COUNT(*) as total, COUNT(embedding) as with_embedding FROM agent_memories`;
+    const cats = await sql`SELECT category, COUNT(*) as count FROM agent_memories GROUP BY category ORDER BY count DESC`;
+    const [srcCount] = await sql`SELECT COUNT(*) as count FROM ingestion_sources`;
+    memoryStats = {
+      total: parseInt(memCount.total),
+      withEmbedding: parseInt(memCount.with_embedding),
+      categories: Object.fromEntries(cats.map((c: any) => [c.category, parseInt(c.count)])),
+      sources: parseInt(srcCount.count),
+    };
+  } catch { /* db may not have tables yet */ }
+
+  // Pipeline stats
+  let pipelineStats = { total: 0, running: 0, completed: 0, failed: 0 };
+  try {
+    const stats = await sql`
+      SELECT status, COUNT(*) as count FROM pipeline_runs GROUP BY status
+    `;
+    for (const s of stats) {
+      const count = parseInt(s.count);
+      pipelineStats.total += count;
+      if (s.status === "running" || s.status === "resuming") pipelineStats.running += count;
+      else if (s.status === "completed") pipelineStats.completed += count;
+      else if (s.status === "failed") pipelineStats.failed += count;
+    }
+  } catch { /* table may not exist */ }
+
+  // Project count
+  let projectCount = 0;
+  try {
+    const [p] = await sql`SELECT COUNT(*) as count FROM projects`;
+    projectCount = parseInt(p.count);
+  } catch { /* ignore */ }
+
+  // Radar watchlist count
+  let radarCount = 0;
+  try {
+    const [r] = await sql`SELECT COUNT(*) as count FROM radar_watchlist WHERE enabled = TRUE`;
+    radarCount = parseInt(r.count);
+  } catch { /* ignore */ }
+
+  // Agent roster (static — from the codebase)
+  const agents = [
+    { handle: "@Sensei",  alias: "CTO",        role: "Architecture, code quality, feasibility decisions" },
+    { handle: "@Hanami",  alias: "Designer",    role: "UX, accessibility, emotional design" },
+    { handle: "@Kintsugi", alias: "Philosophy", role: "Design philosophy, imperfection as beauty" },
+    { handle: "@Enso",    alias: "Brand",       role: "Voice and tone consistency, mindfulness" },
+    { handle: "@Tsubaki", alias: "Copy",        role: "Conversion copy, storytelling, SEO" },
+    { handle: "@Shogun",  alias: "Strategy",    role: "Market positioning, competitive analysis" },
+    { handle: "@Ronin",   alias: "Reviewer",    role: "Adversarial review, security, edge cases" },
+    { handle: "@Katana",  alias: "DevOps",      role: "Linux hardening, security audits, backups" },
+    { handle: "@Daimyo",  alias: "Founder",     role: "Final authority on all decisions (human)" },
+  ];
+
+  // Commands
+  const commands = [
+    { name: "/quick",            desc: "4-step pipeline for small changes" },
+    { name: "/md-feature",       desc: "8-phase pipeline for new features" },
+    { name: "/pre-pr",           desc: "9-gate quality pipeline before PRs" },
+    { name: "/review",           desc: "Interactive PR review with 3-agent analysis" },
+    { name: "/dispatch",         desc: "Autonomous parallel implementation" },
+    { name: "/ingest",           desc: "Knowledge ingestion from repos, URLs, text" },
+    { name: "/radar",            desc: "Tech radar — monitor stack ecosystem" },
+    { name: "/retry",            desc: "Resume failed pipelines or stuck agents" },
+    { name: "/validate-pr",      desc: "Checklist validation before merge" },
+    { name: "/pre-release-scan", desc: "AI slop scan before production" },
+    { name: "/course-correct",   desc: "Mid-feature scope change workflow" },
+    { name: "/backlog-plan",     desc: "Continuous planning pipeline" },
+  ];
+
+  const status = dbOk ? "ok" : "degraded";
+  const httpCode = dbOk ? 200 : 503;
+
+  return json({
+    status,
+    version: APP_VERSION,
+    uptime: { ms: uptimeMs, human: formatUptime(uptimeMs) },
+    services: {
+      database: dbOk,
+      embeddings: ollamaOk,
+    },
+    memory: memoryStats,
+    pipelines: pipelineStats,
+    projects: projectCount,
+    radar: { watchedRepos: radarCount },
+    agents,
+    commands,
     timestamp: new Date().toISOString(),
   }, httpCode);
 }
