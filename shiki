@@ -787,12 +787,12 @@ CONF
       echo ""
       echo -e "${GREEN}✓${NC} Config saved to $CONFIG_FILE"
 
-      # Subscribe to response topic in ntfy app
-      local response_topic="${topic}-response"
       echo ""
-      echo -e "${YELLOW}IMPORTANT: In the ntfy app, also subscribe to:${NC}"
-      echo -e "  ${BOLD}$response_topic${NC}"
-      echo "  (This is the callback topic for your button taps)"
+      echo -e "${YELLOW}IMPORTANT: In the ntfy app, subscribe ONLY to:${NC}"
+      echo -e "  ${BOLD}$topic${NC}"
+      echo ""
+      echo -e "  ${DIM}Do NOT subscribe to ${topic}-response — that's the${NC}"
+      echo -e "  ${DIM}internal callback topic handled by the script.${NC}"
 
       # Install Claude Code hook
       echo ""
@@ -961,7 +961,7 @@ PYEOF
         echo -e "  ${GREEN}✓${NC} Response received: ${BOLD}$resp${NC}"
       else
         echo -e "  ${YELLOW}No response received (timeout).${NC}"
-        echo "  Make sure you subscribed to ${BOLD}$response_topic${NC} in the ntfy app."
+        echo "  Make sure you subscribed to ${BOLD}$NTFY_TOPIC${NC} in the ntfy app."
       fi
       ;;
 
