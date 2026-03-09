@@ -1,0 +1,24 @@
+# ntfy server configuration for Shiki
+# Embedded in Docker Compose, used for remote approval notifications
+
+# Base URL — must match what you set as "Default Server" in the iOS app
+# Change this to your Tailscale/LAN IP for iPhone access
+base-url: "http://192.168.1.16:2586"
+
+# Listen address (inside Docker)
+listen-http: ":2586"
+
+# iOS push: relay poll requests through ntfy.sh for APNS delivery
+# Your message content stays on YOUR server — only a "wake up" signal goes through ntfy.sh
+upstream-base-url: "https://ntfy.sh"
+
+# Cache settings
+cache-file: "/var/lib/ntfy/cache.db"
+cache-duration: "12h"
+
+# Attachment settings (disabled — we only send text notifications)
+attachment-cache-dir: "/var/lib/ntfy/attachments"
+attachment-total-size-limit: "10M"
+
+# No auth required (local network only, bound to 127.0.0.1 via Docker)
+auth-default-access: "read-write"

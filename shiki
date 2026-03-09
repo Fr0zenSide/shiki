@@ -11,6 +11,8 @@
 #   ./shiki start        # start all services
 #   ./shiki stop         # stop all services
 #   ./shiki status       # show services + projects
+#   ./shiki notify setup # configure remote approval (ntfy.sh)
+#   ./shiki notify test  # send a test notification
 #   ./shiki -h           # help
 # ========================================
 
@@ -135,6 +137,9 @@ do_help() {
   echo "  start            Start all Shiki services"
   echo "  stop             Stop all Shiki services"
   echo "  status           Show running services and projects"
+  echo "  notify setup     Configure remote approval via ntfy.sh"
+  echo "  notify test      Send a test notification"
+  echo "  notify status    Show notification config"
   echo "  -h, --help       Show this help"
   echo ""
   echo "Getting started:"
@@ -178,7 +183,7 @@ do_init() {
   echo ""
   echo -e "${CYAN}Starting Docker services...${NC}"
   source .env
-  docker compose up -d db ollama
+  docker compose up -d db ollama ntfy
 
   echo -ne "  Waiting for PostgreSQL..."
   for i in $(seq 1 30); do
@@ -369,8 +374,8 @@ do_start() {
   source .env
 
   # Docker services
-  echo -e "${CYAN}Starting Docker services (PostgreSQL + Ollama)...${NC}"
-  docker compose up -d db ollama
+  echo -e "${CYAN}Starting Docker services (PostgreSQL + Ollama + ntfy)...${NC}"
+  docker compose up -d db ollama ntfy
 
   echo -ne "  Waiting for PostgreSQL..."
   for i in $(seq 1 30); do
@@ -452,6 +457,7 @@ do_start() {
   echo -e "  API:        ${CYAN}http://localhost:3900${NC}"
   echo -e "  WebSocket:  ${CYAN}ws://localhost:3900/ws${NC}"
   echo -e "  Health:     ${CYAN}http://localhost:3900/health${NC}"
+  echo -e "  ntfy:       ${CYAN}http://localhost:2586${NC}"
   echo -e "  PostgreSQL: ${DIM}localhost:5433${NC}"
   echo -e "  Ollama:     ${DIM}localhost:11435${NC}"
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -681,6 +687,331 @@ PYEOF
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
+# ── Notify ─────────────────────────────────────────────────────
+
+do_notify() {
+  local subcmd="${1:-}"
+  local CONFIG_DIR="$HOME/.config/shiki-notify"
+  local CONFIG_FILE="$CONFIG_DIR/config"
+  local HOOK_SCRIPT="$SCRIPT_DIR/scripts/shiki-approval.sh"
+
+  case "$subcmd" in
+    setup)
+      echo -e "${GREEN}四季 Shiki — Remote Approval Setup${NC}"
+      echo ""
+      echo "This configures push notifications for Claude Code permission requests."
+      echo "When Claude needs approval, you'll get a notification on your phone/watch"
+      echo "with [Approve] [Always Allow] [Deny] buttons."
+      echo ""
+      echo -e "${CYAN}Prerequisites:${NC}"
+      echo "  1. Install ntfy app on iPhone: https://apps.apple.com/app/ntfy/id1625396347"
+      echo "  2. Shiki embeds its own ntfy server at http://localhost:2586"
+      echo "     (started automatically with ./shiki start)"
+      echo ""
+
+      # Check if ntfy container is running
+      if docker compose ps ntfy 2>/dev/null | grep -q "running"; then
+        echo -e "  ${GREEN}✓${NC} ntfy server is running (port 2586)"
+      else
+        echo -e "  ${YELLOW}!${NC} ntfy server not running. Starting it..."
+        docker compose up -d ntfy
+        sleep 2
+        if docker compose ps ntfy 2>/dev/null | grep -q "running"; then
+          echo -e "  ${GREEN}✓${NC} ntfy server started"
+        else
+          echo -e "  ${RED}✗${NC} Failed to start ntfy. Check: docker compose logs ntfy"
+        fi
+      fi
+      echo ""
+
+      # Get topic
+      local default_topic="shiki-$(whoami)"
+      read -p "ntfy topic name [$default_topic]: " topic
+      topic="${topic:-$default_topic}"
+
+      # Server: default to embedded
+      echo ""
+      echo "  Shiki includes a local ntfy server (recommended)."
+      echo "  Use https://ntfy.sh for public cloud, or your own server."
+      read -p "ntfy server [http://localhost:2586]: " server
+      server="${server:-http://localhost:2586}"
+
+      # For iPhone: need to expose or use upstream
+      if [[ "$server" == *"localhost"* ]]; then
+        echo ""
+        echo -e "${YELLOW}Note:${NC} For iPhone/Apple Watch notifications, you need your"
+        echo "  phone to reach this server. Options:"
+        echo ""
+        echo "  ${BOLD}a)${NC} Use Tailscale/WireGuard (recommended) — your Mac gets a"
+        echo "     stable IP like 100.x.x.x, set server to http://100.x.x.x:2586"
+        echo ""
+        echo "  ${BOLD}b)${NC} Use ntfy.sh cloud — set server to https://ntfy.sh"
+        echo "     (free, public topics — use a unique random topic name)"
+        echo ""
+        echo "  ${BOLD}c)${NC} Use upstream relay — local ntfy forwards to ntfy.sh"
+        echo "     (configure in ntfy server config later)"
+        echo ""
+        read -p "Change server? (enter new URL or press Enter to keep local): " alt_server
+        if [ -n "$alt_server" ]; then
+          server="$alt_server"
+        fi
+      fi
+
+      # Optional: access token
+      read -p "ntfy access token (leave empty for public topics): " token
+
+      # Optional: timeout
+      read -p "Approval timeout in seconds [120]: " timeout
+      timeout="${timeout:-120}"
+
+      # Optional: auto-approve tools
+      echo ""
+      echo -e "${CYAN}Auto-approve (skip notification for safe tools):${NC}"
+      echo "  Common safe tools: Read, Glob, Grep, Bash(read-only)"
+      echo "  Leave empty to get notified for everything."
+      read -p "Auto-approve tools (comma-separated): " auto_approve
+
+      # Write config
+      mkdir -p "$CONFIG_DIR"
+      cat > "$CONFIG_FILE" << CONF
+# Shiki Remote Approval Configuration
+# Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+NTFY_TOPIC="$topic"
+NTFY_SERVER="$server"
+NTFY_TOKEN="$token"
+NTFY_TIMEOUT="$timeout"
+AUTO_APPROVE_TOOLS="$auto_approve"
+CONF
+      echo ""
+      echo -e "${GREEN}✓${NC} Config saved to $CONFIG_FILE"
+
+      # Subscribe to response topic in ntfy app
+      local response_topic="${topic}-response"
+      echo ""
+      echo -e "${YELLOW}IMPORTANT: In the ntfy app, also subscribe to:${NC}"
+      echo -e "  ${BOLD}$response_topic${NC}"
+      echo "  (This is the callback topic for your button taps)"
+
+      # Install Claude Code hook
+      echo ""
+      echo -e "${CYAN}Installing Claude Code hook...${NC}"
+
+      # Check for existing settings files
+      local settings_file="$HOME/.claude/settings.json"
+      local local_settings="$SCRIPT_DIR/.claude/settings.local.json"
+
+      # We'll use the project-level settings.local.json
+      if [ -f "$local_settings" ]; then
+        # Merge hook into existing settings
+        python3 << PYEOF
+import json
+
+hook_script = "$HOOK_SCRIPT"
+settings_path = "$local_settings"
+
+with open(settings_path, 'r') as f:
+    settings = json.load(f)
+
+# Add or update hooks
+if 'hooks' not in settings:
+    settings['hooks'] = {}
+
+settings['hooks']['PermissionRequest'] = [
+    {
+        "matcher": "",
+        "hooks": [
+            {
+                "type": "command",
+                "command": hook_script,
+                "timeout": $timeout
+            }
+        ]
+    }
+]
+
+with open(settings_path, 'w') as f:
+    json.dump(settings, f, indent=2)
+    f.write('\n')
+
+print("Updated existing settings.local.json")
+PYEOF
+      else
+        # Create new settings.local.json
+        python3 << PYEOF
+import json
+
+hook_script = "$HOOK_SCRIPT"
+settings_path = "$local_settings"
+
+settings = {
+    "hooks": {
+        "PermissionRequest": [
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": hook_script,
+                        "timeout": $timeout
+                    }
+                ]
+            }
+        ]
+    }
+}
+
+with open(settings_path, 'w') as f:
+    json.dump(settings, f, indent=2)
+    f.write('\n')
+
+print("Created settings.local.json")
+PYEOF
+      fi
+
+      echo -e "${GREEN}✓${NC} Claude Code hook installed"
+      echo ""
+      echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+      echo -e "${GREEN}  Remote approval is ready!${NC}"
+      echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+      echo ""
+      echo "  Next time Claude Code asks for permission, you'll get a"
+      echo "  push notification with approve/deny buttons."
+      echo ""
+      echo -e "  Test it: ${BOLD}./shiki notify test${NC}"
+      echo ""
+      ;;
+
+    test)
+      if [ ! -f "$CONFIG_FILE" ]; then
+        echo -e "${RED}Not configured. Run: ./shiki notify setup${NC}"
+        exit 1
+      fi
+
+      source "$CONFIG_FILE"
+
+      echo -e "${CYAN}Sending test notification to ${BOLD}$NTFY_TOPIC${NC}..."
+
+      local auth_args=()
+      if [ -n "${NTFY_TOKEN:-}" ]; then
+        auth_args+=(-H "Authorization: Bearer $NTFY_TOKEN")
+      fi
+
+      local response_topic="${NTFY_TOPIC}-response"
+      local test_id="test-$(date +%s)"
+
+      curl -sf -X POST "$NTFY_SERVER" \
+        -H "Content-Type: application/json" \
+        "${auth_args[@]}" \
+        -d "{
+          \"topic\": \"$NTFY_TOPIC\",
+          \"title\": \"Shiki: Test Notification\",
+          \"message\": \"Tool: Bash\\nCommand: echo hello world\",
+          \"tags\": [\"key\", \"test_tube\"],
+          \"priority\": 4,
+          \"actions\": [
+            {\"action\": \"http\", \"label\": \"Approve\", \"url\": \"$NTFY_SERVER/$response_topic\", \"method\": \"POST\", \"body\": \"approve\", \"clear\": true},
+            {\"action\": \"http\", \"label\": \"Deny\", \"url\": \"$NTFY_SERVER/$response_topic\", \"method\": \"POST\", \"body\": \"deny\", \"clear\": true}
+          ]
+        }" > /dev/null
+
+      echo -e "${GREEN}✓${NC} Test notification sent!"
+      echo ""
+      echo "  Check your phone/watch for the notification."
+      echo "  Tap a button to verify the action works."
+      echo ""
+      echo -e "  ${DIM}Listening for response (${NTFY_TIMEOUT}s timeout)...${NC}"
+
+      # Listen for response via python3 (reliable SSE + timeout)
+      local since_ts
+      since_ts=$(date +%s)
+      local resp
+      resp=$(python3 << PYEOF
+import urllib.request, json, sys, time
+
+url = "${NTFY_SERVER}/${response_topic}/json?since=${since_ts}"
+req = urllib.request.Request(url)
+timeout = int("${NTFY_TIMEOUT:-120}")
+
+try:
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        start = time.time()
+        while time.time() - start < timeout:
+            line = resp.readline().decode("utf-8").strip()
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+                if data.get("event") != "message":
+                    continue
+                msg = data.get("message", "").strip().lower()
+                if msg in ("approve", "deny", "always_allow"):
+                    print(msg)
+                    sys.exit(0)
+            except json.JSONDecodeError:
+                continue
+except Exception:
+    pass
+print("")
+PYEOF
+)
+
+      if [ -n "$resp" ]; then
+        echo -e "  ${GREEN}✓${NC} Response received: ${BOLD}$resp${NC}"
+      else
+        echo -e "  ${YELLOW}No response received (timeout).${NC}"
+        echo "  Make sure you subscribed to ${BOLD}$response_topic${NC} in the ntfy app."
+      fi
+      ;;
+
+    status)
+      if [ ! -f "$CONFIG_FILE" ]; then
+        echo -e "${YELLOW}Not configured.${NC} Run: ${BOLD}./shiki notify setup${NC}"
+        return
+      fi
+
+      source "$CONFIG_FILE"
+
+      echo -e "${GREEN}四季 Shiki — Notification Status${NC}"
+      echo ""
+      echo -e "  Server:      ${BOLD}${NTFY_SERVER}${NC}"
+      echo -e "  Topic:       ${BOLD}${NTFY_TOPIC}${NC}"
+      echo -e "  Response:    ${BOLD}${NTFY_TOPIC}-response${NC}"
+      echo -e "  Timeout:     ${NTFY_TIMEOUT}s"
+      echo -e "  Auth:        ${NTFY_TOKEN:+configured}${NTFY_TOKEN:-none}"
+      echo -e "  Auto-approve: ${AUTO_APPROVE_TOOLS:-none}"
+      echo ""
+
+      # Check hook installation
+      local local_settings="$SCRIPT_DIR/.claude/settings.local.json"
+      if [ -f "$local_settings" ] && grep -q "shiki-approval" "$local_settings" 2>/dev/null; then
+        echo -e "  Hook:        ${GREEN}✓${NC} installed in settings.local.json"
+      else
+        echo -e "  Hook:        ${RED}✗${NC} not installed (run ./shiki notify setup)"
+      fi
+
+      # Check log
+      local LOG_FILE="$CONFIG_DIR/approval.log"
+      if [ -f "$LOG_FILE" ]; then
+        local log_count=$(wc -l < "$LOG_FILE" | tr -d ' ')
+        echo -e "  Log:         $log_count entries ($LOG_FILE)"
+        echo ""
+        echo -e "${CYAN}Recent approvals:${NC}"
+        tail -5 "$LOG_FILE" | while IFS='|' read -r ts decision tool detail; do
+          echo -e "  ${DIM}$ts${NC} $decision $tool"
+        done
+      fi
+      ;;
+
+    *)
+      echo -e "${YELLOW}Usage:${NC}"
+      echo "  ./shiki notify setup    Configure remote approval"
+      echo "  ./shiki notify test     Send test notification"
+      echo "  ./shiki notify status   Show config and recent approvals"
+      ;;
+  esac
+}
+
 # ── Main ───────────────────────────────────────────────────────────
 
 case "${1:-}" in
@@ -688,8 +1019,9 @@ case "${1:-}" in
   new)        do_new "$2" ;;
   start)      do_start ;;
   stop)       do_stop ;;
-  status)     do_health "$2" ;;
-  health)     do_health "$2" ;;
+  status)     do_health "${2:-}" ;;
+  health)     do_health "${2:-}" ;;
+  notify)     do_notify "${2:-}" ;;
   -h|--help)  do_help ;;
   "")
     # No args: show status if initialized, otherwise guide to init
