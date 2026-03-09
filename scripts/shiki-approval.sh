@@ -246,13 +246,42 @@ print("")
 '
 )
 
+# ── Send single confirmation on first response ───────────────
+# One confirmation notification on the main topic so you know
+# Claude received your decision. No duplicates: the SSE listener
+# already exits after the first valid response.
+
+send_confirmation() {
+  local decision_label="$1" icon="$2"
+  local tag
+  tag=$([ "$decision_label" = "Denied" ] && echo "x" || echo "white_check_mark")
+  local confirm_payload
+  confirm_payload=$(
+    SHIKI_TOPIC="$NTFY_TOPIC" \
+    SHIKI_TITLE="$icon $decision_label: $TOOL_NAME" \
+    SHIKI_TAG="$tag" \
+    python3 -c '
+import json, os
+payload = {
+    "topic": os.environ["SHIKI_TOPIC"],
+    "title": os.environ["SHIKI_TITLE"],
+    "tags": [os.environ["SHIKI_TAG"]],
+    "priority": 1
+}
+print(json.dumps(payload))
+'
+  )
+  curl -sf -X POST "$NTFY_SERVER" \
+    -H "Content-Type: application/json" \
+    -d "$confirm_payload" >/dev/null 2>&1 || true
+}
+
 # ── Return decision to Claude Code ───────────────────────────
-# No confirmation notifications — the button tap + notification dismissal
-# (clear: true) is enough feedback. Decisions are logged locally.
 
 case "$DECISION" in
   approve)
     log_approval "approved" "$TOOL_NAME" "$TOOL_INPUT_RAW"
+    send_confirmation "Approved" "✅"
     echo '{
       "hookSpecificOutput": {
         "hookEventName": "PermissionRequest",
@@ -262,6 +291,7 @@ case "$DECISION" in
     ;;
   always_allow)
     log_approval "always-allowed" "$TOOL_NAME" "$TOOL_INPUT_RAW"
+    send_confirmation "Always Allowed" "🔓"
     # Return allow + add permission rule so this tool won't ask again
     echo "{
       \"hookSpecificOutput\": {
@@ -273,6 +303,7 @@ case "$DECISION" in
     ;;
   deny)
     log_approval "denied" "$TOOL_NAME" "$TOOL_INPUT_RAW"
+    send_confirmation "Denied" "❌"
     echo '{
       "hookSpecificOutput": {
         "hookEventName": "PermissionRequest",
