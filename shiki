@@ -783,6 +783,7 @@ NTFY_TOKEN="$token"
 NTFY_TIMEOUT="$timeout"
 AUTO_APPROVE_TOOLS="$auto_approve"
 CONF
+      chmod 600 "$CONFIG_FILE"
       echo ""
       echo -e "${GREEN}✓${NC} Config saved to $CONFIG_FILE"
 

@@ -3,7 +3,7 @@
 
 # Base URL — must match what you set as "Default Server" in the iOS app
 # Change this to your Tailscale/LAN IP for iPhone access
-base-url: "http://192.168.1.16:2586"
+base-url: "http://localhost:2586"  # Change to your LAN/Tailscale IP for iPhone access
 
 # Listen address (inside Docker)
 listen-http: ":2586"
@@ -20,5 +20,5 @@ cache-duration: "12h"
 attachment-cache-dir: "/var/lib/ntfy/attachments"
 attachment-total-size-limit: "10M"
 
-# No auth required (local network only, bound to 127.0.0.1 via Docker)
+# No auth required (local network only, bound to 127.0.0.1 by default)
 auth-default-access: "read-write"
