@@ -11,6 +11,9 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/shiki-notify-lib.sh"
+
 CONFIG_DIR="$HOME/.config/shiki-notify"
 CONFIG_FILE="$CONFIG_DIR/config"
 LOG_FILE="$CONFIG_DIR/approval.log"
@@ -36,7 +39,7 @@ IDLE_DELAY="${IDLE_DELAY:-120}" # seconds before sending notification
 
 INPUT=$(cat)
 
-# Extract stop reason and last tool info
+# Extract stop reason
 STOP_REASON=$(echo "$INPUT" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
@@ -62,21 +65,9 @@ if [[ -f "$IDLE_STATE_FILE" ]]; then
 fi
 echo "$NOW" > "$IDLE_STATE_FILE"
 
-# ── Build workspace context tag ───────────────────────────────
+# ── Build workspace context tag (from shared lib) ────────────
 
-FOLDER_NAME=$(basename "$(pwd)")
-WORKSPACE_TAG=""
-GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || echo "")
-if [[ "$GIT_DIR" == *"/worktrees/"* ]]; then
-  BRANCH=$(git branch --show-current 2>/dev/null || echo "")
-  if [[ -n "$BRANCH" ]]; then
-    WORKSPACE_TAG="[WS:${BRANCH}]"
-  else
-    WORKSPACE_TAG="[WS:${FOLDER_NAME}]"
-  fi
-elif [[ "$FOLDER_NAME" != "shiki" ]]; then
-  WORKSPACE_TAG="[${FOLDER_NAME}]"
-fi
+WORKSPACE_TAG=$(shiki_workspace_tag)
 
 # ── Send "What's next?" notification ─────────────────────────
 
@@ -85,18 +76,20 @@ if [[ -n "$NTFY_TOKEN" ]]; then
   AUTH_HEADER="Authorization: Bearer $NTFY_TOKEN"
 fi
 
-PAYLOAD=$(python3 << PYEOF
-import json
-
+PAYLOAD=$(
+  SHIKI_TOPIC="$NTFY_TOPIC" \
+  SHIKI_TITLE="Shiki${WORKSPACE_TAG}: Your turn 👋" \
+  python3 -c '
+import json, os
 payload = {
-    "topic": "$NTFY_TOPIC",
-    "title": "Shiki${WORKSPACE_TAG}: Your turn \ud83d\udc4b",
+    "topic": os.environ["SHIKI_TOPIC"],
+    "title": os.environ["SHIKI_TITLE"],
     "message": "Claude finished and is waiting for your next instruction.",
     "tags": ["wave"],
     "priority": 3
 }
 print(json.dumps(payload))
-PYEOF
+'
 )
 
 CURL_ARGS=(-sf -X POST "$NTFY_SERVER" -H "Content-Type: application/json" -d "$PAYLOAD")

@@ -11,6 +11,9 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/shiki-notify-lib.sh"
+
 CONFIG_DIR="$HOME/.config/shiki-notify"
 CONFIG_FILE="$CONFIG_DIR/config"
 LOG_FILE="$CONFIG_DIR/approval.log"
@@ -45,12 +48,10 @@ import sys, json
 d = json.load(sys.stdin)
 ti = d.get('tool_input', {})
 if isinstance(ti, dict):
-    # Summarize: show command for Bash, file_path for Read/Edit/Write, pattern for Grep/Glob
     cmd = ti.get('command', '')
     fp = ti.get('file_path', '')
     pattern = ti.get('pattern', '')
     if cmd:
-        # Truncate long commands
         s = cmd[:200] + ('...' if len(cmd) > 200 else '')
         print(s)
     elif fp:
@@ -98,24 +99,8 @@ fi
 # Unique request ID for matching response
 REQUEST_ID="req-$(date +%s)-$$"
 
-# Build workspace context tag for title
-# - Worktree on branch → [WS:branch-name]
-# - Different folder than "shiki" → [FolderName]
-# - Shiki root → no tag
-FOLDER_NAME=$(basename "$(pwd)")
-WORKSPACE_TAG=""
-GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || echo "")
-if [[ "$GIT_DIR" == *"/worktrees/"* ]]; then
-  # We're in a git worktree — show branch name
-  BRANCH=$(git branch --show-current 2>/dev/null || echo "")
-  if [[ -n "$BRANCH" ]]; then
-    WORKSPACE_TAG="[WS:${BRANCH}]"
-  else
-    WORKSPACE_TAG="[WS:${FOLDER_NAME}]"
-  fi
-elif [[ "$FOLDER_NAME" != "shiki" ]]; then
-  WORKSPACE_TAG="[${FOLDER_NAME}]"
-fi
+# Build workspace context tag (from shared lib)
+WORKSPACE_TAG=$(shiki_workspace_tag)
 
 # Build contextual title based on tool type
 case "$TOOL_NAME" in
@@ -145,46 +130,56 @@ fi
 
 # ── Send notification with action buttons ────────────────────
 
-# Build JSON payload via python3 (handles escaping safely)
-PUBLISH_PAYLOAD=$(python3 << PYEOF
-import json, sys
-
-message = """$MESSAGE"""
+# Build JSON payload via python3 using env vars (avoids heredoc injection)
+PUBLISH_PAYLOAD=$(
+  SHIKI_TOPIC="$NTFY_TOPIC" \
+  SHIKI_TITLE="$TITLE" \
+  SHIKI_MESSAGE="$MESSAGE" \
+  SHIKI_SERVER="$NTFY_SERVER" \
+  SHIKI_RESPONSE_TOPIC="$RESPONSE_TOPIC" \
+  SHIKI_REQUEST_ID="$REQUEST_ID" \
+  python3 -c '
+import json, os
+e = os.environ
+srv = e["SHIKI_SERVER"]
+resp_topic = e["SHIKI_RESPONSE_TOPIC"]
+req_id = e["SHIKI_REQUEST_ID"]
+action_url = f"{srv}/{resp_topic}"
 payload = {
-    "topic": "$NTFY_TOPIC",
-    "title": "$TITLE",
-    "message": message.strip(),
+    "topic": e["SHIKI_TOPIC"],
+    "title": e["SHIKI_TITLE"],
+    "message": e["SHIKI_MESSAGE"].strip(),
     "tags": ["robot"],
     "priority": 4,
     "actions": [
         {
             "action": "http",
             "label": "\u2705 Approve",
-            "url": "$NTFY_SERVER/$RESPONSE_TOPIC",
+            "url": action_url,
             "method": "POST",
-            "body": "approve:$REQUEST_ID",
+            "body": f"approve:{req_id}",
             "clear": True
         },
         {
             "action": "http",
-            "label": "\ud83d\udd13 Always Allow",
-            "url": "$NTFY_SERVER/$RESPONSE_TOPIC",
+            "label": "\U0001f513 Always Allow",
+            "url": action_url,
             "method": "POST",
-            "body": "always_allow:$REQUEST_ID",
+            "body": f"always_allow:{req_id}",
             "clear": True
         },
         {
             "action": "http",
-            "label": "\ud83d\udeab Deny",
-            "url": "$NTFY_SERVER/$RESPONSE_TOPIC",
+            "label": "\U0001f6ab Deny",
+            "url": action_url,
             "method": "POST",
-            "body": "deny:$REQUEST_ID",
+            "body": f"deny:{req_id}",
             "clear": True
         }
     ]
 }
 print(json.dumps(payload))
-PYEOF
+'
 )
 
 CURL_ARGS=(-sf -X POST "$NTFY_SERVER" -H "Content-Type: application/json" -d "$PUBLISH_PAYLOAD")
@@ -202,15 +197,22 @@ curl "${CURL_ARGS[@]}" >/dev/null 2>&1 || {
 
 # Use python3 for reliable SSE subscription (handles buffering, timeout, and parsing)
 SINCE_TS=$(date +%s)
-DECISION=$(python3 << PYEOF
-import urllib.request, json, sys, time
+DECISION=$(
+  SHIKI_SERVER="$NTFY_SERVER" \
+  SHIKI_RESPONSE_TOPIC="$RESPONSE_TOPIC" \
+  SHIKI_TIMEOUT="$NTFY_TIMEOUT" \
+  SHIKI_TOKEN="$NTFY_TOKEN" \
+  SHIKI_SINCE="$SINCE_TS" \
+  SHIKI_REQUEST_ID="$REQUEST_ID" \
+  python3 -c '
+import urllib.request, json, sys, time, os
 
-server = "$NTFY_SERVER"
-topic = "$RESPONSE_TOPIC"
-timeout = int("$NTFY_TIMEOUT")
-token = "$NTFY_TOKEN"
-since = "$SINCE_TS"
-request_id = "$REQUEST_ID"
+server = os.environ["SHIKI_SERVER"]
+topic = os.environ["SHIKI_RESPONSE_TOPIC"]
+timeout = int(os.environ["SHIKI_TIMEOUT"])
+token = os.environ.get("SHIKI_TOKEN", "")
+since = os.environ["SHIKI_SINCE"]
+request_id = os.environ["SHIKI_REQUEST_ID"]
 
 url = f"{server}/{topic}/json?since={since}"
 req = urllib.request.Request(url)
@@ -229,7 +231,6 @@ try:
                 if data.get("event") != "message":
                     continue
                 raw = data.get("message", "").strip()
-                # Parse "decision:request_id" format
                 if ":" in raw:
                     decision, txn_id = raw.split(":", 1)
                     decision = decision.lower()
@@ -241,39 +242,17 @@ try:
 except Exception:
     pass
 
-# Timeout — no decision
 print("")
-PYEOF
+'
 )
-
-# ── Send confirmation notification ────────────────────────────
-
-send_confirmation() {
-  local status="$1" icon="$2" detail="$3"
-  local confirm_payload
-  confirm_payload=$(python3 << CPYEOF
-import json
-payload = {
-    "topic": "$NTFY_TOPIC",
-    "title": "$icon $status: $TOOL_NAME",
-    "message": "$detail",
-    "tags": ["$([ "$status" = "Denied" ] && echo "x" || echo "white_check_mark")"],
-    "priority": 2
-}
-print(json.dumps(payload))
-CPYEOF
-)
-  curl -sf -X POST "$NTFY_SERVER" \
-    -H "Content-Type: application/json" \
-    -d "$confirm_payload" >/dev/null 2>&1 || true
-}
 
 # ── Return decision to Claude Code ───────────────────────────
+# No confirmation notifications — the button tap + notification dismissal
+# (clear: true) is enough feedback. Decisions are logged locally.
 
 case "$DECISION" in
   approve)
     log_approval "approved" "$TOOL_NAME" "$TOOL_INPUT_RAW"
-    send_confirmation "Approved" "✅" "$TOOL_NAME — ${TOOL_INPUT_RAW:0:100}"
     echo '{
       "hookSpecificOutput": {
         "hookEventName": "PermissionRequest",
@@ -283,7 +262,6 @@ case "$DECISION" in
     ;;
   always_allow)
     log_approval "always-allowed" "$TOOL_NAME" "$TOOL_INPUT_RAW"
-    send_confirmation "Always Allowed" "🔓" "$TOOL_NAME will no longer ask"
     # Return allow + add permission rule so this tool won't ask again
     echo "{
       \"hookSpecificOutput\": {
@@ -295,7 +273,6 @@ case "$DECISION" in
     ;;
   deny)
     log_approval "denied" "$TOOL_NAME" "$TOOL_INPUT_RAW"
-    send_confirmation "Denied" "❌" "$TOOL_NAME — ${TOOL_INPUT_RAW:0:100}"
     echo '{
       "hookSpecificOutput": {
         "hookEventName": "PermissionRequest",
