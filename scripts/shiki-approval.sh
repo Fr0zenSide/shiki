@@ -98,11 +98,24 @@ fi
 # Unique request ID for matching response
 REQUEST_ID="req-$(date +%s)-$$"
 
-TITLE="🔐 Shiki: Permission Request"
-MESSAGE="Tool: $TOOL_NAME"
+# Build contextual title based on tool type
+case "$TOOL_NAME" in
+  Bash)   TITLE="Shiki: Run Command" ;;
+  Edit)   TITLE="Shiki: Edit File" ;;
+  Write)  TITLE="Shiki: Create File" ;;
+  Read)   TITLE="Shiki: Read File" ;;
+  Grep)   TITLE="Shiki: Search Code" ;;
+  Glob)   TITLE="Shiki: Find Files" ;;
+  Agent)  TITLE="Shiki: Launch Agent" ;;
+  WebFetch) TITLE="Shiki: Fetch URL" ;;
+  WebSearch) TITLE="Shiki: Web Search" ;;
+  *)      TITLE="Shiki: $TOOL_NAME" ;;
+esac
+
+# Build message with tool detail as subtitle
+MESSAGE="$TOOL_NAME"
 if [[ -n "$TOOL_INPUT_RAW" ]]; then
-  MESSAGE="$MESSAGE
-$TOOL_INPUT_RAW"
+  MESSAGE="$TOOL_INPUT_RAW"
 fi
 
 # Build auth header if token is set
@@ -120,14 +133,14 @@ import json, sys
 message = """$MESSAGE"""
 payload = {
     "topic": "$NTFY_TOPIC",
-    "title": "Shiki: Permission Request",
+    "title": "$TITLE",
     "message": message.strip(),
-    "tags": ["key", "robot"],
+    "tags": ["robot"],
     "priority": 4,
     "actions": [
         {
             "action": "http",
-            "label": "Approve",
+            "label": "\u2705 Approve",
             "url": "$NTFY_SERVER/$RESPONSE_TOPIC",
             "method": "POST",
             "body": "approve:$REQUEST_ID",
@@ -135,7 +148,7 @@ payload = {
         },
         {
             "action": "http",
-            "label": "Always Allow",
+            "label": "\ud83d\udd13 Always Allow",
             "url": "$NTFY_SERVER/$RESPONSE_TOPIC",
             "method": "POST",
             "body": "always_allow:$REQUEST_ID",
@@ -143,7 +156,7 @@ payload = {
         },
         {
             "action": "http",
-            "label": "Deny",
+            "label": "\ud83d\udeab Deny",
             "url": "$NTFY_SERVER/$RESPONSE_TOPIC",
             "method": "POST",
             "body": "deny:$REQUEST_ID",
@@ -241,7 +254,7 @@ CPYEOF
 case "$DECISION" in
   approve)
     log_approval "approved" "$TOOL_NAME" "$TOOL_INPUT_RAW"
-    send_confirmation "Approved" "✅" "${TOOL_INPUT_RAW:0:100}"
+    send_confirmation "Approved" "✅" "$TOOL_NAME — ${TOOL_INPUT_RAW:0:100}"
     echo '{
       "hookSpecificOutput": {
         "hookEventName": "PermissionRequest",
@@ -263,7 +276,7 @@ case "$DECISION" in
     ;;
   deny)
     log_approval "denied" "$TOOL_NAME" "$TOOL_INPUT_RAW"
-    send_confirmation "Denied" "❌" "${TOOL_INPUT_RAW:0:100}"
+    send_confirmation "Denied" "❌" "$TOOL_NAME — ${TOOL_INPUT_RAW:0:100}"
     echo '{
       "hookSpecificOutput": {
         "hookEventName": "PermissionRequest",
