@@ -108,7 +108,7 @@ services:
       - /app/node_modules
 
   garage:
-    image: dxflrs/garage:v1.0.1
+    image: dxflrs/garage:v2.2.0
     restart: unless-stopped
     volumes:
       - garage_data:/var/lib/garage
