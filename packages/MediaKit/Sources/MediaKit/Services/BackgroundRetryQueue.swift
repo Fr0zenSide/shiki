@@ -32,9 +32,10 @@ public actor BackgroundRetryQueue {
         items.append(QueueItem(uploadable: uploadable))
     }
 
-    public func processQueue() async {
-        var remaining: [QueueItem] = []
+    /// Called when an upload exhausts all retries and is permanently dropped.
+    public var onRetriesExhausted: (@Sendable (_ uploadable: any MediaUploadable) -> Void)?
 
+    public func processQueue() async {
         for var item in items {
             var succeeded = false
 
@@ -52,12 +53,11 @@ public actor BackgroundRetryQueue {
                 }
             }
 
-            if !succeeded && item.retryCount < maxRetries {
-                remaining.append(item)
+            if !succeeded {
+                onRetriesExhausted?(item.uploadable)
             }
-            // If max retries exhausted, drop the item
         }
 
-        items = remaining
+        items = []
     }
 }

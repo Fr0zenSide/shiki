@@ -56,13 +56,17 @@ public struct MetadataExtractor: Sendable {
         return ref == "W" ? -lon : lon
     }
 
+    private static let exifDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy:MM:dd HH:mm:ss"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+
     private func extractDate(from exif: [String: Any]?) -> Date? {
         guard let dateString = exif?[kCGImagePropertyExifDateTimeOriginal as String] as? String else {
             return nil
         }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy:MM:dd HH:mm:ss"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.date(from: dateString)
+        return Self.exifDateFormatter.date(from: dateString)
     }
 }
