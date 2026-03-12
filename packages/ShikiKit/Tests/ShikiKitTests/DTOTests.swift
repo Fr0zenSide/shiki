@@ -92,6 +92,29 @@ struct ProjectSessionAgentDTOTests {
 
     // MARK: - AgentDTO
 
+    // MARK: - AgentEventDTO
+
+    @Test("AgentEventDTO round-trips through JSON")
+    func test_agentEventDTO_roundTrips() throws {
+        let event = AgentEventDTO(
+            agentId: UUID(),
+            sessionId: UUID(),
+            projectId: UUID(),
+            eventType: "phase_complete",
+            payload: ["phase": .string("synthesis")],
+            progressPct: 75,
+            message: "Phase completed"
+        )
+
+        let data = try Self.encoder.encode(event)
+        let decoded = try Self.decoder.decode(AgentEventDTO.self, from: data)
+
+        #expect(decoded.eventType == "phase_complete")
+        #expect(decoded.progressPct == 75)
+        #expect(decoded.message == "Phase completed")
+        #expect(decoded.payload["phase"] == .string("synthesis"))
+    }
+
     @Test("AgentDTO round-trips with all fields")
     func test_agentDTO_roundTrips() throws {
         let agent = AgentDTO(
