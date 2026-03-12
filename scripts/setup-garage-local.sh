@@ -29,7 +29,7 @@ step "Waiting for Garage to be healthy..."
 
 retries=30
 while [ $retries -gt 0 ]; do
-  if docker exec "${CONTAINER}" curl -sf http://localhost:3903/health &>/dev/null; then
+  if docker exec "${CONTAINER}" /garage status &>/dev/null; then
     break
   fi
   retries=$((retries - 1))
@@ -55,7 +55,7 @@ fi
 $GARAGE layout assign "$NODE_ID" -z dc1 -c 1G -t local 2>/dev/null || true
 
 # Apply layout (get next version)
-LAYOUT_VERSION=$($GARAGE layout show 2>/dev/null | grep -oP 'version \K[0-9]+' || echo "1")
+LAYOUT_VERSION=$($GARAGE layout show 2>/dev/null | grep -Eo 'version [0-9]+' | grep -Eo '[0-9]+' | tail -1 || echo "1")
 $GARAGE layout apply --version "$LAYOUT_VERSION" 2>/dev/null || true
 
 log "Layout applied for node ${NODE_ID:0:8}..."
