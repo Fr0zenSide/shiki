@@ -1,0 +1,25 @@
+# Garage S3 — Local Development Configuration
+# Single-node setup for docker compose dev stack
+#
+# Docs: https://garagehq.deuxfleurs.fr/documentation/reference-manual/configuration/
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir     = "/var/lib/garage/data"
+
+replication_factor = 1
+
+[s3_api]
+api_bind_addr = "0.0.0.0:3902"
+s3_region     = "garage"
+root_domain   = ".s3.garage.localhost"
+
+[s3_web]
+bind_addr       = "0.0.0.0:3904"
+root_domain     = ".web.garage.localhost"
+
+[admin]
+api_bind_addr = "0.0.0.0:3903"
+
+[rpc]
+bind_addr       = "0.0.0.0:3901"
+secret_file     = "/var/lib/garage/rpc_secret"

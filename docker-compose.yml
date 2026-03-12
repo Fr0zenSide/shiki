@@ -107,6 +107,26 @@ services:
       - ./src/frontend:/app:ro
       - /app/node_modules
 
+  garage:
+    image: dxflrs/garage:v1.0.1
+    restart: unless-stopped
+    volumes:
+      - garage_data:/var/lib/garage
+      - ./deploy/garage.toml:/etc/garage.toml:ro
+    ports:
+      - "127.0.0.1:3902:3902"   # S3 API
+      - "127.0.0.1:3903:3903"   # Admin API
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3903/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
   ntfy:
     image: binwiederhier/ntfy:latest
     restart: unless-stopped
@@ -131,6 +151,8 @@ volumes:
   db_data:
     driver: local
   ollama_data:
+    driver: local
+  garage_data:
     driver: local
   ntfy_data:
     driver: local
