@@ -181,6 +181,7 @@ open class Container: Resolver, @unchecked Sendable {
     // MARK: - Properties
 
     private var registrations: [String: any RegistrationProtocol] = [:]
+    private var pendingAssemblies: [(assembly: DIAssembly, environment: DIEnvironment)] = []
     private let lock = NSLock()
     private let context = ResolutionContext()
     private weak var parent: Container?
@@ -197,6 +198,53 @@ open class Container: Resolver, @unchecked Sendable {
 
     deinit {
         cleanup()
+    }
+
+    // MARK: - Lazy Assembly Support
+
+    /// Add an assembly to be executed lazily on first resolve miss.
+    ///
+    /// Lazy assemblies are triggered one-by-one when a type is not found
+    /// in the container's registrations. Once an assembly provides the
+    /// requested type, remaining assemblies stay pending.
+    public func addLazyAssembly(_ assembly: DIAssembly, environment: DIEnvironment) {
+        lock.lock()
+        defer { lock.unlock() }
+        pendingAssemblies.append((assembly, environment))
+    }
+
+    /// Attempt to resolve a registration key by triggering pending lazy assemblies.
+    /// Returns the registration if found, nil otherwise.
+    private func resolveLazyRegistration(for key: String) -> (any RegistrationProtocol)? {
+        // Fast path: no pending assemblies
+        lock.lock()
+        guard !pendingAssemblies.isEmpty else {
+            lock.unlock()
+            return nil
+        }
+        lock.unlock()
+
+        // Try each pending assembly one at a time
+        while true {
+            lock.lock()
+            guard !pendingAssemblies.isEmpty else {
+                lock.unlock()
+                return nil
+            }
+            let entry = pendingAssemblies.removeFirst()
+            lock.unlock()
+
+            // Run the assembly — this calls register() which acquires lock internally
+            entry.assembly.assemble(container: self, environment: entry.environment)
+
+            // Check if the type we need was registered
+            lock.lock()
+            if let reg = registrations[key] {
+                lock.unlock()
+                return reg
+            }
+            lock.unlock()
+        }
     }
 
     // MARK: - Registration
@@ -254,7 +302,7 @@ open class Container: Resolver, @unchecked Sendable {
         let registration = registrations[key]
         lock.unlock()
 
-        guard let reg = registration else {
+        guard let reg = registration ?? resolveLazyRegistration(for: key) else {
             // Try parent container
             if let parent = parent {
                 return try parent.resolve(type, name: name)
@@ -325,6 +373,7 @@ open class Container: Resolver, @unchecked Sendable {
             registration.resetInstance()
         }
         registrations.removeAll()
+        pendingAssemblies.removeAll()
         context.clear()
     }
 
@@ -347,7 +396,8 @@ open class Container: Resolver, @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        return registrations[key] != nil || parent?.isRegistered(type, name: name) == true
+        let found = registrations[key] != nil || !pendingAssemblies.isEmpty
+        return found || parent?.isRegistered(type, name: name) == true
     }
 
     // MARK: - Debug Helpers
