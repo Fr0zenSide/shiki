@@ -105,6 +105,78 @@ final class ContainerTests: XCTestCase {
         }
     }
 
+    // MARK: - Thread Safety
+
+    func testConcurrentResolvesDoNotFalsePositiveCircular() throws {
+        // Register two independent types
+        container.register(String.self) { _ in
+            Thread.sleep(forTimeInterval: 0.01) // simulate work
+            return "hello"
+        }
+        container.register(Int.self) { _ in
+            Thread.sleep(forTimeInterval: 0.01)
+            return 42
+        }
+
+        let group = DispatchGroup()
+        var stringResult: String?
+        var intResult: Int?
+        var stringError: Error?
+        var intError: Error?
+
+        // Resolve on two threads concurrently — should NOT false-detect circular dependency
+        group.enter()
+        DispatchQueue.global().async {
+            defer { group.leave() }
+            do { stringResult = try self.container.resolve(String.self) }
+            catch { stringError = error }
+        }
+
+        group.enter()
+        DispatchQueue.global().async {
+            defer { group.leave() }
+            do { intResult = try self.container.resolve(Int.self) }
+            catch { intError = error }
+        }
+
+        group.wait()
+
+        XCTAssertNil(stringError, "String resolve should not fail: \(stringError?.localizedDescription ?? "")")
+        XCTAssertNil(intError, "Int resolve should not fail: \(intError?.localizedDescription ?? "")")
+        XCTAssertEqual(stringResult, "hello")
+        XCTAssertEqual(intResult, 42)
+    }
+
+    func testConcurrentResolvesOfSameTypeSucceed() throws {
+        var callCount = 0
+        let countLock = NSLock()
+        try container.register(String.self, scope: .cached) { _ in
+            countLock.lock()
+            callCount += 1
+            countLock.unlock()
+            return "shared"
+        }
+
+        let group = DispatchGroup()
+        let iterations = 50
+        var results: [String?] = Array(repeating: nil, count: iterations)
+
+        for i in 0..<iterations {
+            group.enter()
+            DispatchQueue.global().async {
+                defer { group.leave() }
+                results[i] = try? self.container.resolve(String.self)
+            }
+        }
+
+        group.wait()
+
+        // All should succeed
+        for i in 0..<iterations {
+            XCTAssertEqual(results[i], "shared", "Iteration \(i) should resolve successfully")
+        }
+    }
+
     // MARK: - Parent Container
 
     func testParentContainerFallback() throws {
