@@ -118,39 +118,47 @@ class Registration<T>: RegistrationProtocol {
 
 // MARK: - Resolution Context (Thread Safety + Circular Detection)
 
-/// Thread-safe context for tracking resolution state
+/// Per-thread, per-container resolution tracking for circular dependency detection.
+///
+/// Each (thread, container) pair gets its own resolution stack via `Thread.threadDictionary`,
+/// so concurrent resolves on different threads don't interfere, and parent/child
+/// container delegation doesn't false-detect circularity.
 final class ResolutionContext {
-    private var stack: [String] = []
-    private let lock = NSLock()
+    private let threadKey: String
 
-    /// Push type onto stack, returns error string if circular dependency detected
+    init() {
+        self.threadKey = "CoreKit.ResolutionContext.\(UUID().uuidString)"
+    }
+
+    private var currentStack: [String] {
+        get { Thread.current.threadDictionary[threadKey] as? [String] ?? [] }
+        set { Thread.current.threadDictionary[threadKey] = newValue }
+    }
+
+    /// Push type onto the current thread's stack.
+    /// Returns error string if circular dependency detected.
     func push(_ type: String) -> String? {
-        lock.lock()
-        defer { lock.unlock() }
-
+        var stack = currentStack
         if stack.contains(type) {
-            let path = stack.joined(separator: " → ") + " → " + type
-            return path
+            return stack.joined(separator: " → ") + " → " + type
         }
         stack.append(type)
+        currentStack = stack
         return nil
     }
 
-    /// Pop type from stack
+    /// Pop type from the current thread's stack.
     func pop(_ type: String) {
-        lock.lock()
-        defer { lock.unlock() }
-
+        var stack = currentStack
         if let index = stack.lastIndex(of: type) {
             stack.remove(at: index)
         }
+        currentStack = stack
     }
 
-    /// Clear entire stack
+    /// Clear the current thread's stack.
     func clear() {
-        lock.lock()
-        defer { lock.unlock() }
-        stack.removeAll()
+        Thread.current.threadDictionary.removeObject(forKey: threadKey)
     }
 }
 
