@@ -155,6 +155,82 @@ final class ContainerTests: XCTestCase {
 
     // MARK: - Reset Cache
 
+    // MARK: - Lazy Assemblies
+
+    func testLazyAssemblyTriggeredOnResolveMiss() throws {
+        let assembly = StubAssembly(registerBlock: { container, _ in
+            container.register(String.self) { _ in "lazy-loaded" }
+        })
+        container.addLazyAssembly(assembly, environment: .production)
+
+        // Not yet assembled — but resolve should trigger it
+        let result: String = try container.resolve()
+        XCTAssertEqual(result, "lazy-loaded")
+        XCTAssertTrue(assembly.assembled)
+    }
+
+    func testLazyAssemblyNotTriggeredWhenTypeAlreadyRegistered() throws {
+        container.register(String.self) { _ in "eager" }
+
+        let assembly = StubAssembly(registerBlock: { container, _ in
+            container.register(Int.self) { _ in 99 }
+        })
+        container.addLazyAssembly(assembly, environment: .production)
+
+        let result: String = try container.resolve()
+        XCTAssertEqual(result, "eager")
+        XCTAssertFalse(assembly.assembled, "Lazy assembly should not fire when type is already registered")
+    }
+
+    func testLazyAssemblyOnlyTriggersMinimumNeeded() throws {
+        let assembly1 = StubAssembly(registerBlock: { container, _ in
+            container.register(String.self) { _ in "from-assembly-1" }
+        })
+        let assembly2 = StubAssembly(registerBlock: { container, _ in
+            container.register(Int.self) { _ in 42 }
+        })
+        container.addLazyAssembly(assembly1, environment: .production)
+        container.addLazyAssembly(assembly2, environment: .production)
+
+        // Resolve String — should trigger assembly1, NOT assembly2
+        let result: String = try container.resolve()
+        XCTAssertEqual(result, "from-assembly-1")
+        XCTAssertTrue(assembly1.assembled)
+        XCTAssertFalse(assembly2.assembled, "Second assembly should not fire when first provides the type")
+    }
+
+    func testCleanupClearsPendingAssemblies() {
+        let assembly = StubAssembly(registerBlock: { container, _ in
+            container.register(String.self) { _ in "test" }
+        })
+        container.addLazyAssembly(assembly, environment: .production)
+        container.cleanup()
+
+        // After cleanup, resolve should fail — assembly was discarded
+        XCTAssertThrowsError(try container.resolve(String.self))
+        XCTAssertFalse(assembly.assembled)
+    }
+
+    func testDIConfigureWithLazyAssemblies() throws {
+        let eager = StubAssembly(registerBlock: { container, _ in
+            container.register(String.self) { _ in "eager" }
+        })
+        let lazy = StubAssembly(registerBlock: { container, _ in
+            container.register(Int.self) { _ in 42 }
+        })
+
+        DI.configure(for: .production, assemblies: [eager], lazyAssemblies: [lazy])
+
+        XCTAssertTrue(eager.assembled)
+        XCTAssertFalse(lazy.assembled, "Lazy assembly should not be assembled at configure time")
+
+        let intResult: Int = try Container.default.resolve()
+        XCTAssertEqual(intResult, 42)
+        XCTAssertTrue(lazy.assembled, "Lazy assembly should be assembled on first resolve")
+    }
+
+    // MARK: - Reset Cache
+
     func testResetCacheRecreateCachedInstances() throws {
         var count = 0
         container.register(Int.self) { _ in
@@ -169,5 +245,21 @@ final class ContainerTests: XCTestCase {
 
         let second: Int = try container.resolve()
         XCTAssertEqual(second, 2)
+    }
+}
+
+// MARK: - Test Helpers
+
+private final class StubAssembly: DIAssembly {
+    private(set) var assembled = false
+    private let registerBlock: (Container, DIEnvironment) -> Void
+
+    init(registerBlock: @escaping (Container, DIEnvironment) -> Void) {
+        self.registerBlock = registerBlock
+    }
+
+    func assemble(container: Container, environment: DIEnvironment) {
+        assembled = true
+        registerBlock(container, environment)
     }
 }

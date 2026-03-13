@@ -98,6 +98,33 @@ public enum DI {
         return container
     }
 
+    /// Configure the default container with eager and lazy assemblies.
+    ///
+    /// Eager assemblies are assembled immediately (use for foundational types like Services, UseCases).
+    /// Lazy assemblies are deferred until their types are first resolved (use for feature assemblies).
+    ///
+    /// - Parameters:
+    ///   - environment: `.production` for real services, `.mock` for fake data
+    ///   - assemblies: Assemblies to run immediately (in dependency order)
+    ///   - lazyAssemblies: Assemblies to defer until first resolve miss
+    /// - Returns: The configured container
+    @discardableResult
+    public static func configure(
+        for environment: DIEnvironment,
+        assemblies: [DIAssembly],
+        lazyAssemblies: [DIAssembly]
+    ) -> Container {
+        let container = Container(name: environment.rawValue.capitalized)
+        for assembly in assemblies {
+            assembly.assemble(container: container, environment: environment)
+        }
+        for assembly in lazyAssemblies {
+            container.addLazyAssembly(assembly, environment: environment)
+        }
+        Container.default = container
+        return container
+    }
+
     /// Reset the container (useful for testing)
     public static func reset() {
         Container.default.cleanup()
