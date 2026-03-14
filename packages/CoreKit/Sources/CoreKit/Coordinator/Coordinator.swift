@@ -178,7 +178,7 @@ open class BaseCoordinator<U: Hashable, P: View>: @MainActor Coordinator {
 
      */
     private func bindUserInteraction() {
-        userAction.receive(on: DispatchQueue.main)
+        userAction
             .sink { [weak self] action in
                 guard let self else { return }
 
