@@ -238,6 +238,7 @@ export const TaskUpdateSchema = z.object({
 export type TaskUpdateInput = z.infer<typeof TaskUpdateSchema>;
 
 export const TaskClaimSchema = z.object({
+  companyId: z.string().uuid(),
   sessionId: z.string().uuid(),
 });
 export type TaskClaimInput = z.infer<typeof TaskClaimSchema>;

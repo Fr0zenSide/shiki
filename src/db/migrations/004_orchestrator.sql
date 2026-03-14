@@ -52,6 +52,7 @@ CREATE INDEX idx_task_queue_status ON task_queue(status);
 CREATE INDEX idx_task_queue_priority ON task_queue(company_id, priority, created_at) WHERE status = 'pending';
 CREATE INDEX idx_task_queue_parent ON task_queue(parent_id) WHERE parent_id IS NOT NULL;
 CREATE INDEX idx_task_queue_claimed ON task_queue(claimed_by) WHERE status IN ('claimed', 'running');
+CREATE UNIQUE INDEX idx_task_queue_package_lock ON task_queue ((metadata->>'package')) WHERE source = 'cross_company' AND status IN ('claimed', 'running');
 
 -- ═══════════════════════════════════════════════════════════════════
 -- DECISION QUEUE — cross-company blocking questions

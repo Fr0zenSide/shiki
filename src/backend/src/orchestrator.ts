@@ -322,24 +322,26 @@ export async function logBudgetEntry(input: {
   source: string;
   metadata?: Record<string, unknown>;
 }): Promise<void> {
-  // Get current cumulative for today
-  const [cum] = await sql`
-    SELECT COALESCE(MAX(cumulative_usd), 0) as total
-    FROM company_budget_log
-    WHERE company_id = ${input.companyId}
-      AND occurred_at >= date_trunc('day', NOW())
-  `;
-  const cumulative = parseFloat(cum.total) + input.amountUsd;
-
-  await sql`
+  // Atomic insert with cumulative computed in single query
+  const [inserted] = await sql`
     INSERT INTO company_budget_log (occurred_at, company_id, amount_usd, cumulative_usd, source, metadata)
-    VALUES (NOW(), ${input.companyId}, ${input.amountUsd}, ${cumulative}, ${input.source}, ${JSON.stringify(input.metadata ?? {})})
+    VALUES (
+      NOW(),
+      ${input.companyId},
+      ${input.amountUsd},
+      COALESCE((SELECT MAX(cumulative_usd) FROM company_budget_log
+        WHERE company_id = ${input.companyId}
+          AND occurred_at >= date_trunc('day', NOW())), 0) + ${input.amountUsd},
+      ${input.source},
+      ${JSON.stringify(input.metadata ?? {})}
+    )
+    RETURNING cumulative_usd
   `;
 
   // Update the company's spent_today_usd
   await sql`
     UPDATE companies SET
-      budget = jsonb_set(budget, '{spent_today_usd}', to_jsonb(${cumulative}::numeric)),
+      budget = jsonb_set(budget, '{spent_today_usd}', to_jsonb(${inserted.cumulative_usd}::numeric)),
       updated_at = NOW()
     WHERE id = ${input.companyId}
   `;
@@ -385,41 +387,36 @@ export async function getCompaniesWithPendingTasks(): Promise<Row[]> {
 
 /**
  * Attempt to acquire a lock for a shared package.
- * Returns the lock task if acquired, null if already locked by another company.
+ * Uses INSERT ... ON CONFLICT on a partial unique index to prevent TOCTOU races.
+ * Returns the lock task if acquired, null if already locked.
  */
 export async function acquirePackageLock(companyId: string, packageName: string, sessionId: string): Promise<Row | null> {
-  const existing = await sql`
-    SELECT tq.*, c.slug AS company_slug
-    FROM task_queue tq
-    JOIN companies c ON c.id = tq.company_id
-    WHERE tq.source = 'cross_company'
-      AND tq.status IN ('claimed', 'running')
-      AND tq.metadata->>'package' = ${packageName}
-      AND tq.company_id != ${companyId}
-  `;
-
-  if (existing.length > 0) {
-    logDebug(`Package lock denied: ${packageName} held by ${existing[0].company_slug}`);
-    return null;
-  }
-
   const lockMeta = { package: packageName };
-  const [row] = await sql`
-    INSERT INTO task_queue (company_id, title, source, status, claimed_by, claimed_at, priority, metadata)
-    VALUES (
-      ${companyId},
-      ${'cross-company: ' + packageName},
-      'cross_company',
-      'running',
-      ${sessionId}::uuid,
-      NOW(),
-      0,
-      ${sql.json(lockMeta)}
-    )
-    RETURNING *
-  `;
-  logDebug(`Package lock acquired: ${packageName} by company ${companyId}`);
-  return row;
+  try {
+    const [row] = await sql`
+      INSERT INTO task_queue (company_id, title, source, status, claimed_by, claimed_at, priority, metadata)
+      VALUES (
+        ${companyId},
+        ${'cross-company: ' + packageName},
+        'cross_company',
+        'running',
+        ${sessionId}::uuid,
+        NOW(),
+        0,
+        ${sql.json(lockMeta)}
+      )
+      RETURNING *
+    `;
+    logDebug(`Package lock acquired: ${packageName} by company ${companyId}`);
+    return row;
+  } catch (err: unknown) {
+    // Unique index violation = lock already held
+    if (err instanceof Error && err.message.includes("idx_task_queue_package_lock")) {
+      logDebug(`Package lock denied: ${packageName} already held`);
+      return null;
+    }
+    throw err;
+  }
 }
 
 /**
@@ -555,4 +552,15 @@ export async function writeAuditLog(input: {
       ${JSON.stringify(input.metadata ?? {})}
     )
   `;
+}
+
+export async function listAuditLog(filters: {
+  companyId?: string;
+  limit?: number;
+}): Promise<Row[]> {
+  const limit = Math.min(filters.limit ?? 50, 500);
+  if (filters.companyId) {
+    return await sql`SELECT * FROM audit_log WHERE company_id = ${filters.companyId} ORDER BY occurred_at DESC LIMIT ${limit}`;
+  }
+  return await sql`SELECT * FROM audit_log ORDER BY occurred_at DESC LIMIT ${limit}`;
 }
