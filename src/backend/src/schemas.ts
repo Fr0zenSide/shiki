@@ -261,6 +261,28 @@ export const DecisionAnswerSchema = z.object({
 });
 export type DecisionAnswerInput = z.infer<typeof DecisionAnswerSchema>;
 
+// --- Package Lock ---
+export const PackageLockSchema = z.object({
+  companyId: z.string().uuid(),
+  packageName: z.string().min(1).max(100),
+  sessionId: z.string().uuid(),
+});
+export type PackageLockInput = z.infer<typeof PackageLockSchema>;
+
+export const PackageUnlockSchema = z.object({
+  companyId: z.string().uuid(),
+  packageName: z.string().min(1).max(100),
+});
+export type PackageUnlockInput = z.infer<typeof PackageUnlockSchema>;
+
+// --- Company Heartbeat ---
+export const CompanyHeartbeatSchema = z.object({
+  companyId: z.string().uuid(),
+  sessionId: z.string().uuid(),
+  data: z.record(z.unknown()).optional().default({}),
+});
+export type CompanyHeartbeatInput = z.infer<typeof CompanyHeartbeatSchema>;
+
 // --- WebSocket Messages ---
 export const WsSubscribeSchema = z.object({
   type: z.literal("subscribe"),
