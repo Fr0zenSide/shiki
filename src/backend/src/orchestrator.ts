@@ -355,6 +355,180 @@ export async function getTodaySpend(companyId: string): Promise<number> {
   return parseFloat(row.total);
 }
 
+// ── Stale Company Detection ───────────────────────────────────────
+
+export async function getStaleCompanies(thresholdMinutes = 5): Promise<Row[]> {
+  return await sql`
+    SELECT c.*, p.slug AS project_slug
+    FROM companies c
+    JOIN projects p ON p.id = c.project_id
+    WHERE c.status = 'active'
+      AND c.last_heartbeat_at IS NOT NULL
+      AND c.last_heartbeat_at < NOW() - make_interval(mins => ${thresholdMinutes})
+  `;
+}
+
+export async function getCompaniesWithPendingTasks(): Promise<Row[]> {
+  return await sql`
+    SELECT c.*, p.slug AS project_slug,
+      COUNT(tq.id) AS pending_count
+    FROM companies c
+    JOIN projects p ON p.id = c.project_id
+    JOIN task_queue tq ON tq.company_id = c.id AND tq.status = 'pending'
+    WHERE c.status = 'active'
+    GROUP BY c.id, p.slug
+    ORDER BY c.priority, c.slug
+  `;
+}
+
+// ── Cross-Company Package Lock ────────────────────────────────────
+
+/**
+ * Attempt to acquire a lock for a shared package.
+ * Returns the lock task if acquired, null if already locked by another company.
+ */
+export async function acquirePackageLock(companyId: string, packageName: string, sessionId: string): Promise<Row | null> {
+  const existing = await sql`
+    SELECT tq.*, c.slug AS company_slug
+    FROM task_queue tq
+    JOIN companies c ON c.id = tq.company_id
+    WHERE tq.source = 'cross_company'
+      AND tq.status IN ('claimed', 'running')
+      AND tq.metadata->>'package' = ${packageName}
+      AND tq.company_id != ${companyId}
+  `;
+
+  if (existing.length > 0) {
+    logDebug(`Package lock denied: ${packageName} held by ${existing[0].company_slug}`);
+    return null;
+  }
+
+  const lockMeta = { package: packageName };
+  const [row] = await sql`
+    INSERT INTO task_queue (company_id, title, source, status, claimed_by, claimed_at, priority, metadata)
+    VALUES (
+      ${companyId},
+      ${'cross-company: ' + packageName},
+      'cross_company',
+      'running',
+      ${sessionId}::uuid,
+      NOW(),
+      0,
+      ${sql.json(lockMeta)}
+    )
+    RETURNING *
+  `;
+  logDebug(`Package lock acquired: ${packageName} by company ${companyId}`);
+  return row;
+}
+
+/**
+ * Release a package lock by completing the lock task.
+ */
+export async function releasePackageLock(packageName: string, companyId: string): Promise<boolean> {
+  const result = await sql`
+    UPDATE task_queue SET
+      status = 'completed',
+      result = ${JSON.stringify({ released_at: new Date().toISOString() })},
+      updated_at = NOW()
+    WHERE source = 'cross_company'
+      AND status IN ('claimed', 'running')
+      AND metadata->>'package' = ${packageName}
+      AND company_id = ${companyId}
+    RETURNING id
+  `;
+  if (result.length > 0) {
+    logDebug(`Package lock released: ${packageName} by company ${companyId}`);
+  }
+  return result.length > 0;
+}
+
+/**
+ * List all currently held package locks.
+ */
+export async function listPackageLocks(): Promise<Row[]> {
+  return await sql`
+    SELECT tq.id, tq.company_id, tq.metadata->>'package' AS package_name,
+           tq.claimed_at, tq.status, c.slug AS company_slug
+    FROM task_queue tq
+    JOIN companies c ON c.id = tq.company_id
+    WHERE tq.source = 'cross_company'
+      AND tq.status IN ('claimed', 'running')
+    ORDER BY tq.claimed_at
+  `;
+}
+
+// ── Daily Report ──────────────────────────────────────────────────
+
+export async function getDailyReport(date?: string) {
+  const targetDate = date ?? new Date().toISOString().split('T')[0];
+
+  const perCompany = await sql`
+    SELECT
+      c.slug,
+      c.display_name,
+      COUNT(tq.id) FILTER (WHERE tq.status = 'completed' AND tq.updated_at::date = ${targetDate}::date) AS tasks_completed,
+      COUNT(tq.id) FILTER (WHERE tq.status = 'failed' AND tq.updated_at::date = ${targetDate}::date) AS tasks_failed,
+      COUNT(dq.id) FILTER (WHERE dq.created_at::date = ${targetDate}::date) AS decisions_asked,
+      COUNT(dq.id) FILTER (WHERE dq.answered = TRUE AND dq.answered_at::date = ${targetDate}::date) AS decisions_answered,
+      COALESCE(
+        (SELECT SUM(bl.amount_usd) FROM company_budget_log bl
+         WHERE bl.company_id = c.id AND bl.occurred_at::date = ${targetDate}::date),
+        0
+      ) AS spend_usd
+    FROM companies c
+    LEFT JOIN task_queue tq ON tq.company_id = c.id
+    LEFT JOIN decision_queue dq ON dq.company_id = c.id
+    WHERE c.status != 'archived'
+    GROUP BY c.id, c.slug, c.display_name
+    ORDER BY c.priority, c.slug
+  `;
+
+  const blocked = await sql`
+    SELECT tq.title, tq.status, c.slug AS company_slug,
+           dq.question, dq.tier
+    FROM task_queue tq
+    JOIN companies c ON c.id = tq.company_id
+    LEFT JOIN decision_queue dq ON dq.task_id = tq.id AND dq.answered = FALSE
+    WHERE tq.status = 'blocked'
+    ORDER BY dq.tier, tq.created_at
+  `;
+
+  const prsCreated = await sql`
+    SELECT ge.ref AS branch, ge.commit_msg AS title, ge.metadata->>'prUrl' AS pr_url,
+           p.slug AS project_slug
+    FROM git_events ge
+    JOIN projects p ON p.id = ge.project_id
+    WHERE ge.event_type = 'pr_created'
+      AND ge.occurred_at::date = ${targetDate}::date
+    ORDER BY ge.occurred_at DESC
+  `;
+
+  return { date: targetDate, perCompany, blocked, prsCreated };
+}
+
+// ── Heartbeat Processing ──────────────────────────────────────────
+
+export async function processHeartbeat(companyId: string, sessionId: string) {
+  await recordHeartbeat(companyId);
+
+  const status = await getCompanyStatus(companyId);
+  const company = await getCompany(companyId);
+  let budgetExceeded = false;
+  if (company) {
+    const budget = typeof company.budget === 'string' ? JSON.parse(company.budget) : company.budget;
+    const todaySpend = await getTodaySpend(companyId);
+    budgetExceeded = todaySpend >= (budget.daily_usd ?? 999);
+  }
+
+  return {
+    ...status,
+    budgetExceeded,
+    sessionId,
+    timestamp: new Date().toISOString(),
+  };
+}
+
 // ── Audit Log ─────────────────────────────────────────────────────
 
 export async function writeAuditLog(input: {

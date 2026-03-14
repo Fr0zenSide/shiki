@@ -27,6 +27,9 @@ import {
   TaskClaimSchema,
   DecisionCreateSchema,
   DecisionAnswerSchema,
+  PackageLockSchema,
+  PackageUnlockSchema,
+  CompanyHeartbeatSchema,
 } from "./schemas.ts";
 import { ingestChunks, listSources, getSource, deleteSource } from "./ingest.ts";
 import {
@@ -44,6 +47,9 @@ import {
   createCompany, getCompany, listCompanies, updateCompany, getCompanyStatus,
   getOrchestratorOverview, createTask, getTask, listTasks, updateTask,
   claimTask, createDecision, answerDecision, getPendingDecisions, listDecisions,
+  getStaleCompanies, getCompaniesWithPendingTasks,
+  acquirePackageLock, releasePackageLock, listPackageLocks,
+  getDailyReport, processHeartbeat, writeAuditLog,
 } from "./orchestrator.ts";
 import { json, parseBody, handleError, logDebug } from "./middleware.ts";
 import { broadcastToProject, getWsStats } from "./ws.ts";
@@ -590,6 +596,10 @@ export async function handleRequest(req: Request): Promise<Response> {
     if (path === "/api/companies" && method === "POST") {
       const body = await parseBody(req, CompanyCreateSchema);
       const company = await createCompany(body);
+      await writeAuditLog({
+        companyId: company.id, actor: "api", action: "company_created",
+        targetType: "company", targetId: company.id, afterState: { slug: body.slug },
+      });
       return json(company, 201);
     }
 
@@ -605,8 +615,15 @@ export async function handleRequest(req: Request): Promise<Response> {
 
       if (segments.length === 4 && method === "PATCH") {
         const body = await parseBody(req, CompanyUpdateSchema);
+        const before = await getCompany(companyId);
         const company = await updateCompany(companyId, body);
         if (!company) return json({ error: "Company not found" }, 404);
+        await writeAuditLog({
+          companyId, actor: "api", action: "company_updated",
+          targetType: "company", targetId: companyId,
+          beforeState: before ? { status: before.status, priority: before.priority } : undefined,
+          afterState: body,
+        });
         return json(company);
       }
     }
@@ -650,6 +667,10 @@ export async function handleRequest(req: Request): Promise<Response> {
         const body = await parseBody(req, TaskClaimSchema);
         const task = await claimTask(taskId, body.sessionId);
         if (!task) return json({ error: "No pending tasks available" }, 409);
+        await writeAuditLog({
+          companyId: task.company_id, actor: body.sessionId, action: "task_claimed",
+          targetType: "task", targetId: task.id, afterState: { title: task.title },
+        });
         return json(task);
       }
     }
@@ -686,21 +707,109 @@ export async function handleRequest(req: Request): Promise<Response> {
         const body = await parseBody(req, DecisionAnswerSchema);
         const decision = await answerDecision(decisionId, body);
         if (!decision) return json({ error: "Decision not found" }, 404);
+        await writeAuditLog({
+          companyId: decision.company_id, actor: body.answeredBy, action: "decision_answered",
+          targetType: "decision", targetId: decisionId,
+          afterState: { answer: body.answer, tier: decision.tier },
+        });
         return json(decision);
       }
     }
 
-    // ── Orchestrator Status ─────────────────────────────────────
+    // ── Orchestrator ────────────────────────────────────────────
+
+    // GET /api/orchestrator/status
     if (path === "/api/orchestrator/status" && method === "GET") {
       const overview = await getOrchestratorOverview();
       const companies = await listCompanies("active");
       const pendingDecisions = await getPendingDecisions();
+      const stale = await getStaleCompanies();
+      const locks = await listPackageLocks();
       return json({
         overview,
         activeCompanies: companies,
         pendingDecisions,
+        staleCompanies: stale,
+        packageLocks: locks,
         timestamp: new Date().toISOString(),
       });
+    }
+
+    // GET /api/orchestrator/stale — companies with expired heartbeats
+    if (path === "/api/orchestrator/stale" && method === "GET") {
+      const threshold = parseInt(url.searchParams.get("threshold_minutes") ?? "5");
+      const stale = await getStaleCompanies(threshold);
+      return json(stale);
+    }
+
+    // GET /api/orchestrator/ready — companies with pending tasks and no session
+    if (path === "/api/orchestrator/ready" && method === "GET") {
+      const ready = await getCompaniesWithPendingTasks();
+      return json(ready);
+    }
+
+    // GET /api/orchestrator/report — daily cross-company digest
+    if (path === "/api/orchestrator/report" && method === "GET") {
+      const date = url.searchParams.get("date") ?? undefined;
+      const report = await getDailyReport(date);
+      return json(report);
+    }
+
+    // POST /api/orchestrator/heartbeat — company session heartbeat
+    if (path === "/api/orchestrator/heartbeat" && method === "POST") {
+      const body = await parseBody(req, CompanyHeartbeatSchema);
+      const result = await processHeartbeat(body.companyId, body.sessionId);
+      if (result.budgetExceeded) {
+        await updateCompany(body.companyId, { status: "paused" });
+        await writeAuditLog({
+          companyId: body.companyId, actor: "orchestrator", action: "company_paused_budget",
+          targetType: "company", targetId: body.companyId,
+          metadata: { reason: "daily budget exceeded" },
+        });
+      }
+      return json(result);
+    }
+
+    // ── Package Locks ───────────────────────────────────────────
+
+    // GET /api/orchestrator/locks — list active package locks
+    if (path === "/api/orchestrator/locks" && method === "GET") {
+      const locks = await listPackageLocks();
+      return json(locks);
+    }
+
+    // POST /api/orchestrator/locks — acquire a package lock
+    if (path === "/api/orchestrator/locks" && method === "POST") {
+      const body = await parseBody(req, PackageLockSchema);
+      const lock = await acquirePackageLock(body.companyId, body.packageName, body.sessionId);
+      if (!lock) return json({ error: "Package already locked by another company" }, 409);
+      await writeAuditLog({
+        companyId: body.companyId, actor: body.sessionId, action: "package_lock_acquired",
+        targetType: "package", afterState: { package: body.packageName },
+      });
+      return json(lock, 201);
+    }
+
+    // POST /api/orchestrator/locks/release — release a package lock
+    if (path === "/api/orchestrator/locks/release" && method === "POST") {
+      const body = await parseBody(req, PackageUnlockSchema);
+      const released = await releasePackageLock(body.packageName, body.companyId);
+      if (!released) return json({ error: "Lock not found" }, 404);
+      await writeAuditLog({
+        companyId: body.companyId, actor: "api", action: "package_lock_released",
+        targetType: "package", afterState: { package: body.packageName },
+      });
+      return json({ ok: true });
+    }
+
+    // GET /api/orchestrator/audit — recent audit log entries
+    if (path === "/api/orchestrator/audit" && method === "GET") {
+      const companyId = url.searchParams.get("company_id") ?? undefined;
+      const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50"), 500);
+      const audit = companyId
+        ? await sql`SELECT * FROM audit_log WHERE company_id = ${companyId} ORDER BY occurred_at DESC LIMIT ${limit}`
+        : await sql`SELECT * FROM audit_log ORDER BY occurred_at DESC LIMIT ${limit}`;
+      return json(audit);
     }
 
     // ── Database Backup Info ─────────────────────────────────────
