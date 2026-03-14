@@ -20,6 +20,13 @@ import {
   PipelineResumeSchema,
   PipelineRoutingRuleSchema,
   PipelineRouteEvalSchema,
+  CompanyCreateSchema,
+  CompanyUpdateSchema,
+  TaskCreateSchema,
+  TaskUpdateSchema,
+  TaskClaimSchema,
+  DecisionCreateSchema,
+  DecisionAnswerSchema,
 } from "./schemas.ts";
 import { ingestChunks, listSources, getSource, deleteSource } from "./ingest.ts";
 import {
@@ -33,6 +40,11 @@ import {
   resumePipelineRun, evaluateRouting, listRoutingRules, createRoutingRule,
   updateRoutingRule, deleteRoutingRule, getPipelineRunSummary,
 } from "./pipelines.ts";
+import {
+  createCompany, getCompany, listCompanies, updateCompany, getCompanyStatus,
+  getOrchestratorOverview, createTask, getTask, listTasks, updateTask,
+  claimTask, createDecision, answerDecision, getPendingDecisions, listDecisions,
+} from "./orchestrator.ts";
 import { json, parseBody, handleError, logDebug } from "./middleware.ts";
 import { broadcastToProject, getWsStats } from "./ws.ts";
 
@@ -568,6 +580,129 @@ export async function handleRequest(req: Request): Promise<Response> {
       return json({ ok: true });
     }
 
+    // ── Companies ────────────────────────────────────────────────
+    if (path === "/api/companies" && method === "GET") {
+      const status = url.searchParams.get("status") ?? undefined;
+      const companies = await listCompanies(status);
+      return json(companies);
+    }
+
+    if (path === "/api/companies" && method === "POST") {
+      const body = await parseBody(req, CompanyCreateSchema);
+      const company = await createCompany(body);
+      return json(company, 201);
+    }
+
+    if (path.startsWith("/api/companies/") && !path.includes("/tasks")) {
+      const segments = path.split("/");
+      const companyId = segments[3];
+
+      if (segments.length === 4 && method === "GET") {
+        const company = await getCompanyStatus(companyId);
+        if (!company) return json({ error: "Company not found" }, 404);
+        return json(company);
+      }
+
+      if (segments.length === 4 && method === "PATCH") {
+        const body = await parseBody(req, CompanyUpdateSchema);
+        const company = await updateCompany(companyId, body);
+        if (!company) return json({ error: "Company not found" }, 404);
+        return json(company);
+      }
+    }
+
+    // GET /api/companies/:id/tasks
+    if (path.match(/^\/api\/companies\/[^/]+\/tasks$/) && method === "GET") {
+      const companyId = path.split("/")[3];
+      const status = url.searchParams.get("status") ?? undefined;
+      const tasks = await listTasks(companyId, status);
+      return json(tasks);
+    }
+
+    // ── Task Queue ──────────────────────────────────────────────
+    if (path === "/api/task-queue" && method === "POST") {
+      const body = await parseBody(req, TaskCreateSchema);
+      const task = await createTask(body);
+      return json(task, 201);
+    }
+
+    if (path.startsWith("/api/task-queue/")) {
+      const segments = path.split("/");
+      const taskId = segments[3];
+
+      // PATCH /api/task-queue/:id
+      if (segments.length === 4 && method === "PATCH") {
+        const body = await parseBody(req, TaskUpdateSchema);
+        const task = await updateTask(taskId, body);
+        if (!task) return json({ error: "Task not found" }, 404);
+        return json(task);
+      }
+
+      // GET /api/task-queue/:id
+      if (segments.length === 4 && method === "GET") {
+        const task = await getTask(taskId);
+        if (!task) return json({ error: "Task not found" }, 404);
+        return json(task);
+      }
+
+      // POST /api/task-queue/:id/claim
+      if (segments[4] === "claim" && method === "POST") {
+        const body = await parseBody(req, TaskClaimSchema);
+        const task = await claimTask(taskId, body.sessionId);
+        if (!task) return json({ error: "No pending tasks available" }, 409);
+        return json(task);
+      }
+    }
+
+    // ── Decision Queue ──────────────────────────────────────────
+    if (path === "/api/decision-queue" && method === "GET") {
+      const companyId = url.searchParams.get("company_id") ?? undefined;
+      const answered = url.searchParams.has("answered")
+        ? url.searchParams.get("answered") === "true"
+        : undefined;
+      const tier = url.searchParams.has("tier")
+        ? parseInt(url.searchParams.get("tier")!)
+        : undefined;
+      const decisions = await listDecisions({ companyId, answered, tier });
+      return json(decisions);
+    }
+
+    if (path === "/api/decision-queue" && method === "POST") {
+      const body = await parseBody(req, DecisionCreateSchema);
+      const decision = await createDecision(body);
+      return json(decision, 201);
+    }
+
+    if (path === "/api/decision-queue/pending" && method === "GET") {
+      const decisions = await getPendingDecisions();
+      return json(decisions);
+    }
+
+    if (path.startsWith("/api/decision-queue/") && path !== "/api/decision-queue/pending") {
+      const decisionId = path.split("/")[3];
+
+      // PATCH /api/decision-queue/:id (answer a decision)
+      if (method === "PATCH") {
+        const body = await parseBody(req, DecisionAnswerSchema);
+        const decision = await answerDecision(decisionId, body);
+        if (!decision) return json({ error: "Decision not found" }, 404);
+        return json(decision);
+      }
+    }
+
+    // ── Orchestrator Status ─────────────────────────────────────
+    if (path === "/api/orchestrator/status" && method === "GET") {
+      const overview = await getOrchestratorOverview();
+      const companies = await listCompanies("active");
+      const pendingDecisions = await getPendingDecisions();
+      return json({
+        overview,
+        activeCompanies: companies,
+        pendingDecisions,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // ── Database Backup Info ─────────────────────────────────────
     if (path === "/api/admin/backup-status" && method === "GET") {
       const dbStats = await sql`
@@ -676,6 +811,19 @@ async function handleHealthFull(): Promise<Response> {
     radarCount = parseInt(r.count);
   } catch { /* ignore */ }
 
+  // Orchestrator stats
+  let orchestratorStats = { companies: 0, pendingTasks: 0, pendingDecisions: 0 };
+  try {
+    const overview = await getOrchestratorOverview();
+    if (overview) {
+      orchestratorStats = {
+        companies: parseInt(overview.active_companies),
+        pendingTasks: parseInt(overview.total_pending_tasks),
+        pendingDecisions: parseInt(overview.total_pending_decisions),
+      };
+    }
+  } catch { /* tables may not exist */ }
+
   // Agent roster (static — from the codebase)
   const agents = [
     { handle: "@Sensei",  alias: "CTO",        role: "Architecture, code quality, feasibility decisions" },
@@ -703,6 +851,8 @@ async function handleHealthFull(): Promise<Response> {
     { name: "/pre-release-scan", desc: "AI slop scan before production" },
     { name: "/course-correct",   desc: "Mid-feature scope change workflow" },
     { name: "/backlog-plan",     desc: "Continuous planning pipeline" },
+    { name: "/company",          desc: "Manage companies (list, create, budget, priority)" },
+    { name: "/orchestrate",      desc: "24/7 autonomous multi-company orchestrator" },
   ];
 
   const status = dbOk ? "ok" : "degraded";
@@ -720,6 +870,7 @@ async function handleHealthFull(): Promise<Response> {
     pipelines: pipelineStats,
     projects: projectCount,
     radar: { watchedRepos: radarCount },
+    orchestrator: orchestratorStats,
     agents,
     commands,
     timestamp: new Date().toISOString(),
