@@ -49,7 +49,7 @@ import {
   claimTask, createDecision, answerDecision, getPendingDecisions, listDecisions,
   getStaleCompanies, getCompaniesWithPendingTasks,
   acquirePackageLock, releasePackageLock, listPackageLocks,
-  getDailyReport, processHeartbeat, writeAuditLog,
+  getDailyReport, processHeartbeat, writeAuditLog, listAuditLog,
 } from "./orchestrator.ts";
 import { json, parseBody, handleError, logDebug } from "./middleware.ts";
 import { broadcastToProject, getWsStats } from "./ws.ts";
@@ -662,10 +662,10 @@ export async function handleRequest(req: Request): Promise<Response> {
         return json(task);
       }
 
-      // POST /api/task-queue/:id/claim
-      if (segments[4] === "claim" && method === "POST") {
+      // POST /api/task-queue/claim — atomic claim of next pending task for a company
+      if (taskId === "claim" && segments.length === 4 && method === "POST") {
         const body = await parseBody(req, TaskClaimSchema);
-        const task = await claimTask(taskId, body.sessionId);
+        const task = await claimTask(body.companyId, body.sessionId);
         if (!task) return json({ error: "No pending tasks available" }, 409);
         await writeAuditLog({
           companyId: task.company_id, actor: body.sessionId, action: "task_claimed",
@@ -805,10 +805,8 @@ export async function handleRequest(req: Request): Promise<Response> {
     // GET /api/orchestrator/audit — recent audit log entries
     if (path === "/api/orchestrator/audit" && method === "GET") {
       const companyId = url.searchParams.get("company_id") ?? undefined;
-      const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50"), 500);
-      const audit = companyId
-        ? await sql`SELECT * FROM audit_log WHERE company_id = ${companyId} ORDER BY occurred_at DESC LIMIT ${limit}`
-        : await sql`SELECT * FROM audit_log ORDER BY occurred_at DESC LIMIT ${limit}`;
+      const limit = parseInt(url.searchParams.get("limit") ?? "50") || 50;
+      const audit = await listAuditLog({ companyId, limit });
       return json(audit);
     }
 
