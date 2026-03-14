@@ -1,8 +1,77 @@
 import { sql } from "./db.ts";
 import { logDebug } from "./middleware.ts";
 
+// ── Row Types ─────────────────────────────────────────────────────
+
+export interface CompanyRow {
+  id: string;
+  project_id: string;
+  slug: string;
+  display_name: string;
+  status: string;
+  priority: number;
+  budget: Record<string, unknown> | string;
+  schedule: Record<string, unknown> | string;
+  config: Record<string, unknown> | string;
+  last_heartbeat_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskRow {
+  id: string;
+  company_id: string;
+  parent_id: string | null;
+  title: string;
+  description: string | null;
+  source: string;
+  status: string;
+  claimed_by: string | null;
+  claimed_at: string | null;
+  priority: number;
+  blocking_question_ids: string[];
+  result: Record<string, unknown> | null;
+  pipeline_run_id: string | null;
+  created_at: string;
+  updated_at: string;
+  metadata: Record<string, unknown> | string;
+}
+
+export interface DecisionRow {
+  id: string;
+  company_id: string;
+  task_id: string | null;
+  pipeline_run_id: string | null;
+  tier: number;
+  question: string;
+  options: Record<string, unknown> | string | null;
+  context: string | null;
+  answered: boolean;
+  answer: string | null;
+  answered_by: string | null;
+  answered_at: string | null;
+  created_at: string;
+  metadata: Record<string, unknown> | string;
+}
+
+export interface AuditRow {
+  occurred_at: string;
+  company_id: string | null;
+  actor: string;
+  action: string;
+  target_type: string;
+  target_id: string | null;
+  before_state: Record<string, unknown> | null;
+  after_state: Record<string, unknown> | null;
+  metadata: Record<string, unknown> | string;
+}
+
+// postgres.js returns generic Row objects — structurally match our interfaces
+// at runtime but TypeScript can't verify at compile time. Cast at boundaries.
 // deno-lint-ignore no-explicit-any
-type Row = any;
+type DbResult = any;
+function row<T>(r: DbResult): T { return r as T; }
+function rows<T>(r: DbResult[]): T[] { return r as T[]; }
 
 // ── Company CRUD ──────────────────────────────────────────────────
 
@@ -14,7 +83,7 @@ export async function createCompany(input: {
   budget?: Record<string, unknown>;
   schedule?: Record<string, unknown>;
   config?: Record<string, unknown>;
-}): Promise<Row> {
+}): Promise<CompanyRow> {
   const [row] = await sql`
     INSERT INTO companies (project_id, slug, display_name, priority, budget, schedule, config)
     VALUES (
@@ -29,19 +98,19 @@ export async function createCompany(input: {
     RETURNING *
   `;
   logDebug(`Company created: ${row.slug} (${row.id})`);
-  return row;
+  return row as CompanyRow;
 }
 
-export async function getCompany(id: string): Promise<Row | null> {
+export async function getCompany(id: string): Promise<CompanyRow | null> {
   const [row] = await sql`SELECT * FROM companies WHERE id = ${id}`;
-  return row ?? null;
+  return (row as CompanyRow) ?? null;
 }
 
-export async function listCompanies(status?: string): Promise<Row[]> {
+export async function listCompanies(status?: string): Promise<CompanyRow[]> {
   if (status) {
-    return await sql`SELECT * FROM companies WHERE status = ${status} ORDER BY priority, slug`;
+    return rows<CompanyRow>(await sql`SELECT * FROM companies WHERE status = ${status} ORDER BY priority, slug`);
   }
-  return await sql`SELECT * FROM companies ORDER BY priority, slug`;
+  return rows<CompanyRow>(await sql`SELECT * FROM companies ORDER BY priority, slug`);
 }
 
 export async function updateCompany(id: string, updates: {
@@ -51,7 +120,7 @@ export async function updateCompany(id: string, updates: {
   schedule?: Record<string, unknown>;
   config?: Record<string, unknown>;
   displayName?: string;
-}): Promise<Row | null> {
+}): Promise<CompanyRow | null> {
   const [row] = await sql`
     UPDATE companies SET
       status = COALESCE(${updates.status ?? null}, status),
@@ -76,7 +145,7 @@ export async function updateCompany(id: string, updates: {
     WHERE id = ${id}
     RETURNING *
   `;
-  return row ?? null;
+  return (row as CompanyRow) ?? null;
 }
 
 export async function recordHeartbeat(companyId: string): Promise<void> {
@@ -108,7 +177,7 @@ export async function createTask(input: {
   priority?: number;
   parentId?: string;
   metadata?: Record<string, unknown>;
-}): Promise<Row> {
+}): Promise<TaskRow> {
   const [row] = await sql`
     INSERT INTO task_queue (company_id, title, description, source, priority, parent_id, metadata)
     VALUES (
@@ -123,27 +192,27 @@ export async function createTask(input: {
     RETURNING *
   `;
   logDebug(`Task created: ${row.title} (${row.id}) for company ${input.companyId}`);
-  return row;
+  return row as TaskRow;
 }
 
-export async function getTask(id: string): Promise<Row | null> {
+export async function getTask(id: string): Promise<TaskRow | null> {
   const [row] = await sql`SELECT * FROM task_queue WHERE id = ${id}`;
-  return row ?? null;
+  return (row as TaskRow) ?? null;
 }
 
-export async function listTasks(companyId: string, status?: string): Promise<Row[]> {
+export async function listTasks(companyId: string, status?: string): Promise<TaskRow[]> {
   if (status) {
-    return await sql`
+    return rows<TaskRow>(await sql`
       SELECT * FROM task_queue
       WHERE company_id = ${companyId} AND status = ${status}
       ORDER BY priority, created_at
-    `;
+    `);
   }
-  return await sql`
+  return rows<TaskRow>(await sql`
     SELECT * FROM task_queue
     WHERE company_id = ${companyId}
     ORDER BY priority, created_at
-  `;
+  `);
 }
 
 export async function updateTask(id: string, updates: {
@@ -152,7 +221,7 @@ export async function updateTask(id: string, updates: {
   blockingQuestionIds?: string[];
   pipelineRunId?: string;
   metadata?: Record<string, unknown>;
-}): Promise<Row | null> {
+}): Promise<TaskRow | null> {
   const [row] = await sql`
     UPDATE task_queue SET
       status = COALESCE(${updates.status ?? null}, status),
@@ -172,14 +241,14 @@ export async function updateTask(id: string, updates: {
     WHERE id = ${id}
     RETURNING *
   `;
-  return row ?? null;
+  return (row as TaskRow) ?? null;
 }
 
 /**
  * Atomic task claim — uses FOR UPDATE SKIP LOCKED to avoid races.
  * Returns the claimed task or null if none available.
  */
-export async function claimTask(companyId: string, sessionId: string): Promise<Row | null> {
+export async function claimTask(companyId: string, sessionId: string): Promise<TaskRow | null> {
   const [row] = await sql`
     UPDATE task_queue SET
       status = 'claimed',
@@ -199,7 +268,7 @@ export async function claimTask(companyId: string, sessionId: string): Promise<R
   if (row) {
     logDebug(`Task claimed: ${row.title} (${row.id}) by session ${sessionId}`);
   }
-  return row ?? null;
+  return (row as TaskRow) ?? null;
 }
 
 // ── Decision Queue CRUD ───────────────────────────────────────────
@@ -213,7 +282,7 @@ export async function createDecision(input: {
   options?: Record<string, unknown>;
   context?: string;
   metadata?: Record<string, unknown>;
-}): Promise<Row> {
+}): Promise<DecisionRow> {
   const [row] = await sql`
     INSERT INTO decision_queue (company_id, task_id, pipeline_run_id, tier, question, options, context, metadata)
     VALUES (
@@ -229,19 +298,19 @@ export async function createDecision(input: {
     RETURNING *
   `;
   logDebug(`Decision created: tier ${input.tier} for company ${input.companyId}`);
-  return row;
+  return row as DecisionRow;
 }
 
-export async function getDecision(id: string): Promise<Row | null> {
+export async function getDecision(id: string): Promise<DecisionRow | null> {
   const [row] = await sql`SELECT * FROM decision_queue WHERE id = ${id}`;
-  return row ?? null;
+  return (row as DecisionRow) ?? null;
 }
 
 export async function listDecisions(filters: {
   companyId?: string;
   answered?: boolean;
   tier?: number;
-}): Promise<Row[]> {
+}): Promise<DecisionRow[]> {
   if (filters.companyId && filters.answered !== undefined) {
     return await sql`
       SELECT * FROM decision_queue
@@ -268,7 +337,7 @@ export async function listDecisions(filters: {
   return await sql`SELECT * FROM decision_queue ORDER BY tier, created_at`;
 }
 
-export async function getPendingDecisions(): Promise<Row[]> {
+export async function getPendingDecisions(): Promise<DecisionRow[]> {
   return await sql`
     SELECT dq.*, c.slug AS company_slug, c.display_name AS company_name
     FROM decision_queue dq
@@ -281,7 +350,7 @@ export async function getPendingDecisions(): Promise<Row[]> {
 export async function answerDecision(id: string, input: {
   answer: string;
   answeredBy: string;
-}): Promise<Row | null> {
+}): Promise<DecisionRow | null> {
   const [row] = await sql`
     UPDATE decision_queue SET
       answered = TRUE,
@@ -311,7 +380,7 @@ export async function answerDecision(id: string, input: {
     }
   }
 
-  return row ?? null;
+  return (row as DecisionRow) ?? null;
 }
 
 // ── Budget Tracking ───────────────────────────────────────────────
@@ -359,7 +428,7 @@ export async function getTodaySpend(companyId: string): Promise<number> {
 
 // ── Stale Company Detection ───────────────────────────────────────
 
-export async function getStaleCompanies(thresholdMinutes = 5): Promise<Row[]> {
+export async function getStaleCompanies(thresholdMinutes = 5): Promise<DbResult[]> {
   return await sql`
     SELECT c.*, p.slug AS project_slug
     FROM companies c
@@ -370,7 +439,7 @@ export async function getStaleCompanies(thresholdMinutes = 5): Promise<Row[]> {
   `;
 }
 
-export async function getCompaniesWithPendingTasks(): Promise<Row[]> {
+export async function getCompaniesWithPendingTasks(): Promise<DbResult[]> {
   return await sql`
     SELECT c.*, p.slug AS project_slug,
       COUNT(tq.id) AS pending_count
@@ -390,7 +459,7 @@ export async function getCompaniesWithPendingTasks(): Promise<Row[]> {
  * Uses INSERT ... ON CONFLICT on a partial unique index to prevent TOCTOU races.
  * Returns the lock task if acquired, null if already locked.
  */
-export async function acquirePackageLock(companyId: string, packageName: string, sessionId: string): Promise<Row | null> {
+export async function acquirePackageLock(companyId: string, packageName: string, sessionId: string): Promise<TaskRow | null> {
   const lockMeta = { package: packageName };
   try {
     const [row] = await sql`
@@ -408,7 +477,7 @@ export async function acquirePackageLock(companyId: string, packageName: string,
       RETURNING *
     `;
     logDebug(`Package lock acquired: ${packageName} by company ${companyId}`);
-    return row;
+    return row as TaskRow;
   } catch (err: unknown) {
     // Unique index violation = lock already held
     if (err instanceof Error && err.message.includes("idx_task_queue_package_lock")) {
@@ -443,7 +512,7 @@ export async function releasePackageLock(packageName: string, companyId: string)
 /**
  * List all currently held package locks.
  */
-export async function listPackageLocks(): Promise<Row[]> {
+export async function listPackageLocks(): Promise<DbResult[]> {
   return await sql`
     SELECT tq.id, tq.company_id, tq.metadata->>'package' AS package_name,
            tq.claimed_at, tq.status, c.slug AS company_slug
@@ -557,7 +626,7 @@ export async function writeAuditLog(input: {
 export async function listAuditLog(filters: {
   companyId?: string;
   limit?: number;
-}): Promise<Row[]> {
+}): Promise<AuditRow[]> {
   const limit = Math.min(filters.limit ?? 50, 500);
   if (filters.companyId) {
     return await sql`SELECT * FROM audit_log WHERE company_id = ${filters.companyId} ORDER BY occurred_at DESC LIMIT ${limit}`;
