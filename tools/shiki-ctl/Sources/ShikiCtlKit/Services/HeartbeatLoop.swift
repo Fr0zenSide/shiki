@@ -160,17 +160,17 @@ public actor HeartbeatLoop {
             return
         }
 
-        let payload: [String: Any] = [
-            "companyId": company.id,
-            "sessionId": sessionSlug,
-            "companySlug": companySlug,
-            "taskTitle": taskShort,
-            "phase": phase,
-            "rawLog": rawLog ?? "",
-        ]
+        let input = SessionTranscriptInput(
+            companyId: company.id,
+            sessionId: sessionSlug,
+            companySlug: companySlug,
+            taskTitle: taskShort,
+            phase: phase,
+            rawLog: rawLog
+        )
 
         do {
-            let _: SessionTranscript = try await client.createSessionTranscript(payload)
+            let _: SessionTranscript = try await client.createSessionTranscript(input)
             logger.info("Saved transcript for \(sessionSlug)")
         } catch {
             logger.error("Failed to save transcript for \(sessionSlug): \(error)")
