@@ -30,6 +30,7 @@ import {
   PackageLockSchema,
   PackageUnlockSchema,
   CompanyHeartbeatSchema,
+  SessionTranscriptCreateSchema,
 } from "./schemas.ts";
 import { ingestChunks, listSources, getSource, deleteSource } from "./ingest.ts";
 import {
@@ -50,6 +51,8 @@ import {
   getStaleCompanies, getCompaniesWithPendingTasks,
   acquirePackageLock, releasePackageLock, listPackageLocks,
   getDailyReport, processHeartbeat, writeAuditLog, listAuditLog,
+  createSessionTranscript, getSessionTranscript, listSessionTranscripts,
+  getBoardOverview, getDispatcherQueue,
 } from "./orchestrator.ts";
 import { json, parseBody, handleError, logDebug } from "./middleware.ts";
 import { broadcastToProject, getWsStats } from "./ws.ts";
@@ -808,6 +811,54 @@ export async function handleRequest(req: Request): Promise<Response> {
       const limit = parseInt(url.searchParams.get("limit") ?? "50") || 50;
       const audit = await listAuditLog({ companyId, limit });
       return json(audit);
+    }
+
+    // ── Session Transcripts ────────────────────────────────────
+
+    // GET /api/session-transcripts — list transcripts (filter by company_slug, company_id, task_id, phase)
+    if (path === "/api/session-transcripts" && method === "GET") {
+      const companySlug = url.searchParams.get("company_slug") ?? undefined;
+      const companyId = url.searchParams.get("company_id") ?? undefined;
+      const taskId = url.searchParams.get("task_id") ?? undefined;
+      const phase = url.searchParams.get("phase") ?? undefined;
+      const limit = parseInt(url.searchParams.get("limit") ?? "20") || 20;
+      const includeRawLog = url.searchParams.get("include_raw_log") === "true";
+      const transcripts = await listSessionTranscripts({ companySlug, companyId, taskId, phase, limit, includeRawLog });
+      return json(transcripts);
+    }
+
+    // POST /api/session-transcripts — create a transcript
+    if (path === "/api/session-transcripts" && method === "POST") {
+      const body = await parseBody(req, SessionTranscriptCreateSchema);
+      const transcript = await createSessionTranscript(body);
+      await writeAuditLog({
+        companyId: body.companyId, actor: "orchestrator", action: "session_transcript_created",
+        targetType: "session_transcript", targetId: transcript.id,
+        afterState: { taskTitle: body.taskTitle, phase: body.phase },
+      });
+      return json(transcript, 201);
+    }
+
+    // GET /api/session-transcripts/:id — get a single transcript
+    if (path.startsWith("/api/session-transcripts/") && method === "GET") {
+      const id = path.split("/")[3];
+      const transcript = await getSessionTranscript(id);
+      if (!transcript) return json({ error: "Transcript not found" }, 404);
+      return json(transcript);
+    }
+
+    // ── Board Overview ───────────────────────────────────────────
+
+    // GET /api/orchestrator/board — rich board overview for all companies
+    if (path === "/api/orchestrator/board" && method === "GET") {
+      const board = await getBoardOverview();
+      return json(board);
+    }
+
+    // GET /api/orchestrator/dispatcher-queue — tasks ready for dispatch
+    if (path === "/api/orchestrator/dispatcher-queue" && method === "GET") {
+      const queue = await getDispatcherQueue();
+      return json(queue);
     }
 
     // ── Database Backup Info ─────────────────────────────────────

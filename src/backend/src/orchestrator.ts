@@ -54,6 +54,30 @@ export interface DecisionRow {
   metadata: Record<string, unknown> | string;
 }
 
+export interface SessionTranscriptRow {
+  id: string;
+  company_id: string;
+  task_id: string | null;
+  session_id: string;
+  company_slug: string;
+  task_title: string;
+  project_path: string | null;
+  summary: string | null;
+  plan_output: string | null;
+  files_changed: string[];
+  test_results: string | null;
+  prs_created: string[];
+  decisions: Record<string, unknown>[] | string;
+  errors: string[];
+  phase: string;
+  duration_minutes: number | null;
+  context_pct: number | null;
+  compaction_count: number;
+  raw_log: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AuditRow {
   occurred_at: string;
   company_id: string | null;
@@ -632,4 +656,119 @@ export async function listAuditLog(filters: {
     return await sql`SELECT * FROM audit_log WHERE company_id = ${filters.companyId} ORDER BY occurred_at DESC LIMIT ${limit}`;
   }
   return await sql`SELECT * FROM audit_log ORDER BY occurred_at DESC LIMIT ${limit}`;
+}
+
+// ── Session Transcripts ───────────────────────────────────────────
+
+export async function createSessionTranscript(input: {
+  companyId: string;
+  taskId?: string;
+  sessionId: string;
+  companySlug: string;
+  taskTitle: string;
+  projectPath?: string;
+  summary?: string;
+  planOutput?: string;
+  filesChanged?: string[];
+  testResults?: string;
+  prsCreated?: string[];
+  decisions?: Record<string, unknown>[];
+  errors?: string[];
+  phase?: string;
+  durationMinutes?: number;
+  contextPct?: number;
+  compactionCount?: number;
+  rawLog?: string;
+}): Promise<SessionTranscriptRow> {
+  const [row] = await sql`
+    INSERT INTO session_transcripts (
+      company_id, task_id, session_id, company_slug, task_title, project_path,
+      summary, plan_output, files_changed, test_results, prs_created,
+      decisions, errors, phase, duration_minutes, context_pct, compaction_count, raw_log
+    ) VALUES (
+      ${input.companyId},
+      ${input.taskId ?? null},
+      ${input.sessionId},
+      ${input.companySlug},
+      ${input.taskTitle},
+      ${input.projectPath ?? null},
+      ${input.summary ?? null},
+      ${input.planOutput ?? null},
+      ${input.filesChanged ?? []},
+      ${input.testResults ?? null},
+      ${input.prsCreated ?? []},
+      ${JSON.stringify(input.decisions ?? [])},
+      ${input.errors ?? []},
+      ${input.phase ?? "completed"},
+      ${input.durationMinutes ?? null},
+      ${input.contextPct ?? null},
+      ${input.compactionCount ?? 0},
+      ${input.rawLog ?? null}
+    )
+    RETURNING *
+  `;
+  logDebug(`Session transcript created: ${input.taskTitle} (${row.id}) for ${input.companySlug}`);
+  return row as SessionTranscriptRow;
+}
+
+export async function getSessionTranscript(id: string): Promise<SessionTranscriptRow | null> {
+  const [row] = await sql`SELECT * FROM session_transcripts WHERE id = ${id}`;
+  return (row as SessionTranscriptRow) ?? null;
+}
+
+export async function listSessionTranscripts(filters: {
+  companySlug?: string;
+  companyId?: string;
+  taskId?: string;
+  phase?: string;
+  limit?: number;
+  includeRawLog?: boolean;
+}): Promise<SessionTranscriptRow[]> {
+  const limit = Math.min(filters.limit ?? 20, 100);
+  const cols = filters.includeRawLog
+    ? sql`*`
+    : sql`id, company_id, task_id, session_id, company_slug, task_title, project_path,
+           summary, plan_output, files_changed, test_results, prs_created, decisions, errors,
+           phase, duration_minutes, context_pct, compaction_count, created_at, updated_at`;
+
+  if (filters.companySlug) {
+    return rows<SessionTranscriptRow>(await sql`
+      SELECT ${cols} FROM session_transcripts
+      WHERE company_slug = ${filters.companySlug}
+      ${filters.phase ? sql`AND phase = ${filters.phase}` : sql``}
+      ORDER BY created_at DESC LIMIT ${limit}
+    `);
+  }
+  if (filters.companyId) {
+    return rows<SessionTranscriptRow>(await sql`
+      SELECT ${cols} FROM session_transcripts
+      WHERE company_id = ${filters.companyId}
+      ${filters.phase ? sql`AND phase = ${filters.phase}` : sql``}
+      ORDER BY created_at DESC LIMIT ${limit}
+    `);
+  }
+  if (filters.taskId) {
+    return rows<SessionTranscriptRow>(await sql`
+      SELECT ${cols} FROM session_transcripts
+      WHERE task_id = ${filters.taskId}
+      ORDER BY created_at DESC LIMIT ${limit}
+    `);
+  }
+  return rows<SessionTranscriptRow>(await sql`
+    SELECT ${cols} FROM session_transcripts
+    ${filters.phase ? sql`WHERE phase = ${filters.phase}` : sql``}
+    ORDER BY created_at DESC LIMIT ${limit}
+  `);
+}
+
+// ── Board Overview ─────────────────────────────────────────────────
+
+export async function getBoardOverview() {
+  return await sql`SELECT * FROM board_overview ORDER BY priority, company_slug`;
+}
+
+// ── Dispatcher Queue ───────────────────────────────────────────────
+
+export async function getDispatcherQueue() {
+  return await sql`SELECT * FROM dispatcher_queue`;
 }
