@@ -11,6 +11,7 @@ replication_factor = 1
 consistency_mode   = "consistent"
 
 rpc_bind_addr = "0.0.0.0:3901"
+# WARNING: Dev-only placeholder. Production secret is deployed out-of-band via ansible/secrets.
 rpc_secret    = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 [s3_api]

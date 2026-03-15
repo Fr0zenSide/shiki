@@ -112,7 +112,7 @@ final class DefaultPhotoImportServiceTests: XCTestCase {
             _ = try await sut.importPhotos(for: makeConfig(), from: .mayaPhotos)
             XCTFail("Expected unauthorized error")
         } catch {
-            XCTAssertTrue(error is DefaultPhotoImportService.ImportError)
+            XCTAssertTrue(error is MediaError)
         }
     }
 

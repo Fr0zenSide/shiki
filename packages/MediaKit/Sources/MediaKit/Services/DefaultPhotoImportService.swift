@@ -25,7 +25,7 @@ public struct DefaultPhotoImportService: PhotoImportService, Sendable {
         // 1. Check authorization
         let authorized = await provider.requestAuthorization()
         guard authorized else {
-            throw ImportError.unauthorized
+            throw MediaError.unauthorized
         }
 
         // 2. Fetch assets within time window (with buffer)
@@ -73,11 +73,5 @@ public struct DefaultPhotoImportService: PhotoImportService, Sendable {
         }
 
         return results
-    }
-
-    // MARK: - Errors
-
-    public enum ImportError: Error, Sendable {
-        case unauthorized
     }
 }
