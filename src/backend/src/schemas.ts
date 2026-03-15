@@ -276,6 +276,29 @@ export const PackageUnlockSchema = z.object({
 });
 export type PackageUnlockInput = z.infer<typeof PackageUnlockSchema>;
 
+// --- Session Transcript ---
+export const SessionTranscriptCreateSchema = z.object({
+  companyId: z.string().uuid(),
+  taskId: z.string().uuid().optional(),
+  sessionId: z.string().min(1).max(200),
+  companySlug: z.string().min(1).max(50),
+  taskTitle: z.string().min(1).max(500),
+  projectPath: z.string().max(500).optional(),
+  summary: z.string().max(50000).optional(),
+  planOutput: z.string().max(100000).optional(),
+  filesChanged: z.array(z.string().max(500)).optional().default([]),
+  testResults: z.string().max(50000).optional(),
+  prsCreated: z.array(z.string().max(500)).optional().default([]),
+  decisions: z.array(z.record(z.unknown())).optional().default([]),
+  errors: z.array(z.string().max(5000)).optional().default([]),
+  phase: z.enum(["plan", "implement", "review", "blocked", "completed", "failed"]).optional().default("completed"),
+  durationMinutes: z.number().int().min(0).optional(),
+  contextPct: z.number().int().min(0).max(100).optional(),
+  compactionCount: z.number().int().min(0).optional(),
+  rawLog: z.string().max(500000).optional(),
+});
+export type SessionTranscriptCreateInput = z.infer<typeof SessionTranscriptCreateSchema>;
+
 // --- Company Heartbeat ---
 export const CompanyHeartbeatSchema = z.object({
   companyId: z.string().uuid(),
