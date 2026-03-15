@@ -10,6 +10,24 @@
 # ─────────────────────────────────────────────────────────────
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ENV_FILE="${REPO_ROOT}/deploy/.env"
+
+# ── Ensure deploy/.env exists ────────────────────────────
+if [ ! -f "$ENV_FILE" ]; then
+  echo "deploy/.env not found — creating from deploy/example.env..."
+  cp "${REPO_ROOT}/deploy/example.env" "$ENV_FILE"
+  echo ""
+  echo "  IMPORTANT: Edit deploy/.env with real secrets before running docker compose."
+  echo "  Generate an RPC secret:  openssl rand -hex 32"
+  echo ""
+  exit 1
+fi
+
+# shellcheck source=/dev/null
+source "$ENV_FILE"
+
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[0;33m'

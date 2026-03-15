@@ -110,6 +110,11 @@ services:
   garage:
     image: dxflrs/garage:v2.2.0
     restart: unless-stopped
+    env_file: deploy/.env
+    environment:
+      GARAGE_ADMIN_TOKEN:   ${GARAGE_ADMIN_TOKEN:-dummy-admin-token}
+      GARAGE_METRICS_TOKEN: ${GARAGE_METRICS_TOKEN:-dummy-metrics-token}
+    command: ["/garage", "-c", "/etc/garage.toml", "server", "--rpc-secret", "${GARAGE_RPC_SECRET}"]
     volumes:
       - garage_data:/var/lib/garage
       - ./deploy/garage.toml:/etc/garage.toml:ro

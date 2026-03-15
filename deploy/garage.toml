@@ -11,8 +11,10 @@ replication_factor = 1
 consistency_mode   = "consistent"
 
 rpc_bind_addr = "0.0.0.0:3901"
-# WARNING: Dev-only placeholder. Production secret is deployed out-of-band via ansible/secrets.
-rpc_secret    = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+# WARNING: Dummy values below. Real secrets come from deploy/.env
+# via docker-compose environment → Garage CLI flags (--rpc-secret).
+# The TOML file does not support env var interpolation — Docker overrides these at startup.
+rpc_secret    = "0000000000000000000000000000000000000000000000000000000000000000"
 
 [s3_api]
 api_bind_addr = "0.0.0.0:3902"
@@ -25,5 +27,6 @@ root_domain   = ".web.garage.localhost"
 
 [admin]
 api_bind_addr = "0.0.0.0:3903"
-admin_token   = "shiki-dev-admin-token"
-metrics_token = "shiki-dev-metrics-token"
+# Overridden by GARAGE_ADMIN_TOKEN and GARAGE_METRICS_TOKEN from deploy/.env
+admin_token   = "dummy-admin-token"
+metrics_token = "dummy-metrics-token"
