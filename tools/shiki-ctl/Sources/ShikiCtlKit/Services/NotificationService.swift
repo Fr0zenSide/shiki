@@ -54,7 +54,6 @@ public struct NtfyNotificationSender: NotificationSender, Sendable {
         if process.terminationStatus == 0 {
             logger.debug("Notification sent: \(title)")
         } else {
-            // Debug level — don't spam warnings when ntfy is down
             logger.debug("ntfy unreachable (curl exit \(process.terminationStatus))")
         }
     }

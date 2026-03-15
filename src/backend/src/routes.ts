@@ -606,17 +606,16 @@ export async function handleRequest(req: Request): Promise<Response> {
       return json(company, 201);
     }
 
-    if (path.startsWith("/api/companies/") && !path.includes("/tasks")) {
-      const segments = path.split("/");
-      const companyId = segments[3];
+    if (path.match(/^\/api\/companies\/[^/]+$/) && method !== "POST") {
+      const companyId = path.split("/")[3];
 
-      if (segments.length === 4 && method === "GET") {
+      if (method === "GET") {
         const company = await getCompanyStatus(companyId);
         if (!company) return json({ error: "Company not found" }, 404);
         return json(company);
       }
 
-      if (segments.length === 4 && method === "PATCH") {
+      if (method === "PATCH") {
         const body = await parseBody(req, CompanyUpdateSchema);
         const before = await getCompany(companyId);
         const company = await updateCompany(companyId, body);
