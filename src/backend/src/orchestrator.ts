@@ -295,6 +295,10 @@ export async function claimTask(companyId: string, sessionId: string): Promise<T
   return (row as TaskRow) ?? null;
 }
 
+function tierFilter(tier?: number) {
+  return tier ? sql`AND tier = ${tier}` : sql``;
+}
+
 // ── Decision Queue CRUD ───────────────────────────────────────────
 
 export async function createDecision(input: {
@@ -339,7 +343,7 @@ export async function listDecisions(filters: {
     return await sql`
       SELECT * FROM decision_queue
       WHERE company_id = ${filters.companyId} AND answered = ${filters.answered}
-      ${filters.tier ? sql`AND tier = ${filters.tier}` : sql``}
+      ${tierFilter(filters.tier)}
       ORDER BY tier, created_at
     `;
   }
@@ -354,7 +358,7 @@ export async function listDecisions(filters: {
     return await sql`
       SELECT * FROM decision_queue
       WHERE answered = ${filters.answered}
-      ${filters.tier ? sql`AND tier = ${filters.tier}` : sql``}
+      ${tierFilter(filters.tier)}
       ORDER BY tier, created_at
     `;
   }
