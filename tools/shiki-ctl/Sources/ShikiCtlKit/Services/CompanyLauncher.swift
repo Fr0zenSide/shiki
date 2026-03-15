@@ -71,6 +71,8 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
         logger.info("Launched task session: \(windowName) in \(projectDir)")
     }
 
+    // FIXME: isSessionRunning should use NetKit HTTP polling or a proper session registry
+    // instead of shelling out to tmux. Fragile if tmux session name changes or is not running.
     /// Check if a tmux window with the exact name `slug` exists in the board session.
     public func isSessionRunning(slug: String) async -> Bool {
         do {
@@ -106,6 +108,8 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
         )
     }
 
+    // FIXME: listRunningSessions should query a session registry (DB or in-memory)
+    // instead of parsing tmux output. Breaks if panes are renamed manually.
     /// List all active task session window names (excludes `orchestrator` and `research` tabs).
     public func listRunningSessions() async -> [String] {
         do {
@@ -132,6 +136,8 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
 
     // MARK: - Autopilot Prompt
 
+    // FIXME: buildAutopilotPrompt should load from a template file or CLAUDE.md
+    // instead of hardcoding the prompt. Makes iteration require recompilation.
     private static func buildAutopilotPrompt(
         companyId: String, companySlug: String,
         taskId: String, title: String
