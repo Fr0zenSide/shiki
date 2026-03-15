@@ -9,6 +9,7 @@ public struct NtfyNotificationSender: NotificationSender, Sendable {
     let topic: String
     let serverURL: String
     let logger: Logger
+    private let httpClient: HTTPClient
 
     public init(logger: Logger = Logger(label: "shiki-ctl.ntfy")) {
         // Read config from ~/.config/shiki-notify/config
@@ -33,11 +34,10 @@ public struct NtfyNotificationSender: NotificationSender, Sendable {
         self.topic = topic
         self.serverURL = server
         self.logger = logger
+        self.httpClient = HTTPClient()
     }
 
     public func send(title: String, body: String, priority: NotificationPriority, tags: [String]) async throws {
-        let httpClient = HTTPClient()
-
         var request = HTTPClientRequest(url: "\(serverURL)/\(topic)")
         request.method = .POST
         request.headers.add(name: "Title", value: title)
@@ -45,19 +45,12 @@ public struct NtfyNotificationSender: NotificationSender, Sendable {
         request.headers.add(name: "Tags", value: tags.joined(separator: ","))
         request.body = .bytes(ByteBuffer(string: body))
 
-        do {
-            let response = try await httpClient.execute(request, timeout: .seconds(10))
-            guard (200...299).contains(Int(response.status.code)) else {
-                logger.warning("ntfy send failed: HTTP \(response.status.code)")
-                try await httpClient.shutdown()
-                return
-            }
-            logger.debug("Notification sent: \(title)")
-        } catch {
-            try? await httpClient.shutdown()
-            throw error
+        let response = try await httpClient.execute(request, timeout: .seconds(10))
+        guard (200...299).contains(Int(response.status.code)) else {
+            logger.warning("ntfy send failed: HTTP \(response.status.code)")
+            return
         }
-        try await httpClient.shutdown()
+        logger.debug("Notification sent: \(title)")
     }
 }
 
