@@ -11,9 +11,9 @@ replication_factor = 1
 consistency_mode   = "consistent"
 
 rpc_bind_addr = "0.0.0.0:3901"
-# WARNING: Dummy values below. Real secrets come from deploy/.env
-# via docker-compose environment → Garage CLI flags (--rpc-secret).
-# The TOML file does not support env var interpolation — Docker overrides these at startup.
+# Dummy value — overridden at runtime by --rpc-secret CLI flag.
+# Real secret loaded from deploy/.env via docker-compose.
+# Generate yours: openssl rand -hex 32
 rpc_secret    = "0000000000000000000000000000000000000000000000000000000000000000"
 
 [s3_api]
@@ -27,6 +27,8 @@ root_domain   = ".web.garage.localhost"
 
 [admin]
 api_bind_addr = "0.0.0.0:3903"
-# Overridden by GARAGE_ADMIN_TOKEN and GARAGE_METRICS_TOKEN from deploy/.env
+# Dummy values — overridden at runtime by GARAGE_ADMIN_TOKEN and
+# GARAGE_METRICS_TOKEN env vars (Garage natively supports these overrides).
+# Real tokens loaded from deploy/.env via docker-compose.
 admin_token   = "dummy-admin-token"
 metrics_token = "dummy-metrics-token"
