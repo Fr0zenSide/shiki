@@ -2,10 +2,12 @@ import ArgumentParser
 import ShikiCtlKit
 import Foundation
 
-struct StartCommand: AsyncParsableCommand {
+/// The orchestrator heartbeat loop — runs inside the tmux orchestrator tab.
+/// This is an internal command; users run `shiki start` which launches this in tmux.
+struct HeartbeatCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "start",
-        abstract: "Launch the orchestrator heartbeat loop"
+        commandName: "heartbeat",
+        abstract: "Run the orchestrator heartbeat loop (internal — launched by 'start')"
     )
 
     @Option(name: .long, help: "Loop interval in seconds")
@@ -16,6 +18,9 @@ struct StartCommand: AsyncParsableCommand {
 
     @Option(name: .long, help: "Workspace root path")
     var workspace: String = "."
+
+    @Option(name: .long, help: "Tmux session name")
+    var session: String = "shiki"
 
     @Flag(name: .long, help: "Disable push notifications")
     var noNotify: Bool = false
@@ -29,7 +34,7 @@ struct StartCommand: AsyncParsableCommand {
         }
 
         let client = BackendClient(baseURL: url)
-        let launcher = TmuxProcessLauncher(workspacePath: workspacePath)
+        let launcher = TmuxProcessLauncher(session: session, workspacePath: workspacePath)
         let notifier: NotificationSender = noNotify ? NoOpNotificationSender() : NtfyNotificationSender()
 
         print("\u{1B}[1m\u{1B}[36mShiki Orchestrator\u{1B}[0m — heartbeat loop")

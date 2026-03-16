@@ -1,10 +1,8 @@
-import AsyncHTTPClient
 import Foundation
 import Logging
-import NIOCore
-import NIOFoundationCompat
 
 /// Sends push notifications via ntfy.sh. Reads config from ~/.config/shiki-notify/config.
+/// Uses curl subprocess for reliability (same as BackendClient).
 public struct NtfyNotificationSender: NotificationSender, Sendable {
     let topic: String
     let serverURL: String
@@ -36,28 +34,29 @@ public struct NtfyNotificationSender: NotificationSender, Sendable {
     }
 
     public func send(title: String, body: String, priority: NotificationPriority, tags: [String]) async throws {
-        let httpClient = HTTPClient()
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = [
+            "curl", "-s",
+            "--max-time", "10",
+            "-X", "POST",
+            "-H", "Title: \(title)",
+            "-H", "Priority: \(priority.rawValue)",
+            "-H", "Tags: \(tags.joined(separator: ","))",
+            "-d", body,
+            "\(serverURL)/\(topic)",
+        ]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
 
-        var request = HTTPClientRequest(url: "\(serverURL)/\(topic)")
-        request.method = .POST
-        request.headers.add(name: "Title", value: title)
-        request.headers.add(name: "Priority", value: "\(priority.rawValue)")
-        request.headers.add(name: "Tags", value: tags.joined(separator: ","))
-        request.body = .bytes(ByteBuffer(string: body))
-
-        do {
-            let response = try await httpClient.execute(request, timeout: .seconds(10))
-            guard (200...299).contains(Int(response.status.code)) else {
-                logger.warning("ntfy send failed: HTTP \(response.status.code)")
-                try await httpClient.shutdown()
-                return
-            }
+        if process.terminationStatus == 0 {
             logger.debug("Notification sent: \(title)")
-        } catch {
-            try? await httpClient.shutdown()
-            throw error
+        } else {
+            // Debug level — don't spam warnings when ntfy is down
+            logger.debug("ntfy unreachable (curl exit \(process.terminationStatus))")
         }
-        try await httpClient.shutdown()
     }
 }
 

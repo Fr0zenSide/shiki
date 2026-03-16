@@ -111,6 +111,9 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
     // FIXME: listRunningSessions should query a session registry (DB or in-memory)
     // instead of parsing tmux output. Breaks if panes are renamed manually.
     /// List all active task session window names (excludes `orchestrator` and `research` tabs).
+    /// Reserved window names that are NOT task sessions — never clean them up.
+    private static var reservedWindows: Set<String> { ProcessCleanup.reservedWindows }
+
     public func listRunningSessions() async -> [String] {
         do {
             let output = try runProcessCapture("tmux", arguments: [
@@ -118,7 +121,7 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
             ])
             return output.split(separator: "\n")
                 .map(String.init)
-                .filter { $0 != "orchestrator" && $0 != "research" }
+                .filter { !Self.reservedWindows.contains($0) }
         } catch {
             return []
         }

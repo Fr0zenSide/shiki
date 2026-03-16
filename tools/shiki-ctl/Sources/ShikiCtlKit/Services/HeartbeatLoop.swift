@@ -10,6 +10,7 @@ public actor HeartbeatLoop {
     private let interval: Duration
     private let logger: Logger
     private var notifiedDecisionIds: Set<String> = []
+    private var previousPendingDecisionIds: Set<String> = []
 
     public init(
         client: BackendClient,
@@ -36,10 +37,11 @@ public actor HeartbeatLoop {
                     continue
                 }
 
-                try await checkDecisions()
-                try await checkStaleCompanies()
+                let pendingDecisions = try await checkDecisions()
+                try await checkAnsweredDecisions(currentPending: pendingDecisions)
                 try await checkAndDispatch()
                 try await cleanupIdleSessions()
+                try await checkStaleCompaniesSmart()
             } catch is CancellationError {
                 break
             } catch {
@@ -59,10 +61,20 @@ public actor HeartbeatLoop {
     // MARK: - Dispatcher (replaces checkSchedule)
 
     /// Fetch pending tasks from dispatcher_queue and launch sessions for them.
+    /// Rate-limited: max 2 concurrent sessions across all companies.
     func checkAndDispatch() async throws {
         let readyTasks = try await client.getDispatcherQueue()
+        let runningSessions = await launcher.listRunningSessions()
+        let maxConcurrent = 2
 
-        for task in readyTasks {
+        guard runningSessions.count < maxConcurrent else {
+            logger.debug("\(runningSessions.count)/\(maxConcurrent) slots full, skipping dispatch")
+            return
+        }
+
+        let slotsAvailable = maxConcurrent - runningSessions.count
+
+        for task in readyTasks.prefix(slotsAvailable) {
             // Skip if company budget exhausted
             guard task.spentToday < task.budget.dailyUsd else {
                 logger.info("\(task.companySlug) budget exhausted ($\(task.spentToday)/$\(task.budget.dailyUsd))")
@@ -187,42 +199,114 @@ public actor HeartbeatLoop {
     // MARK: - Decisions
 
     /// Notify on new T1 decisions that haven't been seen yet.
-    func checkDecisions() async throws {
+    /// Returns the current pending decisions for reuse by checkAnsweredDecisions.
+    @discardableResult
+    func checkDecisions() async throws -> [Decision] {
         let decisions = try await client.getPendingDecisions()
         let t1 = decisions.filter { $0.tier == 1 }
         let newDecisions = t1.filter { !notifiedDecisionIds.contains($0.id) }
 
+        if !newDecisions.isEmpty {
+            // Log summary, not full question text
+            let slugs = newDecisions.map { $0.companySlug ?? "?" }
+            let grouped = Dictionary(grouping: slugs, by: { $0 }).map { "\($0.key)×\($0.value.count)" }
+            logger.info("\(newDecisions.count) new T1 decision(s): \(grouped.joined(separator: ", "))")
+        }
+
         for decision in newDecisions {
             let slug = decision.companySlug ?? "unknown"
-            logger.info("T1 decision pending: [\(slug)] \(decision.question)")
-            try await notifier.send(
-                title: "T1 Decision: \(slug)",
-                body: decision.question,
-                priority: .high,
-                tags: ["decision", "t1", slug]
-            )
+            // Truncate question for notification body
+            let shortQuestion = String(decision.question.prefix(120))
+            do {
+                try await notifier.send(
+                    title: "T1: \(slug)",
+                    body: shortQuestion,
+                    priority: .high,
+                    tags: ["decision", "t1", slug]
+                )
+            } catch {
+                // Don't let notification failure crash the loop — just log once
+                logger.debug("ntfy unreachable for \(slug) decision")
+            }
             notifiedDecisionIds.insert(decision.id)
         }
 
         // Clean up answered decisions from the set
         let pendingIds = Set(decisions.map(\.id))
         notifiedDecisionIds = notifiedDecisionIds.intersection(pendingIds)
+
+        return decisions
     }
 
-    // MARK: - Stale Companies
+    // MARK: - Answered Decisions → Re-dispatch
 
-    /// Detect and relaunch stale company sessions.
-    func checkStaleCompanies() async throws {
-        let stale = try await client.getStaleCompanies()
-        for company in stale {
-            let projectPath = (company.config["project_path"]?.value as? String) ?? company.slug
-            logger.warning("Stale company detected: \(company.slug) — relaunching")
+    /// Detect decisions that were pending last cycle but are now answered.
+    /// If the company session that asked the question is dead, re-dispatch happens
+    /// via checkAndDispatch() later in the same heartbeat cycle.
+    func checkAnsweredDecisions(currentPending: [Decision]) async throws {
+        let currentPendingIds = Set(currentPending.map(\.id))
 
-            // Find and kill any existing sessions for this company
+        // Find decisions that disappeared from pending (= answered)
+        let answeredIds = previousPendingDecisionIds.subtracting(currentPendingIds)
+
+        if !answeredIds.isEmpty {
+            logger.info("\(answeredIds.count) decision(s) answered — checking if re-dispatch needed")
+
+            // Check if any company that had a decision answered has a dead session
             let runningSessions = await launcher.listRunningSessions()
-            for sessionSlug in runningSessions where sessionSlug.hasPrefix("\(company.slug):") {
-                try? await launcher.stopSession(slug: sessionSlug)
+            let runningCompanySlugs = Set(runningSessions.compactMap { slug -> String? in
+                slug.split(separator: ":", maxSplits: 1).first.map(String.init)
+            })
+
+            // Get ready tasks that might have been unblocked
+            let readyTasks = try await client.getDispatcherQueue()
+            for task in readyTasks {
+                if !runningCompanySlugs.contains(task.companySlug) {
+                    logger.info("Company \(task.companySlug) unblocked by answered decision — checkAndDispatch runs next")
+                    // checkAndDispatch will handle the actual launch on this same cycle
+                }
             }
+        }
+
+        previousPendingDecisionIds = currentPendingIds
+    }
+
+    // MARK: - Smart Stale Companies
+
+    /// Re-enable stale company detection with smart logic:
+    /// Only relaunch if (a) company has pending tasks, (b) no running session exists.
+    func checkStaleCompaniesSmart() async throws {
+        let stale = try await client.getStaleCompanies()
+        guard !stale.isEmpty else { return }
+
+        let runningSessions = await launcher.listRunningSessions()
+        let readyTasks = try await client.getDispatcherQueue()
+        let companiesWithTasks = Set(readyTasks.map(\.companySlug))
+
+        for company in stale {
+            // Skip if company has no pending tasks
+            guard companiesWithTasks.contains(company.slug) else {
+                logger.debug("Stale company \(company.slug) has no pending tasks — skipping")
+                continue
+            }
+
+            // Skip if company already has a running session
+            let hasSession = runningSessions.contains { $0.hasPrefix("\(company.slug):") }
+            guard !hasSession else {
+                logger.debug("Stale company \(company.slug) already has running session — skipping")
+                continue
+            }
+
+            // Skip if budget exhausted
+            if let task = readyTasks.first(where: { $0.companySlug == company.slug }) {
+                guard task.spentToday < task.budget.dailyUsd else {
+                    logger.info("Stale company \(company.slug) budget exhausted — skipping")
+                    continue
+                }
+            }
+
+            let projectPath = (company.config["project_path"]?.value as? String) ?? company.slug
+            logger.warning("Stale company \(company.slug) has pending tasks, no session — relaunching")
 
             try await launcher.launchTaskSession(
                 taskId: "",
