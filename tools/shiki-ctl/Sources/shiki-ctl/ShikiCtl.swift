@@ -3,14 +3,18 @@ import ArgumentParser
 @main
 struct ShikiCtl: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "shiki-ctl",
-        abstract: "Shiki orchestrator control plane",
-        version: "0.1.0",
+        commandName: "shiki",
+        abstract: "Shiki orchestrator — launch, monitor, and control your multi-project system",
+        version: "0.2.0",
         subcommands: [
-            StartCommand.self,
+            StartupCommand.self,
+            StopCommand.self,
+            RestartCommand.self,
+            AttachCommand.self,
             StatusCommand.self,
             BoardCommand.self,
             HistoryCommand.self,
+            HeartbeatCommand.self,
             WakeCommand.self,
             PauseCommand.self,
             DecideCommand.self,

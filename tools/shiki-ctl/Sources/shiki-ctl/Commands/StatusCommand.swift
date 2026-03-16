@@ -1,4 +1,5 @@
 import ArgumentParser
+import Foundation
 import ShikiCtlKit
 
 struct StatusCommand: AsyncParsableCommand {
@@ -33,8 +34,23 @@ struct StatusCommand: AsyncParsableCommand {
         }
         let overview = status.overview
 
-        // Header
+        // Header with workspace info
         print("\u{1B}[1m\u{1B}[36mShiki Orchestrator\u{1B}[0m")
+        print(String(repeating: "\u{2500}", count: 56))
+
+        // Workspace & sessions info
+        let workspace = resolveCurrentWorkspace()
+        let sessions = detectShikiSessions()
+        let currentSession = URL(fileURLWithPath: workspace).lastPathComponent
+
+        print("\u{1B}[2mWorkspace:\u{1B}[0m \(workspace)")
+        if sessions.count > 1 {
+            print("\u{1B}[2mSessions:\u{1B}[0m  \(sessions.map { $0 == currentSession ? "\u{1B}[32m\($0) ●\u{1B}[0m" : "\u{1B}[2m\($0)\u{1B}[0m" }.joined(separator: "  "))")
+        } else if sessions.count == 1 {
+            print("\u{1B}[2mSession:\u{1B}[0m   \(sessions[0]) \u{1B}[32m●\u{1B}[0m")
+        } else {
+            print("\u{1B}[2mSession:\u{1B}[0m   \u{1B}[33mnot running\u{1B}[0m")
+        }
         print(String(repeating: "\u{2500}", count: 56))
 
         if overview.t1PendingDecisions > 0 {
@@ -89,5 +105,54 @@ struct StatusCommand: AsyncParsableCommand {
         }
 
         print("\u{1B}[2mTimestamp: \(status.timestamp)\u{1B}[0m")
+    }
+
+    // MARK: - Workspace Detection
+
+    /// Same resolution logic as StartupCommand — symlink → known path → cwd
+    private func resolveCurrentWorkspace() -> String {
+        let binaryPath = ProcessInfo.processInfo.arguments.first ?? ""
+        let resolved = (binaryPath as NSString).resolvingSymlinksInPath
+        if resolved.contains("/tools/shiki-ctl/.build/") {
+            let components = resolved.components(separatedBy: "/tools/shiki-ctl/.build/")
+            if let root = components.first, !root.isEmpty { return root }
+        }
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let known = "\(home)/Documents/Workspaces/shiki"
+        if FileManager.default.fileExists(atPath: "\(known)/docker-compose.yml") { return known }
+        return FileManager.default.currentDirectoryPath
+    }
+
+    /// Detect all tmux sessions that look like shiki workspaces.
+    /// Shiki sessions are named after the workspace folder.
+    private func detectShikiSessions() -> [String] {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["tmux", "list-sessions", "-F", "#{session_name}"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { return [] }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8) ?? ""
+
+        // Filter: sessions that have an orchestrator window (shiki-created sessions)
+        return output.split(separator: "\n").compactMap { session in
+            let name = String(session)
+            let check = Process()
+            check.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            check.arguments = ["tmux", "list-windows", "-t", name, "-F", "#{window_name}"]
+            let checkPipe = Pipe()
+            check.standardOutput = checkPipe
+            check.standardError = FileHandle.nullDevice
+            try? check.run()
+            check.waitUntilExit()
+            guard check.terminationStatus == 0 else { return nil }
+            let windows = String(data: checkPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            // A shiki session has an "orchestrator" window
+            return windows.contains("orchestrator") ? name : nil
+        }
     }
 }
