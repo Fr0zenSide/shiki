@@ -50,7 +50,7 @@ public struct ExternalTools: Sendable {
         }
     }
 
-    /// Get the best diff command for a file, with fallback.
+    /// Get the best diff command name, with fallback.
     public func diffCommand(for filePath: String) -> String {
         if isAvailable("delta") {
             return "delta"
@@ -61,12 +61,12 @@ public struct ExternalTools: Sendable {
         }
     }
 
-    /// Get the best pager/viewer for a file.
-    public func viewCommand(for filePath: String) -> String {
+    /// Get the best pager/viewer args for a file (safe — no shell interpolation).
+    public func viewCommand(for filePath: String) -> [String] {
         if isAvailable("bat") {
-            return "bat --style=numbers --color=always \(filePath)"
+            return ["bat", "--style=numbers", "--color=always", filePath]
         } else {
-            return "cat -n \(filePath)"
+            return ["cat", "-n", filePath]
         }
     }
 
