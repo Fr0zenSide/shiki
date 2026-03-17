@@ -7,6 +7,7 @@ public actor HeartbeatLoop {
     private let client: BackendClient
     private let launcher: ProcessLauncher
     private let notifier: NotificationSender
+    private let registry: SessionRegistry
     private let interval: Duration
     private let logger: Logger
     private var notifiedDecisionIds: Set<String> = []
@@ -16,12 +17,17 @@ public actor HeartbeatLoop {
         client: BackendClient,
         launcher: ProcessLauncher,
         notifier: NotificationSender,
+        registry: SessionRegistry? = nil,
         interval: Duration = .seconds(60),
         logger: Logger = Logger(label: "shiki-ctl.heartbeat")
     ) {
         self.client = client
         self.launcher = launcher
         self.notifier = notifier
+        self.registry = registry ?? SessionRegistry(
+            discoverer: TmuxDiscoverer(),
+            journal: SessionJournal()
+        )
         self.interval = interval
         self.logger = logger
     }
@@ -37,6 +43,7 @@ public actor HeartbeatLoop {
                     continue
                 }
 
+                await registry.refresh()
                 let pendingDecisions = try await checkDecisions()
                 try await checkAnsweredDecisions(currentPending: pendingDecisions)
                 try await checkAndDispatch()
@@ -115,6 +122,20 @@ public actor HeartbeatLoop {
                 companySlug: task.companySlug,
                 title: task.title,
                 projectPath: projectPath
+            )
+
+            // Register in session registry
+            let windowName = TmuxProcessLauncher.windowName(companySlug: task.companySlug, title: task.title)
+            let context = TaskContext(
+                taskId: task.taskId,
+                companySlug: task.companySlug,
+                projectPath: projectPath,
+                budgetDailyUsd: task.budget.dailyUsd,
+                spentTodayUsd: task.spentToday
+            )
+            await registry.register(
+                windowName: windowName, paneId: "", pid: 0,
+                context: context
             )
         }
     }
