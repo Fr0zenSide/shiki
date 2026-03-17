@@ -83,13 +83,12 @@ public actor SessionJournal {
         coalesceTasks[sid]?.cancel()
 
         // Schedule a new flush after debounce
-        coalesceTasks[sid] = Task { [weak self] in
+        coalesceTasks[sid] = Task {
             do {
                 try await Task.sleep(for: debounce)
             } catch {
                 return // cancelled
             }
-            guard let self else { return }
             await self.flushCoalesced(sessionId: sid)
         }
     }
