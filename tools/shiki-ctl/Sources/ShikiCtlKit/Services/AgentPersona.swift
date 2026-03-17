@@ -46,7 +46,7 @@ public enum AgentPersona: String, Codable, Sendable, CaseIterable {
 
     // MARK: - Allowed Tools
 
-    /// The explicit list of Claude Code tools this persona can use.
+    /// The explicit list of tools this persona can use.
     public var allowedTools: Set<String> {
         var tools: Set<String> = ["Read", "Glob", "Grep"]  // baseline read tools
 
@@ -136,7 +136,7 @@ public struct AgentConfig: Sendable {
 
 // MARK: - ClaudeCodeProvider
 
-/// First implementation of AgentProvider — dispatches via Claude Code CLI.
+/// First implementation of AgentProvider — dispatches via CLI agent.
 public struct ClaudeCodeProvider: AgentProvider {
     let workspacePath: String
 
