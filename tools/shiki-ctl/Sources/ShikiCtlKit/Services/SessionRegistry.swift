@@ -89,8 +89,8 @@ public struct RegisteredSession: Sendable {
     public let windowName: String
     public let paneId: String
     public let pid: pid_t
-    public var state: SessionState
-    public var attentionZone: AttentionZone
+    public private(set) var state: SessionState
+    public private(set) var attentionZone: AttentionZone
     public var lastSeen: Date
     public var context: TaskContext?
 

@@ -38,8 +38,12 @@ struct ExternalToolsTests {
     func gracefulDegradation() {
         let tools = ExternalTools()
         // delta may or may not be installed, but fallback should always work
-        let command = tools.diffCommand(for: "test.swift")
-        #expect(!command.isEmpty)
+        let diffCmd = tools.diffCommand(for: "test.swift")
+        #expect(!diffCmd.isEmpty)
+        // viewCommand returns args array (safe, no shell interpolation)
+        let viewArgs = tools.viewCommand(for: "test.swift")
+        #expect(viewArgs.count >= 2)
+        #expect(viewArgs.last == "test.swift")
     }
 }
 

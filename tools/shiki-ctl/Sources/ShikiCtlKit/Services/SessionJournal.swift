@@ -96,7 +96,14 @@ public actor SessionJournal {
     private func flushCoalesced(sessionId: String) {
         guard let checkpoint = pendingCoalesced.removeValue(forKey: sessionId) else { return }
         coalesceTasks.removeValue(forKey: sessionId)
-        try? self.checkpoint(checkpoint)
+        do {
+            try self.checkpoint(checkpoint)
+        } catch {
+            // Journal is for crash recovery — log but don't crash
+            #if DEBUG
+            print("[SessionJournal] flushCoalesced failed for \(sessionId): \(error)")
+            #endif
+        }
     }
 
     /// Load all checkpoints for a session in order.
