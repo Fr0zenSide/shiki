@@ -37,7 +37,7 @@ public enum CheckpointReason: String, Sendable, Codable {
 /// Append-only JSONL journal for session crash recovery.
 /// Each session gets its own file at `{basePath}/{sessionId}.jsonl`.
 public actor SessionJournal {
-    private let basePath: String
+    public let basePath: String
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private var pendingCoalesced: [String: SessionCheckpoint] = [:]
