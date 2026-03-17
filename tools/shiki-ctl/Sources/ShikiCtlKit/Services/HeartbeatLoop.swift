@@ -170,6 +170,11 @@ public actor HeartbeatLoop {
             // If the company is no longer active, capture transcript + kill
             if !activeCompanySlugs.contains(companySlug) {
                 logger.info("Cleaning up idle session: \(sessionSlug) (company inactive)")
+                await eventBus.publish(ShikiEvent(
+                    source: .orchestrator, type: .sessionEnd,
+                    scope: .project(slug: companySlug),
+                    payload: ["sessionSlug": .string(sessionSlug), "reason": .string("company_inactive")]
+                ))
 
                 // Capture raw output before killing
                 await saveTranscript(
@@ -247,8 +252,12 @@ public actor HeartbeatLoop {
 
         for decision in newDecisions {
             let slug = decision.companySlug ?? "unknown"
-            // Truncate question for notification body
             let shortQuestion = String(decision.question.prefix(120))
+            await eventBus.publish(ShikiEvent(
+                source: .orchestrator, type: .decisionPending,
+                scope: .project(slug: slug),
+                payload: ["question": .string(shortQuestion)]
+            ))
             do {
                 try await notifier.send(
                     title: "T1: \(slug)",
