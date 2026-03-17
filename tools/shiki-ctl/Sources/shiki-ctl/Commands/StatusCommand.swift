@@ -15,7 +15,7 @@ struct StatusCommand: AsyncParsableCommand {
     var legacy: Bool = false
 
     @Flag(name: .long, help: "Show local session registry with attention zones")
-    var sessions: Bool = false
+    var showRegistry: Bool = false
 
     func run() async throws {
         let client = BackendClient(baseURL: url)
@@ -62,7 +62,7 @@ struct StatusCommand: AsyncParsableCommand {
         }
 
         // Session registry view (attention-zone sorted)
-        if sessions {
+        if showRegistry {
             let registry = SessionRegistry(
                 discoverer: TmuxDiscoverer(),
                 journal: SessionJournal()

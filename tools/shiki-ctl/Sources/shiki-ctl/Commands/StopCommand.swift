@@ -36,6 +36,25 @@ struct StopCommand: AsyncParsableCommand {
             }
         }
 
+        // Step 0: Journal final state for all sessions (crash recovery)
+        let journal = SessionJournal()
+        let discoverer = TmuxDiscoverer(sessionName: session)
+        let registry = SessionRegistry(discoverer: discoverer, journal: journal)
+        await registry.refresh()
+        for sess in await registry.allSessions {
+            let checkpoint = SessionCheckpoint(
+                sessionId: sess.windowName,
+                state: sess.state,
+                reason: .userAction,
+                metadata: ["action": "shutdown"]
+            )
+            try? await journal.checkpoint(checkpoint)
+        }
+        let journaled = await registry.allSessions.count
+        if journaled > 0 {
+            print("  Journaled \(journaled) session(s)")
+        }
+
         // Step 1: Clean up task windows and child processes BEFORE killing the session
         let cleanup = ProcessCleanup()
         let result = cleanup.cleanupSession(session: session)

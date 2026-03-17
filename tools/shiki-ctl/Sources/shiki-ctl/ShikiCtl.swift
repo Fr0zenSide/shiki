@@ -19,6 +19,9 @@ struct ShikiCtl: AsyncParsableCommand {
             PauseCommand.self,
             DecideCommand.self,
             ReportCommand.self,
+            PRCommand.self,
+            DoctorCommand.self,
+            DashboardCommand.self,
         ]
     )
 }

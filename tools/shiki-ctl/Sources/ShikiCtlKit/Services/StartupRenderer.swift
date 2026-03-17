@@ -47,19 +47,8 @@ public struct StartupDisplayData: Sendable {
     }
 }
 
-// MARK: - ANSI Helpers
-
-private enum ANSI {
-    static let reset   = "\u{1B}[0m"
-    static let bold    = "\u{1B}[1m"
-    static let dim     = "\u{1B}[2m"
-    static let green   = "\u{1B}[32m"
-    static let yellow  = "\u{1B}[33m"
-    static let red     = "\u{1B}[31m"
-    static let cyan    = "\u{1B}[36m"
-}
-
 // MARK: - Renderer
+// Uses ANSI enum from TUI/TerminalOutput.swift
 
 public enum StartupRenderer {
 
