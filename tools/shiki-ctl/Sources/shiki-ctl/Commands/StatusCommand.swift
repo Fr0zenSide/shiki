@@ -14,6 +14,9 @@ struct StatusCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Use legacy table format")
     var legacy: Bool = false
 
+    @Flag(name: .long, help: "Show local session registry with attention zones")
+    var sessions: Bool = false
+
     func run() async throws {
         let client = BackendClient(baseURL: url)
 
@@ -55,6 +58,28 @@ struct StatusCommand: AsyncParsableCommand {
 
         if overview.t1PendingDecisions > 0 {
             print("\u{1B}[33m\u{26A0} \(overview.t1PendingDecisions) T1 decision(s) pending\u{1B}[0m")
+            print()
+        }
+
+        // Session registry view (attention-zone sorted)
+        if sessions {
+            let registry = SessionRegistry(
+                discoverer: TmuxDiscoverer(),
+                journal: SessionJournal()
+            )
+            await registry.refresh()
+            let sorted = await registry.sessionsByAttention()
+
+            if sorted.isEmpty {
+                print("\u{1B}[2mNo active sessions\u{1B}[0m")
+            } else {
+                print("\u{1B}[1mSessions (by attention):\u{1B}[0m")
+                for session in sorted {
+                    let zoneLabel = StatusRenderer.formatAttentionZone(session.attentionZone)
+                    let stateStr = "\u{1B}[2m\(session.state.rawValue)\u{1B}[0m"
+                    print("  \(zoneLabel) \(StatusRenderer.pad(session.windowName, 25)) \(stateStr)")
+                }
+            }
             print()
         }
 
