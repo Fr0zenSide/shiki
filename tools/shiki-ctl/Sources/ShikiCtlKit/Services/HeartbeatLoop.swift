@@ -8,6 +8,7 @@ public actor HeartbeatLoop {
     private let launcher: ProcessLauncher
     private let notifier: NotificationSender
     private let registry: SessionRegistry
+    public let eventBus: InProcessEventBus
     private let interval: Duration
     private let logger: Logger
     private var notifiedDecisionIds: Set<String> = []
@@ -18,6 +19,7 @@ public actor HeartbeatLoop {
         launcher: ProcessLauncher,
         notifier: NotificationSender,
         registry: SessionRegistry? = nil,
+        eventBus: InProcessEventBus? = nil,
         interval: Duration = .seconds(60),
         logger: Logger = Logger(label: "shiki-ctl.heartbeat")
     ) {
@@ -28,6 +30,7 @@ public actor HeartbeatLoop {
             discoverer: TmuxDiscoverer(),
             journal: SessionJournal()
         )
+        self.eventBus = eventBus ?? InProcessEventBus()
         self.interval = interval
         self.logger = logger
     }
@@ -44,6 +47,9 @@ public actor HeartbeatLoop {
                 }
 
                 await registry.refresh()
+                await eventBus.publish(ShikiEvent(
+                    source: .orchestrator, type: .heartbeat, scope: .global
+                ))
                 let pendingDecisions = try await checkDecisions()
                 try await checkAnsweredDecisions(currentPending: pendingDecisions)
                 try await checkAndDispatch()
@@ -137,6 +143,11 @@ public actor HeartbeatLoop {
                 windowName: windowName, paneId: "", pid: 0,
                 context: context
             )
+            await eventBus.publish(ShikiEvent(
+                source: .orchestrator, type: .companyDispatched,
+                scope: .project(slug: task.companySlug),
+                payload: ["taskId": .string(task.taskId), "title": .string(task.title)]
+            ))
         }
     }
 
