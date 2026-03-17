@@ -106,19 +106,19 @@ private let validTransitions: [SessionState: Set<SessionState>] = [
 
 // MARK: - State → Attention Zone
 
-private let stateToZone: [SessionState: AttentionZone] = [
-    .spawning: .pending,
-    .working: .working,
-    .awaitingApproval: .respond,
-    .budgetPaused: .respond,
-    .prOpen: .review,
-    .ciFailed: .respond,
-    .reviewPending: .review,
-    .changesRequested: .review,
-    .approved: .merge,
-    .merged: .idle,
-    .done: .idle,
-]
+extension SessionState {
+    /// The attention zone for this state. Single source of truth.
+    public var attentionZone: AttentionZone {
+        switch self {
+        case .spawning: .pending
+        case .working: .working
+        case .awaitingApproval, .budgetPaused, .ciFailed: .respond
+        case .prOpen, .reviewPending, .changesRequested: .review
+        case .approved: .merge
+        case .merged, .done: .idle
+        }
+    }
+}
 
 // MARK: - SessionLifecycle Actor
 
@@ -148,7 +148,7 @@ public actor SessionLifecycle {
 
     /// The current attention zone — maps state to urgency level.
     public var attentionZone: AttentionZone {
-        stateToZone[currentState] ?? .idle
+        currentState.attentionZone
     }
 
     /// Whether the session should be budget-paused (spent >= daily limit).
@@ -162,12 +162,7 @@ public actor SessionLifecycle {
     public func reconcile(tmuxAlive: Bool, pidAlive: Bool) throws {
         let isActiveState = currentState != .done && currentState != .merged
         if !tmuxAlive && !pidAlive && isActiveState {
-            let record = SessionTransition(
-                from: currentState, to: .done, actor: .system,
-                reason: "ZFC reconcile: tmux dead, pid dead"
-            )
-            transitionHistory.append(record)
-            currentState = .done
+            try transition(to: .done, actor: .system, reason: "ZFC reconcile: tmux dead, pid dead")
         }
     }
 }

@@ -71,9 +71,10 @@ public struct TmuxDiscoverer: SessionDiscoverer {
         process.standardError = FileHandle.nullDevice
         do {
             try process.run()
+            // Read before waitUntilExit to avoid pipe buffer deadlock
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
             guard process.terminationStatus == 0 else { return nil }
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
             return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
             return nil
@@ -102,25 +103,14 @@ public struct RegisteredSession: Sendable {
         self.paneId = paneId
         self.pid = pid
         self.state = state
-        self.attentionZone = Self.zoneForState(state)
+        self.attentionZone = state.attentionZone
         self.lastSeen = lastSeen
         self.context = context
     }
 
     mutating func updateState(_ newState: SessionState) {
         state = newState
-        attentionZone = Self.zoneForState(newState)
-    }
-
-    private static func zoneForState(_ state: SessionState) -> AttentionZone {
-        switch state {
-        case .approved: .merge
-        case .awaitingApproval, .budgetPaused, .ciFailed: .respond
-        case .prOpen, .reviewPending, .changesRequested: .review
-        case .spawning: .pending
-        case .working: .working
-        case .merged, .done: .idle
-        }
+        attentionZone = newState.attentionZone
     }
 }
 

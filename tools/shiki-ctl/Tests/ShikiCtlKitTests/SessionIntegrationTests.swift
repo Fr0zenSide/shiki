@@ -183,14 +183,7 @@ struct SessionIntegrationTests {
     }
 }
 
-// Helper to map state → zone for test assertions
+// Helper to map state → zone for test assertions (uses single source of truth)
 private func stateToAttentionZone(_ state: SessionState) -> AttentionZone {
-    switch state {
-    case .approved: .merge
-    case .awaitingApproval, .budgetPaused, .ciFailed: .respond
-    case .prOpen, .reviewPending, .changesRequested: .review
-    case .spawning: .pending
-    case .working: .working
-    case .merged, .done: .idle
-    }
+    state.attentionZone
 }
