@@ -81,7 +81,7 @@ struct TerminalSnapshotUtilityTests {
     }
 }
 
-@Suite("TUI Renderer Snapshots")
+@Suite("TUI Renderer Snapshots", .serialized)
 struct RendererSnapshotTests {
 
     private var snapshotDir: String {

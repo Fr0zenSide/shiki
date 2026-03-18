@@ -99,10 +99,7 @@ public actor SessionJournal {
         do {
             try self.checkpoint(checkpoint)
         } catch {
-            // Journal is for crash recovery — log but don't crash
-            #if DEBUG
-            print("[SessionJournal] flushCoalesced failed for \(sessionId): \(error)")
-            #endif
+            // Journal is for crash recovery — silent on failure (no print in tests)
         }
     }
 
