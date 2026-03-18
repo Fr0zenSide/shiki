@@ -17,7 +17,25 @@ struct StatusCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Show local session registry with attention zones")
     var showRegistry: Bool = false
 
+    @Flag(name: .long, help: "Single-line output for tmux status bar")
+    var mini: Bool = false
+
+    @Flag(name: .long, help: "Toggle between compact and expanded tmux format")
+    var toggleExpand: Bool = false
+
     func run() async throws {
+        // Handle toggle-expand: flip state and continue with mini output
+        if toggleExpand {
+            let stateManager = TmuxStateManager()
+            stateManager.toggle()
+        }
+
+        // Mini mode: single-line output for tmux
+        if mini || toggleExpand {
+            try await runMini()
+            return
+        }
+
         let client = BackendClient(baseURL: url)
 
         guard try await client.healthCheck() else {
@@ -130,6 +148,59 @@ struct StatusCommand: AsyncParsableCommand {
         }
 
         print("\u{1B}[2mTimestamp: \(status.timestamp)\u{1B}[0m")
+    }
+
+    // MARK: - Mini Mode
+
+    private func runMini() async throws {
+        let registry = SessionRegistry(
+            discoverer: TmuxDiscoverer(),
+            journal: SessionJournal()
+        )
+        await registry.refresh()
+        let sessions = await registry.allSessions
+
+        // Try to get backend data for questions and budget
+        let client = BackendClient(baseURL: url)
+        let isHealthy = (try? await client.healthCheck()) ?? false
+
+        if !isHealthy {
+            try? await client.shutdown()
+            // No trailing newline for tmux
+            print(MiniStatusFormatter.formatUnreachable(), terminator: "")
+            return
+        }
+
+        var pendingQuestions = 0
+        var spentUsd: Double = 0
+        var budgetUsd: Double = 0
+
+        do {
+            let status = try await client.getStatus()
+            try await client.shutdown()
+            pendingQuestions = status.overview.totalPendingDecisions
+            spentUsd = status.overview.todayTotalSpend
+            // Sum daily budgets across active companies
+            budgetUsd = status.activeCompanies.reduce(0) { $0 + $1.budget.dailyUsd }
+        } catch {
+            try? await client.shutdown()
+        }
+
+        let stateManager = TmuxStateManager()
+        let output: String
+        if stateManager.isExpanded {
+            output = MiniStatusFormatter.formatExpanded(
+                sessions: sessions, pendingQuestions: pendingQuestions,
+                spentUsd: spentUsd, budgetUsd: budgetUsd
+            )
+        } else {
+            output = MiniStatusFormatter.formatCompact(
+                sessions: sessions, pendingQuestions: pendingQuestions,
+                spentUsd: spentUsd, budgetUsd: budgetUsd
+            )
+        }
+        // No trailing newline for tmux status bar
+        print(output, terminator: "")
     }
 
     // MARK: - Workspace Detection
