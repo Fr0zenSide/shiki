@@ -59,9 +59,11 @@ struct PromptComposerTests {
 
     @Test("After ## header: ghost shows section name hint")
     func ghostAfterHash() {
-        let ghost = PromptComposer.ghostText(afterLine: "## Authentication")
-        // After a section header, suggest a When block
-        #expect(ghost.isEmpty || ghost.contains("When"))
+        let ghost = PromptComposer.ghostText(afterLine: "## ")
+        #expect(ghost == "Section name")
+        // After a filled section header, no ghost needed
+        let ghostFilled = PromptComposer.ghostText(afterLine: "## Authentication")
+        #expect(ghostFilled == "Section name")
     }
 
     @Test("@ trigger detected in text")
