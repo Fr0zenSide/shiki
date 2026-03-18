@@ -232,7 +232,7 @@ public enum RoutingTable {
 // MARK: - PatternDetector
 
 /// Stage 4: Detect patterns across events in a sliding window.
-public class PatternDetector: @unchecked Sendable {
+public actor PatternDetector {
     private var window: [(event: ShikiEvent, timestamp: Date)] = []
     private let maxWindowSize = 100
 
@@ -318,8 +318,20 @@ public class PatternDetector: @unchecked Sendable {
 // MARK: - EventValue helpers
 
 extension EventValue {
-    var stringValue: String? {
+    public var stringValue: String? {
         if case .string(let s) = self { return s }
+        return nil
+    }
+    public var intValue: Int? {
+        if case .int(let i) = self { return i }
+        return nil
+    }
+    public var doubleValue: Double? {
+        if case .double(let d) = self { return d }
+        return nil
+    }
+    public var boolValue: Bool? {
+        if case .bool(let b) = self { return b }
         return nil
     }
 }
@@ -348,8 +360,8 @@ public struct EventRouter: Sendable {
         let displayHint = RoutingTable.displayHint(for: significance)
 
         // 4. Interpret (record + detect patterns)
-        detector.record(event)
-        let patterns = detector.detect()
+        await detector.record(event)
+        let patterns = await detector.detect()
 
         return RouterEnvelope(
             event: event,
