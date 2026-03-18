@@ -70,9 +70,16 @@ struct PRCommand: ParsableCommand {
 
         // Interactive TUI loop
         let raw = RawMode()
-        defer {
-            raw.restore()
+
+        // Handle Ctrl-C gracefully
+        signal(SIGINT) { _ in
+            var orig = termios()
+            tcgetattr(STDIN_FILENO, &orig)
+            orig.c_lflag |= UInt(ICANON | ECHO)
+            tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig)
             TerminalOutput.showCursor()
+            print() // newline after ^C
+            _exit(0)
         }
 
         TerminalOutput.hideCursor()
@@ -88,10 +95,12 @@ struct PRCommand: ParsableCommand {
             engine.handle(key: key)
         }
 
-        // Save state on exit
+        // Restore terminal BEFORE any output
+        raw.restore()
         TerminalOutput.clearScreen()
         TerminalOutput.showCursor()
 
+        // Save state on exit
         do {
             try engine.state.save(to: statePath)
             let counts = engine.state.verdictCounts()
@@ -102,6 +111,10 @@ struct PRCommand: ParsableCommand {
         } catch {
             print("\(ANSI.yellow)Warning:\(ANSI.reset) Could not save review state: \(error)")
         }
+
+        // Force clean exit — don't let ArgumentParser cleanup hang
+        fflush(stdout)
+        _exit(0)
     }
 
     // MARK: - Build Cache
