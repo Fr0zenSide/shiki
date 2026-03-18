@@ -10,8 +10,8 @@ import Glibc
 struct SearchCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "search",
-        aliases: ["/"],
-        abstract: "Open the command palette (fuzzy search sessions, commands, features, branches)"
+        abstract: "Open the command palette (fuzzy search sessions, commands, features, branches)",
+        aliases: ["/"]
     )
 
     @Argument(help: "Initial search query")
@@ -28,7 +28,7 @@ struct SearchCommand: AsyncParsableCommand {
         let workspaceRoot = findWorkspaceRoot() ?? "."
         let registry = SessionRegistry(
             discoverer: TmuxDiscoverer(),
-            backendURL: "http://127.0.0.1:3900"
+            journal: SessionJournal()
         )
 
         let engine = PaletteEngine(sources: [
@@ -62,6 +62,7 @@ struct SearchCommand: AsyncParsableCommand {
 
         // Render loop
         while true {
+            TerminalOutput.clearScreen()
             PaletteRenderer.render(
                 query: currentQuery,
                 results: results,

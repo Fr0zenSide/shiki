@@ -23,8 +23,6 @@ public enum PaletteRenderer {
         width: Int = TerminalOutput.terminalWidth(),
         height: Int = TerminalOutput.terminalHeight()
     ) {
-        TerminalOutput.clearScreen()
-
         let innerWidth = width - 4  // 2 border + 2 padding
 
         // Top border
