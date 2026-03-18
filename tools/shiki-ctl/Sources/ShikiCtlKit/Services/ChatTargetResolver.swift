@@ -73,7 +73,7 @@ public enum PromptComposer {
         if trimmed.hasPrefix("→") || trimmed.hasPrefix("->") {
             return "  → next expected outcome"
         }
-        if trimmed.hasPrefix("## ") {
+        if trimmed.hasPrefix("##") {
             return "Section name"
         }
         if trimmed.hasPrefix("? ") {
