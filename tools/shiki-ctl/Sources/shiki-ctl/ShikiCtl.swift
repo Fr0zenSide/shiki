@@ -23,6 +23,7 @@ struct ShikiCtl: AsyncParsableCommand {
             DoctorCommand.self,
             DashboardCommand.self,
             MenuCommand.self,
+            SearchCommand.self,
         ]
     )
 }
