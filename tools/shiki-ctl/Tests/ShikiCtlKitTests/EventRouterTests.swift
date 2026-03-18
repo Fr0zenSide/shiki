@@ -139,45 +139,44 @@ struct EventRoutingTests {
 struct PatternDetectionTests {
 
     @Test("Stuck agent detected after 3 heartbeats with no progress")
-    func stuckAgentDetected() {
+    func stuckAgentDetected() async {
         let detector = PatternDetector()
         let sessionScope = EventScope.session(id: "maya:task")
 
-        // 3 heartbeats, no code changes
         for _ in 0..<3 {
-            detector.record(ShikiEvent(source: .orchestrator, type: .heartbeat, scope: sessionScope))
+            await detector.record(ShikiEvent(source: .orchestrator, type: .heartbeat, scope: sessionScope))
         }
 
-        let patterns = detector.detect()
+        let patterns = await detector.detect()
         #expect(patterns.contains { $0.name == "stuck_agent" })
     }
 
     @Test("No stuck agent if code changes between heartbeats")
-    func noStuckWithProgress() {
+    func noStuckWithProgress() async {
         let detector = PatternDetector()
         let scope = EventScope.session(id: "maya:task")
 
-        detector.record(ShikiEvent(source: .orchestrator, type: .heartbeat, scope: scope))
-        detector.record(ShikiEvent(source: .agent(id: "maya:task", name: nil), type: .codeChange, scope: scope))
-        detector.record(ShikiEvent(source: .orchestrator, type: .heartbeat, scope: scope))
+        await detector.record(ShikiEvent(source: .orchestrator, type: .heartbeat, scope: scope))
+        await detector.record(ShikiEvent(source: .agent(id: "maya:task", name: nil), type: .codeChange, scope: scope))
+        await detector.record(ShikiEvent(source: .orchestrator, type: .heartbeat, scope: scope))
 
-        let patterns = detector.detect()
+        let patterns = await detector.detect()
         #expect(!patterns.contains { $0.name == "stuck_agent" })
     }
 
     @Test("Repeat failure detected after 3 test failures")
-    func repeatFailureDetected() {
+    func repeatFailureDetected() async {
         let detector = PatternDetector()
         let scope = EventScope.session(id: "maya:task")
 
         for _ in 0..<3 {
-            detector.record(ShikiEvent(
+            await detector.record(ShikiEvent(
                 source: .agent(id: "maya:task", name: nil), type: .testRun, scope: scope,
                 payload: ["passed": .bool(false), "testName": .string("testAuth")]
             ))
         }
 
-        let patterns = detector.detect()
+        let patterns = await detector.detect()
         #expect(patterns.contains { $0.name == "repeat_failure" })
     }
 }

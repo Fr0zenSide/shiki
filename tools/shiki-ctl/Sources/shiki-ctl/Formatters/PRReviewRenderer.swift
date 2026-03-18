@@ -14,6 +14,8 @@ enum PRReviewRenderer {
             renderSectionList(engine: engine)
         case .sectionView(let idx):
             renderSectionView(engine: engine, sectionIndex: idx)
+        case .commentInput(let idx):
+            renderCommentInput(engine: engine, sectionIndex: idx)
         case .summary:
             renderSummary(engine: engine)
         case .done:
@@ -164,6 +166,33 @@ enum PRReviewRenderer {
 
         print()
         printFooter(keys: "[a] Approve  [c] Comment  [r] Request Changes  [Esc] Back")
+    }
+
+    // MARK: - Comment Input
+
+    private static func renderCommentInput(engine: PRReviewEngine, sectionIndex: Int) {
+        TerminalOutput.clearScreen()
+        let width = TerminalOutput.terminalWidth()
+        let section = engine.review.sections[sectionIndex]
+
+        printHeader(engine.review, width: width)
+        print("\(ANSI.bold)Comment on: \(section.title)\(ANSI.reset)")
+        print(String(repeating: "\u{2500}", count: width))
+        print()
+
+        // Show existing comment if any
+        if let existing = engine.state.comments[sectionIndex] {
+            print("\(ANSI.dim)Previous: \(existing)\(ANSI.reset)")
+            print()
+        }
+
+        // Show the input buffer with cursor
+        print("\(ANSI.bold)Your comment:\(ANSI.reset)")
+        print()
+        let buffer = engine.commentBuffer
+        print("  \(buffer)\(ANSI.inverse) \(ANSI.reset)")
+        print()
+        print("\(ANSI.dim)[Enter] Save  [Esc] Cancel\(ANSI.reset)")
     }
 
     // MARK: - Summary

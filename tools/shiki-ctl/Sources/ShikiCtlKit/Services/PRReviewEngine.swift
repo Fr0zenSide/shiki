@@ -7,6 +7,7 @@ public enum PRReviewScreen: Equatable {
     case riskMap
     case sectionList
     case sectionView(Int)
+    case commentInput(Int)  // section index — inline text input
     case summary
     case done
 }
@@ -20,6 +21,7 @@ public struct PRReviewEngine {
     public private(set) var state: PRReviewState
     public private(set) var currentScreen: PRReviewScreen
     public internal(set) var selectedIndex: Int
+    public var commentBuffer: String = ""
 
     public init(review: PRReview, quickMode: Bool = false, riskFiles: [AssessedFile] = [], config: PRConfig = .default) {
         self.review = review
@@ -49,6 +51,12 @@ public struct PRReviewEngine {
     // MARK: - Input Handling (raw key — for backward compat)
 
     public mutating func handle(key: KeyEvent) {
+        // Comment input mode captures raw keys for typing
+        if case .commentInput = currentScreen {
+            handleCommentKey(key)
+            return
+        }
+
         // Map through key mode, or handle raw for unmapped keys
         if let action = config.keyMode.mapAction(for: key) {
             handle(action: action)
@@ -70,6 +78,8 @@ public struct PRReviewEngine {
             handleSectionList(action)
         case .sectionView(let idx):
             handleSectionView(action, sectionIndex: idx)
+        case .commentInput(let idx):
+            handleCommentInput(action, sectionIndex: idx)
         case .summary:
             handleSummary(action)
         case .done:
@@ -162,11 +172,49 @@ public struct PRReviewEngine {
             state.verdicts[sectionIndex] = .approved
             currentScreen = .sectionList
         case .comment:
-            state.verdicts[sectionIndex] = .comment
-            currentScreen = .sectionList
+            // Go to comment input screen — user types their comment there
+            currentScreen = .commentInput(sectionIndex)
         case .requestChanges:
             state.verdicts[sectionIndex] = .requestChanges
             currentScreen = .sectionList
+        default:
+            break
+        }
+    }
+
+    // MARK: - Comment Input
+
+    private mutating func handleCommentInput(_ action: InputAction, sectionIndex: Int) {
+        switch action {
+        case .back:
+            // Cancel — discard buffer, go back to section view
+            commentBuffer = ""
+            currentScreen = .sectionView(sectionIndex)
+        case .select:
+            // Enter — save comment and return to list
+            if !commentBuffer.trimmingCharacters(in: .whitespaces).isEmpty {
+                state.verdicts[sectionIndex] = .comment
+                state.comments[sectionIndex] = commentBuffer
+            }
+            commentBuffer = ""
+            currentScreen = .sectionList
+        default:
+            break
+        }
+    }
+
+    /// Handle raw key input when in comment mode — captures typed characters.
+    public mutating func handleCommentKey(_ key: KeyEvent) {
+        guard case .commentInput = currentScreen else { return }
+        switch key {
+        case .char(let ch):
+            commentBuffer.append(ch)
+        case .backspace:
+            if !commentBuffer.isEmpty { commentBuffer.removeLast() }
+        case .enter:
+            handle(action: .select) // submit
+        case .escape:
+            handle(action: .back) // cancel
         default:
             break
         }
