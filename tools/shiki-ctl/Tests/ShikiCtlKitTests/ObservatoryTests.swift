@@ -183,6 +183,6 @@ struct ObservatoryHeatmapTests {
         let critical = ObservatoryHeatmap.color(for: .critical)
         #expect(critical.contains("31")) // red ANSI
         let progress = ObservatoryHeatmap.color(for: .progress)
-        #expect(progress.contains("2")) // dim ANSI
+        #expect(progress.contains("36")) // cyan ANSI
     }
 }
