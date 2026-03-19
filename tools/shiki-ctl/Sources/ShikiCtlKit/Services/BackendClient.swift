@@ -1,24 +1,20 @@
-import AsyncHTTPClient
 import Foundation
 import Logging
-import NIOCore
-import NIOFoundationCompat
 
 /// HTTP client for the Shiki orchestrator backend.
+/// Uses `curl` subprocess for reliability over long-running sessions
+/// (AsyncHTTPClient connection pools go stale with Docker networking).
 public actor BackendClient {
-    private let httpClient: HTTPClient
     private let baseURL: String
     private let logger: Logger
 
     public init(baseURL: String = "http://localhost:3900", logger: Logger = Logger(label: "shiki-ctl.backend")) {
-        self.httpClient = HTTPClient(configuration: .init(timeout: .init(connect: .seconds(5))))
         self.baseURL = baseURL
         self.logger = logger
     }
 
-    public func shutdown() async throws {
-        try await httpClient.shutdown()
-    }
+    /// No-op for backward compatibility — curl processes don't need shutdown.
+    public func shutdown() async throws {}
 
     // MARK: - Orchestrator
 
@@ -101,62 +97,89 @@ public actor BackendClient {
     // MARK: - Health
 
     public func healthCheck() async throws -> Bool {
-        do {
-            let request = HTTPClientRequest(url: "\(baseURL)/health")
-            let response = try await httpClient.execute(request, timeout: .seconds(5))
-            return response.status == .ok
-        } catch {
-            return false
-        }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["curl", "-sf", "--max-time", "5", "\(baseURL)/health"]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        return process.terminationStatus == 0
     }
 
-    // MARK: - HTTP Helpers
+    // MARK: - HTTP Helpers (curl-based)
 
     private func get<T: Decodable>(_ path: String) async throws -> T {
-        var request = HTTPClientRequest(url: "\(baseURL)\(path)")
-        request.method = .GET
-        request.headers.add(name: "Accept", value: "application/json")
-
-        let response = try await httpClient.execute(request, timeout: .seconds(30))
-        let body = try await response.body.collect(upTo: 10 * 1024 * 1024)
-        try checkStatus(response, body: body, path: path)
-        return try JSONDecoder().decode(T.self, from: body)
+        let data = try curlRequest(method: "GET", path: path)
+        return try JSONDecoder().decode(T.self, from: data)
     }
 
     private func post<T: Decodable>(_ path: String, body payload: [String: Any]) async throws -> T {
-        var request = HTTPClientRequest(url: "\(baseURL)\(path)")
-        request.method = .POST
-        request.headers.add(name: "Content-Type", value: "application/json")
-        request.headers.add(name: "Accept", value: "application/json")
         let jsonData = try JSONSerialization.data(withJSONObject: payload)
-        request.body = .bytes(ByteBuffer(data: jsonData))
-
-        let response = try await httpClient.execute(request, timeout: .seconds(30))
-        let body = try await response.body.collect(upTo: 10 * 1024 * 1024)
-        try checkStatus(response, body: body, path: path)
-        return try JSONDecoder().decode(T.self, from: body)
+        let data = try curlRequest(method: "POST", path: path, body: jsonData)
+        return try JSONDecoder().decode(T.self, from: data)
     }
 
     private func patch<T: Decodable>(_ path: String, body payload: [String: Any]) async throws -> T {
-        var request = HTTPClientRequest(url: "\(baseURL)\(path)")
-        request.method = .PATCH
-        request.headers.add(name: "Content-Type", value: "application/json")
-        request.headers.add(name: "Accept", value: "application/json")
         let jsonData = try JSONSerialization.data(withJSONObject: payload)
-        request.body = .bytes(ByteBuffer(data: jsonData))
-
-        let response = try await httpClient.execute(request, timeout: .seconds(30))
-        let body = try await response.body.collect(upTo: 10 * 1024 * 1024)
-        try checkStatus(response, body: body, path: path)
-        return try JSONDecoder().decode(T.self, from: body)
+        let data = try curlRequest(method: "PATCH", path: path, body: jsonData)
+        return try JSONDecoder().decode(T.self, from: data)
     }
 
-    private func checkStatus(_ response: HTTPClientResponse, body: ByteBuffer, path: String) throws {
-        guard (200...299).contains(Int(response.status.code)) else {
-            let bodyString = String(buffer: body)
-            logger.error("API error \(response.status.code) on \(path): \(bodyString)")
-            throw BackendError.httpError(statusCode: Int(response.status.code), body: bodyString)
+    /// Execute an HTTP request using curl subprocess.
+    /// Reliable across Docker restarts and network interruptions — no connection pool.
+    private func curlRequest(method: String, path: String, body: Data? = nil, timeoutSeconds: Int = 15) throws -> Data {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+
+        var args = [
+            "curl", "-s",
+            "--max-time", "\(timeoutSeconds)",
+            "-X", method,
+            "-H", "Accept: application/json",
+        ]
+
+        if body != nil {
+            args += ["-H", "Content-Type: application/json", "-d", "@-"]
         }
+
+        args.append("\(baseURL)\(path)")
+        process.arguments = args
+
+        let stdout = Pipe()
+        let stderr = Pipe()
+        process.standardOutput = stdout
+        process.standardError = stderr
+
+        if let bodyData = body {
+            let stdin = Pipe()
+            process.standardInput = stdin
+            try process.run()
+            stdin.fileHandleForWriting.write(bodyData)
+            stdin.fileHandleForWriting.closeFile()
+        } else {
+            try process.run()
+        }
+
+        // Read pipes BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
+        let data = stdout.fileHandleForReading.readDataToEndOfFile()
+        let errData = stderr.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else {
+            let errString = String(data: errData, encoding: .utf8) ?? ""
+            logger.error("curl \(method) \(path) failed (exit \(process.terminationStatus)): \(errString)")
+            throw BackendError.httpError(statusCode: Int(process.terminationStatus), body: errString)
+        }
+
+        // Check for HTTP error in response body
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let error = json["error"] as? String {
+            let code = (json["statusCode"] as? Int) ?? 400
+            throw BackendError.httpError(statusCode: code, body: error)
+        }
+
+        return data
     }
 }
 

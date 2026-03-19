@@ -2,6 +2,26 @@ import ArgumentParser
 import Foundation
 import ShikiCtlKit
 
+/// Reads multiline input from stdin.
+/// Submission: an empty line (press Enter twice) finalizes input.
+/// When pasting multiline text, lines are collected until an empty line appears.
+/// Single-line answers (like "skip", "quit", or short replies) work naturally — just type and press Enter twice.
+private func readMultilineInput() -> String {
+    var lines: [String] = []
+    while let line = readLine(strippingNewline: true) {
+        if line.isEmpty && !lines.isEmpty {
+            // Empty line after content = submit
+            break
+        }
+        if line.isEmpty && lines.isEmpty {
+            // Empty line with no content = skip
+            break
+        }
+        lines.append(line)
+    }
+    return lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
 struct DecideCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "decide",
@@ -52,7 +72,7 @@ struct DecideCommand: AsyncParsableCommand {
         }
 
         print()
-        print("\u{1B}[2mEnter answers one at a time. Type 'skip' to defer, 'quit' to exit.\u{1B}[0m")
+        print("\u{1B}[2mMultiline input: press Enter twice (empty line) to submit. 'skip' to defer, 'quit' to exit.\u{1B}[0m")
 
         let allDecisions = grouped.sorted(by: { $0.key < $1.key }).flatMap(\.value)
 
@@ -60,9 +80,11 @@ struct DecideCommand: AsyncParsableCommand {
             let slug = decision.companySlug ?? "?"
             print()
             print("\u{1B}[1m[\(slug)] Q\(i + 1)\u{1B}[0m: \(decision.question)")
-            print("Answer: ", terminator: "")
+            print("\u{1B}[2mAnswer (empty line to submit):\u{1B}[0m")
 
-            guard let input = readLine()?.trimmingCharacters(in: .whitespacesAndNewlines), !input.isEmpty else {
+            let input = readMultilineInput()
+
+            guard !input.isEmpty else {
                 continue
             }
 

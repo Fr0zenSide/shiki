@@ -77,6 +77,20 @@ enum StatusRenderer {
         }
     }
 
+    // MARK: - Attention Zones
+
+    /// Format an attention zone with ANSI gradient: bright for urgent, dim for idle.
+    static func formatAttentionZone(_ zone: AttentionZone) -> String {
+        switch zone {
+        case .merge:   return "\u{1B}[1m\u{1B}[32m MERGE \u{1B}[0m"
+        case .respond: return "\u{1B}[1m\u{1B}[31mRESPOND\u{1B}[0m"
+        case .review:  return "\u{1B}[1m\u{1B}[33mREVIEW \u{1B}[0m"
+        case .pending: return "\u{1B}[33mPENDING\u{1B}[0m"
+        case .working: return "\u{1B}[36mWORKING\u{1B}[0m"
+        case .idle:    return "\u{1B}[2m  IDLE \u{1B}[0m"
+        }
+    }
+
     // MARK: - Helpers
 
     private static func formatHealthInfo(_ c: Company) -> String {
@@ -102,7 +116,7 @@ enum StatusRenderer {
         return "$\(String(format: "%.0f", spent))/$\(String(format: "%.0f", daily))"
     }
 
-    private static func pad(_ string: String, _ width: Int) -> String {
+    static func pad(_ string: String, _ width: Int) -> String {
         // Account for ANSI escape codes when padding
         let visibleLength = string.replacingOccurrences(
             of: "\u{1B}\\[[0-9;]*m", with: "",
