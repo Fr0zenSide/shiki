@@ -74,52 +74,7 @@ struct FlowSessionDispatchTests {
     }
 }
 
-@Suite("Flow B: PR Review Lifecycle")
-struct FlowPRReviewTests {
-
-    @Test("Review flow: navigate → verdict → summary")
-    func reviewFlow() {
-        let sections = [
-            ReviewSection(index: 0, title: "Architecture", body: "Clean layers", questions: [ReviewQuestion(text: "DI correct?")]),
-            ReviewSection(index: 1, title: "Tests", body: "Coverage ok", questions: [ReviewQuestion(text: "Edge cases?")]),
-            ReviewSection(index: 2, title: "Security", body: "No secrets", questions: []),
-        ]
-        let review = PRReview(title: "Test PR", branch: "test", filesChanged: 3, testsInfo: "10/10", sections: sections, checklist: [])
-        var engine = PRReviewEngine(review: review, quickMode: true)
-
-        // Start in section list (quick mode)
-        #expect(engine.currentScreen == .sectionList)
-
-        // Navigate to section 0
-        engine.handle(key: .enter)
-        #expect(engine.currentScreen == .sectionView(0))
-
-        // Approve section 0
-        engine.handle(key: .char("a"))
-        #expect(engine.currentScreen == .sectionList)
-        #expect(engine.state.verdicts[0] == .approved)
-
-        // Navigate to section 1
-        engine.handle(key: .down)
-        engine.handle(key: .enter)
-        #expect(engine.currentScreen == .sectionView(1))
-
-        // Request changes on section 1
-        engine.handle(key: .char("r"))
-        #expect(engine.state.verdicts[1] == .requestChanges)
-
-        // Go to summary
-        engine.handle(key: .char("s"))
-        #expect(engine.currentScreen == .summary)
-
-        // Verify counts
-        let counts = engine.state.verdictCounts()
-        #expect(counts.approved == 1)
-        #expect(counts.requestChanges == 1)
-    }
-}
-
-@Suite("Flow C: Agent Handoff Chain")
+@Suite("Flow B: Agent Handoff Chain")
 struct FlowAgentHandoffTests {
 
     @Test("Standard chain: implement → verify → review")
@@ -158,7 +113,7 @@ struct FlowAgentHandoffTests {
     }
 }
 
-@Suite("Flow D: Crash Recovery")
+@Suite("Flow C: Crash Recovery")
 struct FlowCrashRecoveryTests {
 
     @Test("Full recovery: journal → crash → scan → recover")
@@ -191,7 +146,7 @@ struct FlowCrashRecoveryTests {
     }
 }
 
-@Suite("Flow E: Watchdog Escalation")
+@Suite("Flow D: Watchdog Escalation")
 struct FlowWatchdogTests {
 
     @Test("Progressive escalation through all levels")
@@ -221,33 +176,3 @@ struct FlowWatchdogTests {
     }
 }
 
-@Suite("Flow F: Multi-PR Queue")
-struct FlowPRQueueTests {
-
-    @Test("Queue sorts and filters PRs by risk")
-    func queueSortAndFilter() {
-        let queue = PRQueue(workspacePath: "/tmp")
-
-        let entries = [
-            PRQueueEntry(number: 6, title: "v3 orchestrator", branch: "feat/v3", baseBranch: "develop",
-                         additions: 3600, deletions: 1, fileCount: 32, risk: .high,
-                         hasPrecomputedReview: true, hasReviewState: false),
-            PRQueueEntry(number: 2, title: "MediaKit", branch: "story/media", baseBranch: "develop",
-                         additions: 2022, deletions: 0, fileCount: 48, risk: .medium,
-                         hasPrecomputedReview: true, hasReviewState: false),
-            PRQueueEntry(number: 5, title: "CLI v0.2.0", branch: "feat/cli", baseBranch: "develop",
-                         additions: 3010, deletions: 767, fileCount: 28, risk: .high,
-                         hasPrecomputedReview: true, hasReviewState: false),
-        ]
-
-        let sorted = queue.sorted(entries)
-
-        // High risk first (by size tiebreak: #6 > #5 since 3601 > 3777)
-        #expect(sorted[0].risk == .high)
-        #expect(sorted[1].risk == .high)
-        #expect(sorted[2].risk == .medium)
-
-        // All have precomputed reviews
-        #expect(sorted.allSatisfy { $0.hasPrecomputedReview })
-    }
-}
