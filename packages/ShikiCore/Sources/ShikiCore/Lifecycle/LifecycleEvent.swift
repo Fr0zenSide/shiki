@@ -13,4 +13,5 @@ public enum LifecycleEventType: String, Codable, Sendable {
     case checkpointSaved
     case lifecycleCompleted
     case lifecycleFailed
+    case gateEvaluated
 }

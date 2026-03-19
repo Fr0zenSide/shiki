@@ -233,6 +233,14 @@ public struct CommitGate: ShipGate, Sendable {
     }
 
     public func evaluate(context: ShipContext) async throws -> GateResult {
+        // Guard: never squash on the target branch itself (would rewrite shared history)
+        let branchResult = try await context.shell("git rev-parse --abbrev-ref HEAD")
+        let currentBranch = branchResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard currentBranch != context.target else {
+            return .fail(reason: "Cannot squash on target branch '\(context.target)'. Must be on a feature branch.")
+        }
+
         if context.isDryRun {
             let mode = squash ? "squash" : "preserve history"
             return .pass(detail: "[dry-run] Would commit with mode: \(mode)")

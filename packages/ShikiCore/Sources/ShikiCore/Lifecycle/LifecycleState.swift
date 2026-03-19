@@ -67,8 +67,8 @@ public struct TransitionValidator: Sendable {
     public init() {}
 
     public func isValid(from: LifecycleState, to: LifecycleState) -> Bool {
-        // Any state can go to blocked (except blocked itself)
-        if to == .blocked && from != .blocked {
+        // Any state can go to blocked (except blocked itself, done, or failed)
+        if to == .blocked && from != .blocked && from != .done && from != .failed {
             return true
         }
 

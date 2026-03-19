@@ -44,6 +44,11 @@ public actor CompanyManager {
         await budgetEnforcer.record(company: company, amount: amount)
     }
 
+    /// Atomically check and record spend. Returns true if budget allows.
+    public func trySpend(company: String, amount: Double) async -> Bool {
+        await budgetEnforcer.trySpend(company: company, amount: amount)
+    }
+
     /// Count active lifecycles.
     public var activeCount: Int { lifecycles.count }
 }
