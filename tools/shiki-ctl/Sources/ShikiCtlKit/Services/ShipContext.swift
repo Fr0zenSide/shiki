@@ -1,5 +1,13 @@
 import Foundation
 
+// MARK: - Shell Escaping
+
+/// Escapes a string for safe interpolation into shell commands.
+/// Wraps in single quotes and escapes embedded single quotes.
+public func shellEscape(_ s: String) -> String {
+    "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+}
+
 // MARK: - ShellResult
 
 /// Result of a shell command execution.

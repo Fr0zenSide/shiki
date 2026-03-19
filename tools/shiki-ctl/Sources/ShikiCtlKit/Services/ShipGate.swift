@@ -40,7 +40,7 @@ public struct TestGate: ShipGate, Sendable {
     public init() {}
 
     public func evaluate(context: ShipContext) async throws -> GateResult {
-        let result = try await context.shell("swift test --package-path \(context.projectRoot.path)")
+        let result = try await context.shell("swift test --package-path \(shellEscape(context.projectRoot.path))")
 
         if result.exitCode != 0 {
             let output = result.stdout + result.stderr
@@ -85,7 +85,7 @@ public struct CoverageGate: ShipGate, Sendable {
             coverage = injected
         } else {
             // Try to get coverage from swift test output (best effort)
-            let result = try await context.shell("swift test --enable-code-coverage --package-path \(context.projectRoot.path) 2>&1 | tail -1")
+            let result = try await context.shell("swift test --enable-code-coverage --package-path \(shellEscape(context.projectRoot.path)) 2>&1 | tail -1")
             if let parsed = Double(result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)) {
                 coverage = parsed
             } else {
@@ -118,7 +118,7 @@ public struct RiskGate: ShipGate, Sendable {
     public init() {}
 
     public func evaluate(context: ShipContext) async throws -> GateResult {
-        let result = try await context.shell("git diff --stat \(context.target)...HEAD")
+        let result = try await context.shell("git diff --stat \(shellEscape(context.target))...HEAD")
         let output = result.stdout
 
         // Parse summary line: "N files changed, N insertions(+), N deletions(-)"
@@ -161,7 +161,7 @@ public struct ChangelogGate: ShipGate, Sendable {
         let tagResult = try await context.shell("git describe --tags --abbrev=0 2>/dev/null || echo ''")
         let lastTag = tagResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let logRange = lastTag.isEmpty ? "HEAD" : "\(lastTag)..HEAD"
+        let logRange = lastTag.isEmpty ? "HEAD" : "\(shellEscape(lastTag))..HEAD"
         let logResult = try await context.shell("git log \(logRange) --pretty=format:%s")
         let commits = logResult.stdout
             .split(separator: "\n")
@@ -206,7 +206,8 @@ public struct VersionBumpGate: ShipGate, Sendable {
         }
 
         // Get commits since last tag
-        let logResult = try await context.shell("git log \(tagResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines))..HEAD --pretty=format:%s 2>/dev/null || git log --pretty=format:%s")
+        let lastTag = tagResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        let logResult = try await context.shell("git log \(shellEscape(lastTag))..HEAD --pretty=format:%s 2>/dev/null || git log --pretty=format:%s")
         let commits = logResult.stdout
             .split(separator: "\n")
             .map(String.init)
@@ -239,10 +240,10 @@ public struct CommitGate: ShipGate, Sendable {
 
         if squash {
             // Squash all commits on current branch into one
-            let baseResult = try await context.shell("git merge-base \(context.target) HEAD")
+            let baseResult = try await context.shell("git merge-base \(shellEscape(context.target)) HEAD")
             let base = baseResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
             if !base.isEmpty {
-                _ = try await context.shell("git reset --soft \(base)")
+                _ = try await context.shell("git reset --soft \(shellEscape(base))")
                 _ = try await context.shell("git commit -m 'squash: prepare for ship'")
             }
             return .pass(detail: "Squashed commits")
@@ -261,7 +262,18 @@ public struct PRGate: ShipGate, Sendable {
 
     public init() {}
 
+    /// Valid branch name pattern — alphanumeric, slashes, dots, hyphens, underscores only.
+    private nonisolated(unsafe) static let validBranchPattern = /^[a-zA-Z0-9\/_.\-]+$/
+
     public func evaluate(context: ShipContext) async throws -> GateResult {
+        // Validate branch names contain no shell metacharacters
+        guard context.target.wholeMatch(of: Self.validBranchPattern) != nil else {
+            return .fail(reason: "Invalid target branch name: \(context.target)")
+        }
+        guard context.branch.wholeMatch(of: Self.validBranchPattern) != nil else {
+            return .fail(reason: "Invalid source branch name: \(context.branch)")
+        }
+
         // BR-11: Reject main target
         if context.target == "main" || context.target == "master" {
             return .fail(reason: "Cannot target '\(context.target)' directly. Use 'develop' or 'release/*' per git flow.")
@@ -277,7 +289,7 @@ public struct PRGate: ShipGate, Sendable {
         }
 
         // Create PR via gh CLI
-        let result = try await context.shell("gh pr create --base \(context.target) --fill --head \(context.branch)")
+        let result = try await context.shell("gh pr create --base \(shellEscape(context.target)) --fill --head \(shellEscape(context.branch))")
 
         if result.exitCode != 0 {
             let error = result.stderr.isEmpty ? result.stdout : result.stderr
