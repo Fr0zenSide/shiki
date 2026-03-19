@@ -1,4 +1,5 @@
 import ArgumentParser
+import Foundation
 import ShikiCtlKit
 
 struct StatusCommand: AsyncParsableCommand {
@@ -13,7 +14,28 @@ struct StatusCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Use legacy table format")
     var legacy: Bool = false
 
+    @Flag(name: .long, help: "Show local session registry with attention zones")
+    var showRegistry: Bool = false
+
+    @Flag(name: .long, help: "Single-line output for tmux status bar")
+    var mini: Bool = false
+
+    @Flag(name: .long, help: "Toggle between compact and expanded tmux format")
+    var toggleExpand: Bool = false
+
     func run() async throws {
+        // Handle toggle-expand: flip state and continue with mini output
+        if toggleExpand {
+            let stateManager = TmuxStateManager()
+            stateManager.toggle()
+        }
+
+        // Mini mode: single-line output for tmux
+        if mini || toggleExpand {
+            try await runMini()
+            return
+        }
+
         let client = BackendClient(baseURL: url)
 
         guard try await client.healthCheck() else {
@@ -33,12 +55,49 @@ struct StatusCommand: AsyncParsableCommand {
         }
         let overview = status.overview
 
-        // Header
+        // Header with workspace info
         print("\u{1B}[1m\u{1B}[36mShiki Orchestrator\u{1B}[0m")
+        print(String(repeating: "\u{2500}", count: 56))
+
+        // Workspace & sessions info
+        let workspace = resolveCurrentWorkspace()
+        let sessions = detectShikiSessions()
+        let currentSession = URL(fileURLWithPath: workspace).lastPathComponent
+
+        print("\u{1B}[2mWorkspace:\u{1B}[0m \(workspace)")
+        if sessions.count > 1 {
+            print("\u{1B}[2mSessions:\u{1B}[0m  \(sessions.map { $0 == currentSession ? "\u{1B}[32m\($0) ●\u{1B}[0m" : "\u{1B}[2m\($0)\u{1B}[0m" }.joined(separator: "  "))")
+        } else if sessions.count == 1 {
+            print("\u{1B}[2mSession:\u{1B}[0m   \(sessions[0]) \u{1B}[32m●\u{1B}[0m")
+        } else {
+            print("\u{1B}[2mSession:\u{1B}[0m   \u{1B}[33mnot running\u{1B}[0m")
+        }
         print(String(repeating: "\u{2500}", count: 56))
 
         if overview.t1PendingDecisions > 0 {
             print("\u{1B}[33m\u{26A0} \(overview.t1PendingDecisions) T1 decision(s) pending\u{1B}[0m")
+            print()
+        }
+
+        // Session registry view (attention-zone sorted)
+        if showRegistry {
+            let registry = SessionRegistry(
+                discoverer: TmuxDiscoverer(),
+                journal: SessionJournal()
+            )
+            await registry.refresh()
+            let sorted = await registry.sessionsByAttention()
+
+            if sorted.isEmpty {
+                print("\u{1B}[2mNo active sessions\u{1B}[0m")
+            } else {
+                print("\u{1B}[1mSessions (by attention):\u{1B}[0m")
+                for session in sorted {
+                    let zoneLabel = StatusRenderer.formatAttentionZone(session.attentionZone)
+                    let stateStr = "\u{1B}[2m\(session.state.rawValue)\u{1B}[0m"
+                    print("  \(zoneLabel) \(StatusRenderer.pad(session.windowName, 25)) \(stateStr)")
+                }
+            }
             print()
         }
 
@@ -89,5 +148,107 @@ struct StatusCommand: AsyncParsableCommand {
         }
 
         print("\u{1B}[2mTimestamp: \(status.timestamp)\u{1B}[0m")
+    }
+
+    // MARK: - Mini Mode
+
+    private func runMini() async throws {
+        let registry = SessionRegistry(
+            discoverer: TmuxDiscoverer(),
+            journal: SessionJournal()
+        )
+        await registry.refresh()
+        let sessions = await registry.allSessions
+
+        // Try to get backend data for questions and budget
+        let client = BackendClient(baseURL: url)
+        let isHealthy = (try? await client.healthCheck()) ?? false
+
+        if !isHealthy {
+            try? await client.shutdown()
+            // No trailing newline for tmux
+            print(MiniStatusFormatter.formatUnreachable(), terminator: "")
+            return
+        }
+
+        var pendingQuestions = 0
+        var spentUsd: Double = 0
+        var budgetUsd: Double = 0
+
+        do {
+            let status = try await client.getStatus()
+            try await client.shutdown()
+            pendingQuestions = status.overview.totalPendingDecisions
+            spentUsd = status.overview.todayTotalSpend
+            // Sum daily budgets across active companies
+            budgetUsd = status.activeCompanies.reduce(0) { $0 + $1.budget.dailyUsd }
+        } catch {
+            try? await client.shutdown()
+        }
+
+        let stateManager = TmuxStateManager()
+        let output: String
+        if stateManager.isExpanded {
+            output = MiniStatusFormatter.formatExpanded(
+                sessions: sessions, pendingQuestions: pendingQuestions,
+                spentUsd: spentUsd, budgetUsd: budgetUsd
+            )
+        } else {
+            output = MiniStatusFormatter.formatCompact(
+                sessions: sessions, pendingQuestions: pendingQuestions,
+                spentUsd: spentUsd, budgetUsd: budgetUsd
+            )
+        }
+        // No trailing newline for tmux status bar
+        print(output, terminator: "")
+    }
+
+    // MARK: - Workspace Detection
+
+    /// Same resolution logic as StartupCommand — symlink → known path → cwd
+    private func resolveCurrentWorkspace() -> String {
+        let binaryPath = ProcessInfo.processInfo.arguments.first ?? ""
+        let resolved = (binaryPath as NSString).resolvingSymlinksInPath
+        if resolved.contains("/tools/shiki-ctl/.build/") {
+            let components = resolved.components(separatedBy: "/tools/shiki-ctl/.build/")
+            if let root = components.first, !root.isEmpty { return root }
+        }
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let known = "\(home)/Documents/Workspaces/shiki"
+        if FileManager.default.fileExists(atPath: "\(known)/docker-compose.yml") { return known }
+        return FileManager.default.currentDirectoryPath
+    }
+
+    /// Detect all tmux sessions that look like shiki workspaces.
+    /// Shiki sessions are named after the workspace folder.
+    private func detectShikiSessions() -> [String] {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["tmux", "list-sessions", "-F", "#{session_name}"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { return [] }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8) ?? ""
+
+        // Filter: sessions that have an orchestrator window (shiki-created sessions)
+        return output.split(separator: "\n").compactMap { session in
+            let name = String(session)
+            let check = Process()
+            check.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            check.arguments = ["tmux", "list-windows", "-t", name, "-F", "#{window_name}"]
+            let checkPipe = Pipe()
+            check.standardOutput = checkPipe
+            check.standardError = FileHandle.nullDevice
+            try? check.run()
+            check.waitUntilExit()
+            guard check.terminationStatus == 0 else { return nil }
+            let windows = String(data: checkPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            // A shiki session has an "orchestrator" window
+            return windows.contains("orchestrator") ? name : nil
+        }
     }
 }
