@@ -180,15 +180,16 @@ public struct SessionStats: SessionStatsProviding, Sendable {
 
         do {
             try process.run()
-            process.waitUntilExit()
         } catch {
             logger.debug("git failed in \(directory): \(error)")
             return nil
         }
 
-        guard process.terminationStatus == 0 else { return nil }
-
+        // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else { return nil }
         return String(data: data, encoding: .utf8)
     }
 }

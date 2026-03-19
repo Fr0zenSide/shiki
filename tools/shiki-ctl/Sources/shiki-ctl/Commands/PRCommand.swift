@@ -63,9 +63,9 @@ struct PRCommand: AsyncParsableCommand {
         let statPipe = Pipe()
         diffStat.standardOutput = statPipe
         try diffStat.run()
-        diffStat.waitUntilExit()
-
+        // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
         let statData = statPipe.fileHandleForReading.readDataToEndOfFile()
+        diffStat.waitUntilExit()
         let statOutput = String(data: statData, encoding: .utf8) ?? ""
 
         // Parse numstat into JSON

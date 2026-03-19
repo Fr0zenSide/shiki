@@ -34,4 +34,22 @@ struct BudgetEnforcerTests {
         // No limit set for this company — should always allow
         #expect(await enforcer.canSpend(company: "unknown-corp", amount: 999999.0))
     }
+
+    @Test("trySpend atomically checks and records — prevents overshoot")
+    func trySpendAtomicPreventsOvershoot() async {
+        let enforcer = BudgetEnforcer()
+        await enforcer.setDailyLimit(company: "acme", limit: 10.0)
+
+        // First $7 should succeed
+        let first = await enforcer.trySpend(company: "acme", amount: 7.0)
+        #expect(first)
+
+        // Second $7 should fail (total would be $14 > $10)
+        let second = await enforcer.trySpend(company: "acme", amount: 7.0)
+        #expect(!second)
+
+        // Remaining should be $3
+        let remaining = await enforcer.remaining(company: "acme")
+        #expect(remaining == 3.0)
+    }
 }

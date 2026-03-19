@@ -60,13 +60,16 @@ public actor ClaudeProvider: AgentProvider {
         let start = clock.now
 
         try process.run()
+
+        // Read pipes BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
+        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        let _ = errorPipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
 
         let elapsed = clock.now - start
         let duration = Duration.nanoseconds(Int64(elapsed.components.seconds) * 1_000_000_000
             + Int64(elapsed.components.attoseconds / 1_000_000_000))
 
-        let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
         let output = String(data: outputData, encoding: .utf8) ?? ""
 
         currentProcess = nil

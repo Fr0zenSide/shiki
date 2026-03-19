@@ -51,8 +51,9 @@ struct ShipCommand: AsyncParsableCommand {
         let branchPipe = Pipe()
         branchProcess.standardOutput = branchPipe
         try branchProcess.run()
-        branchProcess.waitUntilExit()
+        // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
         let branchData = branchPipe.fileHandleForReading.readDataToEndOfFile()
+        branchProcess.waitUntilExit()
         let branch = String(data: branchData, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? "unknown"
 
@@ -137,13 +138,24 @@ struct ShipCommand: AsyncParsableCommand {
             ))
         }
 
-        // Send ntfy notification (best effort)
+        // Send ntfy notification (best effort, using Process to avoid shell injection)
+        let ntfyPayload: String
         if result.success {
-            let ntfyPayload = "Ship complete: \(branch) -> \(target)"
-            _ = try? await context.shell("curl -sf -d '\(ntfyPayload)' ntfy.sh/shiki-notify 2>/dev/null || true")
+            ntfyPayload = "Ship complete: \(branch) -> \(target)"
         } else if let gate = result.failedGate, let reason = result.failureReason {
-            let ntfyPayload = "Ship failed at \(gate): \(reason)"
-            _ = try? await context.shell("curl -sf -d '\(ntfyPayload)' ntfy.sh/shiki-notify 2>/dev/null || true")
+            ntfyPayload = "Ship failed at \(gate): \(reason)"
+        } else {
+            ntfyPayload = ""
+        }
+
+        if !ntfyPayload.isEmpty {
+            let ntfyProcess = Process()
+            ntfyProcess.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            ntfyProcess.arguments = ["curl", "-s", "--max-time", "10", "-d", ntfyPayload, "https://ntfy.sh/shiki-notify"]
+            ntfyProcess.standardOutput = FileHandle.nullDevice
+            ntfyProcess.standardError = FileHandle.nullDevice
+            try? ntfyProcess.run()
+            ntfyProcess.waitUntilExit()
         }
 
         if !result.success {

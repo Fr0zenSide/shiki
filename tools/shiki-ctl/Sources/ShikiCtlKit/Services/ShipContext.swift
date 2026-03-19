@@ -1,5 +1,13 @@
 import Foundation
 
+// MARK: - Shell Escaping
+
+/// Escapes a string for safe interpolation into shell commands.
+/// Wraps in single quotes and escapes embedded single quotes.
+public func shellEscape(_ s: String) -> String {
+    "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+}
+
 // MARK: - ShellResult
 
 /// Result of a shell command execution.
@@ -91,10 +99,11 @@ public final class RealShipContext: ShipContext, @unchecked Sendable {
         process.standardError = stderrPipe
 
         try process.run()
-        process.waitUntilExit()
 
+        // Read pipes BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
         let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
         let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
 
         return ShellResult(
             stdout: String(data: stdoutData, encoding: .utf8) ?? "",
