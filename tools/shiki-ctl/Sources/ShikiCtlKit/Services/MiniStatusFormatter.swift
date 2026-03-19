@@ -18,7 +18,8 @@ public enum MiniStatusFormatter {
         sessions: [RegisteredSession],
         pendingQuestions: Int,
         spentUsd: Double,
-        budgetUsd: Double
+        budgetUsd: Double,
+        arrowStyle: ArrowStyle = .none
     ) -> String {
         let counts = countByCategory(sessions)
         var parts: [String] = []
@@ -31,7 +32,7 @@ public enum MiniStatusFormatter {
         parts.append("Q:\(pendingQuestions)")
         parts.append("$\(formatBudgetNumber(spentUsd))/$\(formatBudgetNumber(budgetUsd))")
 
-        return parts.joined(separator: " ")
+        return wrapWithArrows(parts.joined(separator: " "), style: arrowStyle)
     }
 
     /// Expanded format: "maya:● wabi:▲ flsh:○ | Q:1 | $4.20/$15"
@@ -39,7 +40,8 @@ public enum MiniStatusFormatter {
         sessions: [RegisteredSession],
         pendingQuestions: Int,
         spentUsd: Double,
-        budgetUsd: Double
+        budgetUsd: Double,
+        arrowStyle: ArrowStyle = .none
     ) -> String {
         let sessionParts = sessions
             .sorted(by: { $0.attentionZone < $1.attentionZone })
@@ -56,12 +58,23 @@ public enum MiniStatusFormatter {
         sections.append("Q:\(pendingQuestions)")
         sections.append("$\(formatBudgetNumber(spentUsd))/$\(formatBudgetNumber(budgetUsd))")
 
-        return sections.joined(separator: " | ")
+        return wrapWithArrows(sections.joined(separator: " | "), style: arrowStyle)
     }
 
     /// Fallback when backend is unreachable.
-    public static func formatUnreachable() -> String {
-        "? Q:? $?"
+    public static func formatUnreachable(arrowStyle: ArrowStyle = .none) -> String {
+        wrapWithArrows("? Q:? $?", style: arrowStyle)
+    }
+
+    /// Wrap output with Dracula-style powerline arrow separators.
+    /// Left arrow:  (U+E0B2) on the left side, right arrow:  (U+E0B0) on the right side.
+    public static func wrapWithArrows(_ content: String, style: ArrowStyle) -> String {
+        switch style {
+        case .none: return content
+        case .left: return "\u{E0B2} \(content)"
+        case .right: return "\(content) \u{E0B0}"
+        case .both: return "\u{E0B2} \(content) \u{E0B0}"
+        }
     }
 
     // MARK: - Private Helpers

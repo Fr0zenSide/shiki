@@ -23,11 +23,43 @@ struct StatusCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Toggle between compact and expanded tmux format")
     var toggleExpand: Bool = false
 
+    @Option(name: .long, help: "Set arrow separator style: none, left, right, both (Dracula-style powerline arrows)")
+    var arrowStyle: String?
+
+    @Flag(name: .long, help: "Git status for tmux: branch, staged, modified, ahead/behind")
+    var git: Bool = false
+
+    @Flag(name: .long, help: "Project context for tmux: language version + test status")
+    var project: Bool = false
+
+    @Option(name: .long, help: "Working directory for git/project detection (default: cwd)")
+    var path: String?
+
     func run() async throws {
+        // Handle arrow style change: persist and continue
+        if let arrowRaw = arrowStyle {
+            let stateManager = TmuxStateManager()
+            if let style = ArrowStyle(rawValue: arrowRaw) {
+                stateManager.setArrowStyle(style)
+            }
+        }
+
         // Handle toggle-expand: flip state and continue with mini output
         if toggleExpand {
             let stateManager = TmuxStateManager()
             stateManager.toggle()
+        }
+
+        // Git segment for tmux
+        if git {
+            runGit()
+            return
+        }
+
+        // Project segment for tmux
+        if project {
+            runProject()
+            return
         }
 
         // Mini mode: single-line output for tmux
@@ -153,6 +185,7 @@ struct StatusCommand: AsyncParsableCommand {
     // MARK: - Mini Mode
 
     private func runMini() async throws {
+        let stateManager = TmuxStateManager()
         let registry = SessionRegistry(
             discoverer: TmuxDiscoverer(),
             journal: SessionJournal()
@@ -167,7 +200,7 @@ struct StatusCommand: AsyncParsableCommand {
         if !isHealthy {
             try? await client.shutdown()
             // No trailing newline for tmux
-            print(MiniStatusFormatter.formatUnreachable(), terminator: "")
+            print(MiniStatusFormatter.formatUnreachable(arrowStyle: stateManager.arrowStyle), terminator: "")
             return
         }
 
@@ -186,21 +219,49 @@ struct StatusCommand: AsyncParsableCommand {
             try? await client.shutdown()
         }
 
-        let stateManager = TmuxStateManager()
+        let arrows = stateManager.arrowStyle
         let output: String
         if stateManager.isExpanded {
             output = MiniStatusFormatter.formatExpanded(
                 sessions: sessions, pendingQuestions: pendingQuestions,
-                spentUsd: spentUsd, budgetUsd: budgetUsd
+                spentUsd: spentUsd, budgetUsd: budgetUsd,
+                arrowStyle: arrows
             )
         } else {
             output = MiniStatusFormatter.formatCompact(
                 sessions: sessions, pendingQuestions: pendingQuestions,
-                spentUsd: spentUsd, budgetUsd: budgetUsd
+                spentUsd: spentUsd, budgetUsd: budgetUsd,
+                arrowStyle: arrows
             )
         }
         // No trailing newline for tmux status bar
         print(output, terminator: "")
+    }
+
+    // MARK: - Git Segment
+
+    private func runGit() {
+        let dir = path ?? FileManager.default.currentDirectoryPath
+        let stateManager = TmuxStateManager()
+        let arrows = stateManager.arrowStyle
+
+        guard let info = GitStatusFormatter.collectGitInfo(at: dir) else {
+            print(GitStatusFormatter.formatNoRepo(arrowStyle: arrows), terminator: "")
+            return
+        }
+        print(GitStatusFormatter.format(info, arrowStyle: arrows), terminator: "")
+    }
+
+    // MARK: - Project Segment
+
+    private func runProject() {
+        let dir = path ?? FileManager.default.currentDirectoryPath
+        let stateManager = TmuxStateManager()
+        let arrows = stateManager.arrowStyle
+
+        let projectInfo = ProjectStatusFormatter.detectProject(at: dir)
+        let testStatus = ProjectStatusFormatter.readCachedTests(at: dir)
+        print(ProjectStatusFormatter.format(project: projectInfo, tests: testStatus, arrowStyle: arrows), terminator: "")
     }
 
     // MARK: - Workspace Detection
