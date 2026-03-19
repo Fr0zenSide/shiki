@@ -115,4 +115,13 @@ public enum CoreEvent {
             data: ["error": error]
         )
     }
+
+    public static func gateEvaluated(featureId: String, gate: String, passed: Bool, detail: String) -> LifecycleEventPayload {
+        LifecycleEventPayload(
+            type: passed ? .governorGateCleared : .lifecycleFailed,
+            featureId: featureId,
+            timestamp: Date(),
+            data: ["gate": gate, "passed": String(passed), "detail": detail]
+        )
+    }
 }
