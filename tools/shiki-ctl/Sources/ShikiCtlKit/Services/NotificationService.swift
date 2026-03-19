@@ -7,8 +7,6 @@ public struct NtfyNotificationSender: NotificationSender, Sendable {
     let topic: String
     let serverURL: String
     let logger: Logger
-    private let httpClient: HTTPClient
-
     public init(logger: Logger = Logger(label: "shiki-ctl.ntfy")) {
         // Read config from ~/.config/shiki-notify/config
         let configPath = FileManager.default.homeDirectoryForCurrentUser
@@ -32,7 +30,6 @@ public struct NtfyNotificationSender: NotificationSender, Sendable {
         self.topic = topic
         self.serverURL = server
         self.logger = logger
-        self.httpClient = HTTPClient()
     }
 
     public func send(title: String, body: String, priority: NotificationPriority, tags: [String]) async throws {
