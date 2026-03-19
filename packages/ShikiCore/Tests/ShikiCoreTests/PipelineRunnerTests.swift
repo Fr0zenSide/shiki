@@ -1,0 +1,108 @@
+import Testing
+import Foundation
+@testable import ShikiCore
+
+@Suite("PipelineRunner")
+struct PipelineRunnerTests {
+
+    // MARK: - Helpers
+
+    struct PassGate: PipelineGate {
+        let name: String
+        let index: Int
+        func evaluate(context: PipelineContext) async throws -> PipelineGateResult {
+            .pass(detail: "ok")
+        }
+    }
+
+    struct WarnGate: PipelineGate {
+        let name: String
+        let index: Int
+        func evaluate(context: PipelineContext) async throws -> PipelineGateResult {
+            .warn(reason: "heads up")
+        }
+    }
+
+    struct FailGate: PipelineGate {
+        let name: String
+        let index: Int
+        func evaluate(context: PipelineContext) async throws -> PipelineGateResult {
+            .fail(reason: "nope")
+        }
+    }
+
+    struct FakeContext: PipelineContext {
+        let isDryRun = false
+        let featureId = "test-feature"
+        let projectRoot = URL(fileURLWithPath: "/tmp")
+        func shell(_ command: String) async throws -> PipelineShellResult {
+            PipelineShellResult(stdout: "", stderr: "", exitCode: 0)
+        }
+    }
+
+    actor SpyPersister: EventPersisting {
+        var events: [LifecycleEventPayload] = []
+        func persist(_ event: LifecycleEventPayload) async {
+            events.append(event)
+        }
+    }
+
+    // MARK: - Tests
+
+    @Test("Executes all gates in order when all pass")
+    func allGatesPass() async throws {
+        let runner = PipelineRunner()
+        let gates: [PipelineGate] = [
+            PassGate(name: "A", index: 0),
+            PassGate(name: "B", index: 1),
+            WarnGate(name: "C", index: 2),
+        ]
+        let result = try await runner.run(gates: gates, context: FakeContext())
+        #expect(result.success)
+        #expect(result.gateResults.count == 3)
+        #expect(result.failedGate == nil)
+    }
+
+    @Test("Aborts on first failure")
+    func abortsOnFailure() async throws {
+        let runner = PipelineRunner()
+        let gates: [PipelineGate] = [
+            PassGate(name: "A", index: 0),
+            FailGate(name: "B", index: 1),
+            PassGate(name: "C", index: 2),
+        ]
+        let result = try await runner.run(gates: gates, context: FakeContext())
+        #expect(!result.success)
+        #expect(result.gateResults.count == 2)
+        #expect(result.failedGate == "B")
+    }
+
+    @Test("Records duration per gate")
+    func recordsDuration() async throws {
+        let runner = PipelineRunner()
+        let gates: [PipelineGate] = [PassGate(name: "A", index: 0)]
+        let result = try await runner.run(gates: gates, context: FakeContext())
+        #expect(result.gateResults[0].duration >= .zero)
+    }
+
+    @Test("Persists events when persister available")
+    func persistsEvents() async throws {
+        let spy = SpyPersister()
+        let runner = PipelineRunner(persister: spy)
+        let gates: [PipelineGate] = [
+            PassGate(name: "A", index: 0),
+            PassGate(name: "B", index: 1),
+        ]
+        _ = try await runner.run(gates: gates, context: FakeContext())
+        let events = await spy.events
+        #expect(events.count == 2)
+    }
+
+    @Test("Skips persistence gracefully when no persister")
+    func noPersister() async throws {
+        let runner = PipelineRunner()
+        let gates: [PipelineGate] = [PassGate(name: "A", index: 0)]
+        let result = try await runner.run(gates: gates, context: FakeContext())
+        #expect(result.success)
+    }
+}

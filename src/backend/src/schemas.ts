@@ -186,6 +186,127 @@ export const PipelineRouteEvalSchema = z.object({
 });
 export type PipelineRouteEvalInput = z.infer<typeof PipelineRouteEvalSchema>;
 
+// --- Company ---
+export const CompanyCreateSchema = z.object({
+  projectId: z.string().uuid(),
+  slug: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/),
+  displayName: z.string().min(1).max(200),
+  priority: z.number().int().min(0).max(99).optional().default(5),
+  budget: z.object({
+    daily_usd: z.number().min(0).optional().default(5),
+    monthly_usd: z.number().min(0).optional().default(150),
+    spent_today_usd: z.number().min(0).optional().default(0),
+  }).optional(),
+  schedule: z.object({
+    active_hours: z.array(z.number().int().min(0).max(23)).length(2).optional().default([8, 22]),
+    timezone: z.string().max(50).optional().default("Europe/Paris"),
+    days: z.array(z.number().int().min(1).max(7)).optional().default([1, 2, 3, 4, 5, 6, 7]),
+  }).optional(),
+  config: z.record(z.unknown()).optional().default({}),
+});
+export type CompanyCreateInput = z.infer<typeof CompanyCreateSchema>;
+
+export const CompanyUpdateSchema = z.object({
+  status: z.enum(["active", "paused", "archived"]).optional(),
+  priority: z.number().int().min(0).max(99).optional(),
+  budget: z.record(z.unknown()).optional(),
+  schedule: z.record(z.unknown()).optional(),
+  config: z.record(z.unknown()).optional(),
+  displayName: z.string().min(1).max(200).optional(),
+});
+export type CompanyUpdateInput = z.infer<typeof CompanyUpdateSchema>;
+
+// --- Task Queue ---
+export const TaskCreateSchema = z.object({
+  companyId: z.string().uuid(),
+  title: z.string().min(1).max(500),
+  description: z.string().max(10000).optional(),
+  source: z.enum(["backlog", "autopilot", "manual", "cross_company"]).optional().default("manual"),
+  priority: z.number().int().min(0).max(99).optional().default(5),
+  parentId: z.string().uuid().optional(),
+  metadata: z.record(z.unknown()).optional().default({}),
+});
+export type TaskCreateInput = z.infer<typeof TaskCreateSchema>;
+
+export const TaskUpdateSchema = z.object({
+  status: z.enum(["pending", "claimed", "running", "blocked", "completed", "failed", "cancelled"]).optional(),
+  result: z.record(z.unknown()).optional(),
+  blockingQuestionIds: z.array(z.string().uuid()).optional(),
+  pipelineRunId: z.string().uuid().optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+export type TaskUpdateInput = z.infer<typeof TaskUpdateSchema>;
+
+export const TaskClaimSchema = z.object({
+  companyId: z.string().uuid(),
+  sessionId: z.string().uuid(),
+});
+export type TaskClaimInput = z.infer<typeof TaskClaimSchema>;
+
+// --- Decision Queue ---
+export const DecisionCreateSchema = z.object({
+  companyId: z.string().uuid(),
+  taskId: z.string().uuid().optional(),
+  pipelineRunId: z.string().uuid().optional(),
+  tier: z.number().int().min(1).max(3),
+  question: z.string().min(1).max(5000),
+  options: z.record(z.unknown()).optional(),
+  context: z.string().max(10000).optional(),
+  metadata: z.record(z.unknown()).optional().default({}),
+});
+export type DecisionCreateInput = z.infer<typeof DecisionCreateSchema>;
+
+export const DecisionAnswerSchema = z.object({
+  answer: z.string().min(1).max(10000),
+  answeredBy: z.string().min(1).max(200),
+});
+export type DecisionAnswerInput = z.infer<typeof DecisionAnswerSchema>;
+
+// --- Package Lock ---
+export const PackageLockSchema = z.object({
+  companyId: z.string().uuid(),
+  packageName: z.string().min(1).max(100),
+  sessionId: z.string().uuid(),
+});
+export type PackageLockInput = z.infer<typeof PackageLockSchema>;
+
+export const PackageUnlockSchema = z.object({
+  companyId: z.string().uuid(),
+  packageName: z.string().min(1).max(100),
+});
+export type PackageUnlockInput = z.infer<typeof PackageUnlockSchema>;
+
+// --- Session Transcript ---
+export const SessionTranscriptCreateSchema = z.object({
+  companyId: z.string().uuid(),
+  taskId: z.string().uuid().optional(),
+  sessionId: z.string().min(1).max(200),
+  companySlug: z.string().min(1).max(50),
+  taskTitle: z.string().min(1).max(500),
+  projectPath: z.string().max(500).optional(),
+  summary: z.string().max(50000).optional(),
+  planOutput: z.string().max(100000).optional(),
+  filesChanged: z.array(z.string().max(500)).optional().default([]),
+  testResults: z.string().max(50000).optional(),
+  prsCreated: z.array(z.string().max(500)).optional().default([]),
+  decisions: z.array(z.record(z.unknown())).optional().default([]),
+  errors: z.array(z.string().max(5000)).optional().default([]),
+  phase: z.enum(["plan", "implement", "review", "blocked", "completed", "failed"]).optional().default("completed"),
+  durationMinutes: z.number().int().min(0).optional(),
+  contextPct: z.number().int().min(0).max(100).optional(),
+  compactionCount: z.number().int().min(0).optional(),
+  rawLog: z.string().max(500000).optional(),
+});
+export type SessionTranscriptCreateInput = z.infer<typeof SessionTranscriptCreateSchema>;
+
+// --- Company Heartbeat ---
+export const CompanyHeartbeatSchema = z.object({
+  companyId: z.string().uuid(),
+  sessionId: z.string().uuid(),
+  data: z.record(z.unknown()).optional().default({}),
+});
+export type CompanyHeartbeatInput = z.infer<typeof CompanyHeartbeatSchema>;
+
 // --- WebSocket Messages ---
 export const WsSubscribeSchema = z.object({
   type: z.literal("subscribe"),

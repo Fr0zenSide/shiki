@@ -20,6 +20,17 @@ import {
   PipelineResumeSchema,
   PipelineRoutingRuleSchema,
   PipelineRouteEvalSchema,
+  CompanyCreateSchema,
+  CompanyUpdateSchema,
+  TaskCreateSchema,
+  TaskUpdateSchema,
+  TaskClaimSchema,
+  DecisionCreateSchema,
+  DecisionAnswerSchema,
+  PackageLockSchema,
+  PackageUnlockSchema,
+  CompanyHeartbeatSchema,
+  SessionTranscriptCreateSchema,
 } from "./schemas.ts";
 import { ingestChunks, listSources, getSource, deleteSource } from "./ingest.ts";
 import {
@@ -33,6 +44,16 @@ import {
   resumePipelineRun, evaluateRouting, listRoutingRules, createRoutingRule,
   updateRoutingRule, deleteRoutingRule, getPipelineRunSummary,
 } from "./pipelines.ts";
+import {
+  createCompany, getCompany, listCompanies, updateCompany, getCompanyStatus,
+  getOrchestratorOverview, createTask, getTask, listTasks, updateTask,
+  claimTask, createDecision, answerDecision, getPendingDecisions, listDecisions,
+  getStaleCompanies, getCompaniesWithPendingTasks,
+  acquirePackageLock, releasePackageLock, listPackageLocks,
+  getDailyReport, processHeartbeat, writeAuditLog, listAuditLog,
+  createSessionTranscript, getSessionTranscript, listSessionTranscripts,
+  getBoardOverview, getDispatcherQueue,
+} from "./orchestrator.ts";
 import { json, parseBody, handleError, logDebug } from "./middleware.ts";
 import { broadcastToProject, getWsStats } from "./ws.ts";
 
@@ -568,6 +589,277 @@ export async function handleRequest(req: Request): Promise<Response> {
       return json({ ok: true });
     }
 
+    // ── Companies ────────────────────────────────────────────────
+    if (path === "/api/companies" && method === "GET") {
+      const status = url.searchParams.get("status") ?? undefined;
+      const companies = await listCompanies(status);
+      return json(companies);
+    }
+
+    if (path === "/api/companies" && method === "POST") {
+      const body = await parseBody(req, CompanyCreateSchema);
+      const company = await createCompany(body);
+      await writeAuditLog({
+        companyId: company.id, actor: "api", action: "company_created",
+        targetType: "company", targetId: company.id, afterState: { slug: body.slug },
+      });
+      return json(company, 201);
+    }
+
+    if (path.match(/^\/api\/companies\/[^/]+$/) && method !== "POST") {
+      const companyId = path.split("/")[3];
+
+      if (method === "GET") {
+        const company = await getCompanyStatus(companyId);
+        if (!company) return json({ error: "Company not found" }, 404);
+        return json(company);
+      }
+
+      if (method === "PATCH") {
+        const body = await parseBody(req, CompanyUpdateSchema);
+        const before = await getCompany(companyId);
+        const company = await updateCompany(companyId, body);
+        if (!company) return json({ error: "Company not found" }, 404);
+        await writeAuditLog({
+          companyId, actor: "api", action: "company_updated",
+          targetType: "company", targetId: companyId,
+          beforeState: before ? { status: before.status, priority: before.priority } : undefined,
+          afterState: body,
+        });
+        return json(company);
+      }
+    }
+
+    // GET /api/companies/:id/tasks
+    if (path.match(/^\/api\/companies\/[^/]+\/tasks$/) && method === "GET") {
+      const companyId = path.split("/")[3];
+      const status = url.searchParams.get("status") ?? undefined;
+      const tasks = await listTasks(companyId, status);
+      return json(tasks);
+    }
+
+    // ── Task Queue ──────────────────────────────────────────────
+    if (path === "/api/task-queue" && method === "POST") {
+      const body = await parseBody(req, TaskCreateSchema);
+      const task = await createTask(body);
+      return json(task, 201);
+    }
+
+    if (path.startsWith("/api/task-queue/")) {
+      const segments = path.split("/");
+      const taskId = segments[3];
+
+      // PATCH /api/task-queue/:id
+      if (segments.length === 4 && method === "PATCH") {
+        const body = await parseBody(req, TaskUpdateSchema);
+        const task = await updateTask(taskId, body);
+        if (!task) return json({ error: "Task not found" }, 404);
+        return json(task);
+      }
+
+      // GET /api/task-queue/:id
+      if (segments.length === 4 && method === "GET") {
+        const task = await getTask(taskId);
+        if (!task) return json({ error: "Task not found" }, 404);
+        return json(task);
+      }
+
+      // POST /api/task-queue/claim — atomic claim of next pending task for a company
+      if (taskId === "claim" && segments.length === 4 && method === "POST") {
+        const body = await parseBody(req, TaskClaimSchema);
+        const task = await claimTask(body.companyId, body.sessionId);
+        if (!task) return json({ error: "No pending tasks available" }, 409);
+        await writeAuditLog({
+          companyId: task.company_id, actor: body.sessionId, action: "task_claimed",
+          targetType: "task", targetId: task.id, afterState: { title: task.title },
+        });
+        return json(task);
+      }
+    }
+
+    // ── Decision Queue ──────────────────────────────────────────
+    if (path === "/api/decision-queue" && method === "GET") {
+      const companyId = url.searchParams.get("company_id") ?? undefined;
+      const answered = url.searchParams.has("answered")
+        ? url.searchParams.get("answered") === "true"
+        : undefined;
+      const tier = url.searchParams.has("tier")
+        ? parseInt(url.searchParams.get("tier")!)
+        : undefined;
+      const decisions = await listDecisions({ companyId, answered, tier });
+      return json(decisions);
+    }
+
+    if (path === "/api/decision-queue" && method === "POST") {
+      const body = await parseBody(req, DecisionCreateSchema);
+      const decision = await createDecision(body);
+      return json(decision, 201);
+    }
+
+    if (path === "/api/decision-queue/pending" && method === "GET") {
+      const decisions = await getPendingDecisions();
+      return json(decisions);
+    }
+
+    if (path.startsWith("/api/decision-queue/") && path !== "/api/decision-queue/pending") {
+      const decisionId = path.split("/")[3];
+
+      // PATCH /api/decision-queue/:id (answer a decision)
+      if (method === "PATCH") {
+        const body = await parseBody(req, DecisionAnswerSchema);
+        const decision = await answerDecision(decisionId, body);
+        if (!decision) return json({ error: "Decision not found" }, 404);
+        await writeAuditLog({
+          companyId: decision.company_id, actor: body.answeredBy, action: "decision_answered",
+          targetType: "decision", targetId: decisionId,
+          afterState: { answer: body.answer, tier: decision.tier },
+        });
+        return json(decision);
+      }
+    }
+
+    // ── Orchestrator ────────────────────────────────────────────
+
+    // GET /api/orchestrator/status
+    if (path === "/api/orchestrator/status" && method === "GET") {
+      const overview = await getOrchestratorOverview();
+      const companies = await listCompanies("active");
+      const pendingDecisions = await getPendingDecisions();
+      const stale = await getStaleCompanies();
+      const locks = await listPackageLocks();
+      return json({
+        overview,
+        activeCompanies: companies,
+        pendingDecisions,
+        staleCompanies: stale,
+        packageLocks: locks,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // GET /api/orchestrator/stale — companies with expired heartbeats
+    if (path === "/api/orchestrator/stale" && method === "GET") {
+      const threshold = parseInt(url.searchParams.get("threshold_minutes") ?? "5");
+      const stale = await getStaleCompanies(threshold);
+      return json(stale);
+    }
+
+    // GET /api/orchestrator/ready — companies with pending tasks and no session
+    if (path === "/api/orchestrator/ready" && method === "GET") {
+      const ready = await getCompaniesWithPendingTasks();
+      return json(ready);
+    }
+
+    // GET /api/orchestrator/report — daily cross-company digest
+    if (path === "/api/orchestrator/report" && method === "GET") {
+      const date = url.searchParams.get("date") ?? undefined;
+      const report = await getDailyReport(date);
+      return json(report);
+    }
+
+    // POST /api/orchestrator/heartbeat — company session heartbeat
+    if (path === "/api/orchestrator/heartbeat" && method === "POST") {
+      const body = await parseBody(req, CompanyHeartbeatSchema);
+      const result = await processHeartbeat(body.companyId, body.sessionId);
+      if (result.budgetExceeded) {
+        await updateCompany(body.companyId, { status: "paused" });
+        await writeAuditLog({
+          companyId: body.companyId, actor: "orchestrator", action: "company_paused_budget",
+          targetType: "company", targetId: body.companyId,
+          metadata: { reason: "daily budget exceeded" },
+        });
+      }
+      return json(result);
+    }
+
+    // ── Package Locks ───────────────────────────────────────────
+
+    // GET /api/orchestrator/locks — list active package locks
+    if (path === "/api/orchestrator/locks" && method === "GET") {
+      const locks = await listPackageLocks();
+      return json(locks);
+    }
+
+    // POST /api/orchestrator/locks — acquire a package lock
+    if (path === "/api/orchestrator/locks" && method === "POST") {
+      const body = await parseBody(req, PackageLockSchema);
+      const lock = await acquirePackageLock(body.companyId, body.packageName, body.sessionId);
+      if (!lock) return json({ error: "Package already locked by another company" }, 409);
+      await writeAuditLog({
+        companyId: body.companyId, actor: body.sessionId, action: "package_lock_acquired",
+        targetType: "package", afterState: { package: body.packageName },
+      });
+      return json(lock, 201);
+    }
+
+    // POST /api/orchestrator/locks/release — release a package lock
+    if (path === "/api/orchestrator/locks/release" && method === "POST") {
+      const body = await parseBody(req, PackageUnlockSchema);
+      const released = await releasePackageLock(body.packageName, body.companyId);
+      if (!released) return json({ error: "Lock not found" }, 404);
+      await writeAuditLog({
+        companyId: body.companyId, actor: "api", action: "package_lock_released",
+        targetType: "package", afterState: { package: body.packageName },
+      });
+      return json({ ok: true });
+    }
+
+    // GET /api/orchestrator/audit — recent audit log entries
+    if (path === "/api/orchestrator/audit" && method === "GET") {
+      const companyId = url.searchParams.get("company_id") ?? undefined;
+      const limit = parseInt(url.searchParams.get("limit") ?? "50") || 50;
+      const audit = await listAuditLog({ companyId, limit });
+      return json(audit);
+    }
+
+    // ── Session Transcripts ────────────────────────────────────
+
+    // GET /api/session-transcripts — list transcripts (filter by company_slug, company_id, task_id, phase)
+    if (path === "/api/session-transcripts" && method === "GET") {
+      const companySlug = url.searchParams.get("company_slug") ?? undefined;
+      const companyId = url.searchParams.get("company_id") ?? undefined;
+      const taskId = url.searchParams.get("task_id") ?? undefined;
+      const phase = url.searchParams.get("phase") ?? undefined;
+      const limit = parseInt(url.searchParams.get("limit") ?? "20") || 20;
+      const includeRawLog = url.searchParams.get("include_raw_log") === "true";
+      const transcripts = await listSessionTranscripts({ companySlug, companyId, taskId, phase, limit, includeRawLog });
+      return json(transcripts);
+    }
+
+    // POST /api/session-transcripts — create a transcript
+    if (path === "/api/session-transcripts" && method === "POST") {
+      const body = await parseBody(req, SessionTranscriptCreateSchema);
+      const transcript = await createSessionTranscript(body);
+      await writeAuditLog({
+        companyId: body.companyId, actor: "orchestrator", action: "session_transcript_created",
+        targetType: "session_transcript", targetId: transcript.id,
+        afterState: { taskTitle: body.taskTitle, phase: body.phase },
+      });
+      return json(transcript, 201);
+    }
+
+    // GET /api/session-transcripts/:id — get a single transcript
+    if (path.startsWith("/api/session-transcripts/") && method === "GET") {
+      const id = path.split("/")[3];
+      const transcript = await getSessionTranscript(id);
+      if (!transcript) return json({ error: "Transcript not found" }, 404);
+      return json(transcript);
+    }
+
+    // ── Board Overview ───────────────────────────────────────────
+
+    // GET /api/orchestrator/board — rich board overview for all companies
+    if (path === "/api/orchestrator/board" && method === "GET") {
+      const board = await getBoardOverview();
+      return json(board);
+    }
+
+    // GET /api/orchestrator/dispatcher-queue — tasks ready for dispatch
+    if (path === "/api/orchestrator/dispatcher-queue" && method === "GET") {
+      const queue = await getDispatcherQueue();
+      return json(queue);
+    }
+
     // ── Database Backup Info ─────────────────────────────────────
     if (path === "/api/admin/backup-status" && method === "GET") {
       const dbStats = await sql`
@@ -676,6 +968,19 @@ async function handleHealthFull(): Promise<Response> {
     radarCount = parseInt(r.count);
   } catch { /* ignore */ }
 
+  // Orchestrator stats
+  let orchestratorStats = { companies: 0, pendingTasks: 0, pendingDecisions: 0 };
+  try {
+    const overview = await getOrchestratorOverview();
+    if (overview) {
+      orchestratorStats = {
+        companies: parseInt(overview.active_companies),
+        pendingTasks: parseInt(overview.total_pending_tasks),
+        pendingDecisions: parseInt(overview.total_pending_decisions),
+      };
+    }
+  } catch { /* tables may not exist */ }
+
   // Agent roster (static — from the codebase)
   const agents = [
     { handle: "@Sensei",  alias: "CTO",        role: "Architecture, code quality, feasibility decisions" },
@@ -703,6 +1008,8 @@ async function handleHealthFull(): Promise<Response> {
     { name: "/pre-release-scan", desc: "AI slop scan before production" },
     { name: "/course-correct",   desc: "Mid-feature scope change workflow" },
     { name: "/backlog-plan",     desc: "Continuous planning pipeline" },
+    { name: "/company",          desc: "Manage companies (list, create, budget, priority)" },
+    { name: "/orchestrate",      desc: "24/7 autonomous multi-company orchestrator" },
   ];
 
   const status = dbOk ? "ok" : "degraded";
@@ -720,6 +1027,7 @@ async function handleHealthFull(): Promise<Response> {
     pipelines: pipelineStats,
     projects: projectCount,
     radar: { watchedRepos: radarCount },
+    orchestrator: orchestratorStats,
     agents,
     commands,
     timestamp: new Date().toISOString(),
