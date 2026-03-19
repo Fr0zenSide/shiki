@@ -115,38 +115,28 @@ On Step 4 (Ship): if PR merged via `/validate-pr`, check top-level checkbox and 
 
 ## Pipeline Checkpointing
 
-If Shiki backend is available (`curl -sf http://localhost:3900/health`), checkpoint each step for resume support. If unavailable, skip checkpointing silently — the pipeline works without it.
+If ShikiMCP tools are available (verify with `shiki_health` MCP tool), checkpoint each step for resume support. If unavailable, skip checkpointing silently — the pipeline works without it.
 
-**On start**: Create a pipeline run:
-```bash
-RUN_ID=$(curl -sf -X POST http://localhost:3900/api/pipelines \
-  -H 'Content-Type: application/json' \
-  -d '{"pipelineType":"quick","config":{}}' | jq -r '.id // empty')
+**On start**: Create a pipeline run: Use the `shiki_save_event` MCP tool with:
+```json
+{ "type": "pipeline_started", "scope": "quick", "data": { "pipelineType": "quick", "config": {} } }
 ```
+Store the returned ID as RUN_ID.
 
-**After each step**: Record a checkpoint:
-```bash
-curl -sf -X POST http://localhost:3900/api/pipelines/$RUN_ID/checkpoints \
-  -H 'Content-Type: application/json' \
-  -d '{"phase":"step_1_spec","phaseIndex":0,"status":"completed","stateAfter":{...}}'
+**After each step**: Record a checkpoint: Use the `shiki_save_event` MCP tool with:
+```json
+{ "type": "pipeline_checkpoint", "scope": "quick", "data": { "runId": "<RUN_ID>", "phase": "step_1_spec", "phaseIndex": 0, "status": "completed", "stateAfter": {...} } }
 ```
 
 **Phase names**: `step_1_spec` (0), `step_2_implementation` (1), `step_3_self_review` (2), `step_4_ship` (3)
 
-**On failure**: Record the failed checkpoint with `"status":"failed"` and `"error":"..."`, then check routing:
-```bash
-curl -sf -X POST http://localhost:3900/api/pipelines/$RUN_ID/route \
-  -H 'Content-Type: application/json' \
-  -d '{"failedPhase":"<phase>"}'
+**On failure**: Record with `"status":"failed"` and `"error":"..."`, then check routing: Use the `shiki_save_event` MCP tool with:
+```json
+{ "type": "pipeline_route", "scope": "quick", "data": { "runId": "<RUN_ID>", "failedPhase": "<phase>" } }
 ```
 If action is `auto_fix`: attempt fix then retry. If `escalate`: stop and ask @Daimyo.
 
-**On completion**: Update the run status:
-```bash
-curl -sf -X PATCH http://localhost:3900/api/pipelines/$RUN_ID \
-  -H 'Content-Type: application/json' \
-  -d '{"status":"completed"}'
-```
+**On completion**: Use the `shiki_save_event` MCP tool with: `{ "type": "pipeline_completed", "scope": "quick", "data": { "runId": "<RUN_ID>", "status": "completed" } }`
 
 **On resume** (via `/retry`): Skip phases with index < resumeFromIndex. Use the provided state.
 

@@ -16,37 +16,31 @@ Parse the argument `$ARGUMENTS` to determine the action:
 ## Execution
 
 ### For watch/unwatch/list:
-Call the backend REST API directly:
-```bash
-# List watchlist
-curl -s http://localhost:3900/api/radar/watchlist
+Use the ShikiMCP tools:
 
-# Add repo
-curl -s -X POST http://localhost:3900/api/radar/watchlist \
-  -H "Content-Type: application/json" \
-  -d '{"slug":"owner/repo","kind":"repo","name":"RepoName","sourceUrl":"https://github.com/owner/repo","relevance":"why it matters","tags":["relevant-tag"]}'
+**List watchlist**: Use the `shiki_search` MCP tool with: `{ query: "radar watchlist", projectIds: [] }`
 
-# Remove
-curl -s -X DELETE http://localhost:3900/api/radar/watchlist/<uuid>
+**Add repo**: Use the `shiki_save_event` MCP tool with:
+```json
+{ "type": "radar_watch_added", "scope": "radar", "data": { "slug": "owner/repo", "kind": "repo", "name": "RepoName", "sourceUrl": "https://github.com/owner/repo", "relevance": "why it matters", "tags": ["relevant-tag"] } }
 ```
 
+**Remove**: Use the `shiki_save_event` MCP tool with: `{ "type": "radar_watch_removed", "scope": "radar", "data": { "watchId": "<uuid>" } }`
+
 ### For scan (default, no args):
-1. Trigger scan: `POST http://localhost:3900/api/radar/scan` with `{"sinceDays": 30}`
+1. Trigger scan: Use the `shiki_save_event` MCP tool with: `{ "type": "radar_scan_triggered", "scope": "radar", "data": { "sinceDays": 30 } }`
 2. Wait a few seconds for GitHub API calls to complete
-3. Fetch results: `GET http://localhost:3900/api/radar/scans/<runId>`
-4. Fetch digest: `GET http://localhost:3900/api/radar/digest/<runId>`
-   - If not ready yet, try `GET http://localhost:3900/api/radar/digest/latest`
+3. Fetch results: Use the `shiki_search` MCP tool with: `{ query: "radar scan <runId>", projectIds: [] }`
+4. Fetch digest: Use the `shiki_search` MCP tool with: `{ query: "radar digest latest", projectIds: [] }`
 5. Display the markdown digest to the user
 6. Ask if user wants to ingest notable findings
 
 ### For history:
-```bash
-curl -s http://localhost:3900/api/radar/scans?limit=10
-```
+Use the `shiki_search` MCP tool with: `{ query: "radar scans history", projectIds: [] }`
 
 ### For ingest:
-1. Resolve project ID from slug via `GET http://localhost:3900/api/projects`
-2. Call `POST http://localhost:3900/api/radar/ingest` with `{"scanRunId":"<uuid>","projectId":"<uuid>"}`
+1. Resolve project ID from slug: Use the `shiki_search` MCP tool with: `{ query: "<project-slug>", projectIds: [] }`
+2. Ingest findings: Use the `shiki_save_event` MCP tool with: `{ "type": "radar_ingest", "scope": "radar", "data": { "scanRunId": "<uuid>", "projectId": "<uuid>" } }`
 3. Report how many memories were created
 
 ## Digest Display Format

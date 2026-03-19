@@ -14,7 +14,7 @@ Batch multiple backlog items through the full pipeline: plan → decide → buil
 
 ## Prerequisites
 
-- Shiki DB running (`http://localhost:3900/health`)
+- ShikiMCP tools available (verify with `shiki_health` MCP tool)
 - Clean git state on `develop` (or target branch)
 - Backlog items have at least a title and description
 
@@ -165,28 +165,34 @@ Instead of presenting questions interactively, write them to the **decision queu
 
 #### For each T1 question:
 
-```bash
-# 1. Create decision in queue
-curl -s -X POST http://localhost:3900/api/decision-queue \
-  -H "Content-Type: application/json" \
-  -d '{
-    "companyId": "$SHIKI_COMPANY_ID",
-    "taskId": "<current-task-uuid>",
-    "tier": 1,
-    "question": "Where does the haiku appear?",
-    "options": {
-      "a": {"label": "Full-screen overlay", "recommended": true, "rationale": "Minimal coordinator changes"},
-      "b": {"label": "Card in Today tab", "rationale": "Requires new card component"},
-      "c": {"label": "Splash transition", "rationale": "Most complex, best UX"}
-    },
-    "context": "Affects coordinator flow and whether we need a new screen vs card."
-  }'
+1. **Create decision in queue**: Use the `shiki_save_event` MCP tool with:
+   ```json
+   {
+     "type": "decision_queued",
+     "scope": "orchestrator",
+     "data": {
+       "companyId": "$SHIKI_COMPANY_ID",
+       "taskId": "<current-task-uuid>",
+       "tier": 1,
+       "question": "Where does the haiku appear?",
+       "options": {
+         "a": {"label": "Full-screen overlay", "recommended": true, "rationale": "Minimal coordinator changes"},
+         "b": {"label": "Card in Today tab", "rationale": "Requires new card component"},
+         "c": {"label": "Splash transition", "rationale": "Most complex, best UX"}
+       },
+       "context": "Affects coordinator flow and whether we need a new screen vs card."
+     }
+   }
+   ```
 
-# 2. Block the task
-curl -s -X PATCH http://localhost:3900/api/task-queue/<task-id> \
-  -H "Content-Type: application/json" \
-  -d '{"status": "blocked", "blockingQuestionIds": ["<decision-id-1>", "<decision-id-2>"]}'
-```
+2. **Block the task**: Use the `shiki_save_event` MCP tool with:
+   ```json
+   {
+     "type": "task_blocked",
+     "scope": "orchestrator",
+     "data": { "taskId": "<task-id>", "status": "blocked", "blockingQuestionIds": ["<decision-id-1>", "<decision-id-2>"] }
+   }
+   ```
 
 #### T2/T3 handling in company mode:
 
@@ -197,10 +203,7 @@ curl -s -X PATCH http://localhost:3900/api/task-queue/<task-id> \
 #### After writing decisions:
 
 1. **Do NOT block the session** — move to the next non-blocked task in the queue
-2. **Poll for answers** every 30 seconds:
-   ```bash
-   curl -s "http://localhost:3900/api/decision-queue?company_id=$SHIKI_COMPANY_ID&answered=false"
-   ```
+2. **Poll for answers** every 30 seconds: Use the `shiki_search` MCP tool with: `{ query: "unanswered decisions company $SHIKI_COMPANY_ID", projectIds: [] }`
 3. When a previously-blocking decision is answered, the API auto-unblocks the task
 4. On next poll/claim cycle, the task becomes available again
 5. Resume from the last pipeline checkpoint
@@ -302,21 +305,19 @@ Proceed automatically — no user confirmation needed.
 
 ### Progress tracking
 
-Record to shiki DB:
-```bash
-curl -s -X POST http://localhost:3900/api/data-sync \
-  -H "Content-Type: application/json" \
-  -d '{
-    "projectId": "<id>",
-    "type": "autopilot_task_complete",
-    "data": {
-      "feature": "BL-003",
-      "task": "3/7",
-      "branch": "story/daily-haiku",
-      "worktree": "/tmp/wt-daily-haiku",
-      "status": "green"
-    }
-  }'
+Record to shiki DB: Use the `shiki_save_event` MCP tool with:
+```json
+{
+  "type": "autopilot_task_complete",
+  "scope": "<project-slug>",
+  "data": {
+    "feature": "BL-003",
+    "task": "3/7",
+    "branch": "story/daily-haiku",
+    "worktree": "/tmp/wt-daily-haiku",
+    "status": "green"
+  }
+}
 ```
 
 ### Failure handling
