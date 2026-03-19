@@ -51,8 +51,9 @@ struct ShipCommand: AsyncParsableCommand {
         let branchPipe = Pipe()
         branchProcess.standardOutput = branchPipe
         try branchProcess.run()
-        branchProcess.waitUntilExit()
+        // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
         let branchData = branchPipe.fileHandleForReading.readDataToEndOfFile()
+        branchProcess.waitUntilExit()
         let branch = String(data: branchData, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? "unknown"
 

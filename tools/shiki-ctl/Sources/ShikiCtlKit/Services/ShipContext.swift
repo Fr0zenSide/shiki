@@ -91,10 +91,11 @@ public final class RealShipContext: ShipContext, @unchecked Sendable {
         process.standardError = stderrPipe
 
         try process.run()
-        process.waitUntilExit()
 
+        // Read pipes BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
         let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
         let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
 
         return ShellResult(
             stdout: String(data: stdoutData, encoding: .utf8) ?? "",

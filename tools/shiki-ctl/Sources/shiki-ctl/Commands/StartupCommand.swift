@@ -214,9 +214,10 @@ struct StartupCommand: AsyncParsableCommand {
             process.standardOutput = pipe
             process.standardError = FileHandle.nullDevice
             guard (try? process.run()) != nil else { return }
+            // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
             guard process.terminationStatus == 0 else { return }
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
             try? fm.createDirectory(atPath: "\(home)/.zsh/completions", withIntermediateDirectories: true)
             fm.createFile(atPath: completionFile, contents: data)
         }
@@ -318,8 +319,9 @@ struct StartupCommand: AsyncParsableCommand {
             process.standardOutput = pipe
             process.standardError = FileHandle.nullDevice
             try process.run()
-            process.waitUntilExit()
+            // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
             return String(data: data, encoding: .utf8) ?? ""
         }
 
@@ -400,8 +402,10 @@ struct StartupCommand: AsyncParsableCommand {
             process.standardOutput = capPipe
             process.standardError = FileHandle.nullDevice
             try process.run()
+            // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
+            let capData = capPipe.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
-            return String(data: capPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+            return String(data: capData, encoding: .utf8)?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }
 
