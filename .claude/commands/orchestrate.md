@@ -21,9 +21,8 @@ Parse `$ARGUMENTS` for subcommand.
 
 Query the orchestrator overview and display:
 
-```bash
-curl -s http://localhost:3900/api/orchestrator/status
-```
+Use the `shiki_health` MCP tool to check overall status.
+<!-- TODO: migrate to shiki_health when orchestrator status is added to MCP -->
 
 ```markdown
 ## Orchestrator Status
@@ -54,14 +53,14 @@ curl -s http://localhost:3900/api/orchestrator/status
 
 ```
 1. DECISIONS
-   - Query: GET /api/decision-queue/pending
+   - Query: shiki_search { query: "pending decisions", projectIds: [] }
    - If any T1 pending: send ntfy push
      "🔴 N decisions needed (Company1: X, Company2: Y)"
 
 2. COMPLETIONS
-   - Query: GET /api/decision-queue?answered=true (since last check)
+   - Query: shiki_search { query: "answered decisions recent", projectIds: [] }
    - For each newly answered decision with a blocked task:
-     the API auto-unblocks — just log it
+     the system auto-unblocks — just log it
 
 3. HEALTH
    - For each active company:
@@ -71,8 +70,10 @@ curl -s http://localhost:3900/api/orchestrator/status
 
 4. BUDGET
    - For each active company:
-     GET /api/companies/<id> → check budget.spent_today_usd vs budget.daily_usd
-     if exceeded: PATCH status='paused', send ntfy alert
+     shiki_search { query: "company <id> budget", projectIds: [] }
+     if spent_today_usd >= daily_usd:
+       shiki_save_event { type: "company_status_updated", scope: "orchestrator", data: { companyId: "<id>", status: "paused" } }
+       send ntfy alert
 
 5. SCHEDULE
    - For each active company with pending tasks and no running session:
@@ -97,17 +98,17 @@ tmux new-window -t shiki-board -n "co:<slug>" \
 
 ## `pause <company>`
 
-1. PATCH company status to 'paused'
+1. Update company status to 'paused' via `shiki_save_event` MCP tool
 2. If a tmux pane `co:<slug>` exists, send it a graceful exit signal
 
 ## `decide`
 
 Shortcut to `/decide` but scoped to cross-company decision queue:
 
-1. GET /api/decision-queue/pending
+1. Query pending decisions: `shiki_search` MCP tool with: `{ query: "pending decisions", projectIds: [] }`
 2. Group by company
 3. Present in the standard `/decide` ballot format
-4. On answer: PATCH /api/decision-queue/<id> with answer
+4. On answer: `shiki_save_event` MCP tool with: `{ type: "decision_answered", scope: "orchestrator", data: { decisionId: "<id>", answer: "...", answeredBy: "@Daimyo" } }`
 
 ## `report`
 

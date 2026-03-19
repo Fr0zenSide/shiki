@@ -72,7 +72,7 @@ Answer: `1a, 2b` or discuss any question.
 
 ### Sources for Decisions
 When auto-detecting pending decisions, check:
-1. **Decision queue** (cross-company): `GET http://localhost:3900/api/decision-queue/pending` — highest priority source
+1. **Decision queue** (cross-company): Use the `shiki_search` MCP tool with: `{ query: "pending decisions", projectIds: [] }` — highest priority source
 2. Current autopilot wave state (blocking questions from Wave 0/1)
 3. Feature files in `memory/features/` with `blocking_questions > 0`
 4. Backlog items marked `Status: Needs decision`
@@ -92,14 +92,9 @@ Q2: ...
 Q3: ...
 ```
 
-After answering, PATCH each decision:
-```bash
-curl -s -X PATCH http://localhost:3900/api/decision-queue/<id> \
-  -H "Content-Type: application/json" \
-  -d '{"answer": "<chosen option>", "answeredBy": "@Daimyo"}'
-```
+After answering, record each decision: Use the `shiki_save_event` MCP tool with: `{ type: "decision_answered", scope: "orchestrator", data: { decisionId: "<id>", answer: "<chosen option>", answeredBy: "@Daimyo" } }`
 
-The API automatically unblocks tasks whose decisions are all answered.
+The system automatically unblocks tasks whose decisions are all answered.
 
 ## Anti-Rationalization
 
