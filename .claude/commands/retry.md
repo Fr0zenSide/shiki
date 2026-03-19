@@ -13,12 +13,9 @@ Parse the argument `$ARGUMENTS` to determine the action:
 
 ### Step 1: Check for failed pipelines
 
-Query the Shiki backend for recent failed runs:
-```bash
-curl -s http://localhost:3900/api/pipelines?status=failed&limit=5
-```
+Query the Shiki backend for recent failed runs: Use the `shiki_search` MCP tool with: `{ query: "pipeline failed", projectIds: [] }`
 
-If the backend is unreachable, skip to **Legacy Fallback** below.
+If the MCP tools are unavailable, skip to **Legacy Fallback** below.
 
 ### Step 2: Show failed run details
 
@@ -28,19 +25,13 @@ For each failed run, display:
 - Error message
 - Checkpoint count (phases completed before failure)
 
-To get full details:
-```bash
-curl -s http://localhost:3900/api/pipelines/<run-id>
-curl -s http://localhost:3900/api/pipelines/<run-id>/checkpoints
-```
+To get full details: Use the `shiki_search` MCP tool with: `{ query: "pipeline <run-id>", projectIds: [] }` to retrieve run details and checkpoints.
 
 ### Step 3: Evaluate routing rules
 
-Check if there's an auto-recovery rule for the failed phase:
-```bash
-curl -s -X POST http://localhost:3900/api/pipelines/<run-id>/route \
-  -H "Content-Type: application/json" \
-  -d '{"failedPhase":"<phase>"}'
+Check if there's an auto-recovery rule for the failed phase: Use the `shiki_save_event` MCP tool with:
+```json
+{ "type": "pipeline_route", "scope": "retry", "data": { "runId": "<run-id>", "failedPhase": "<phase>" } }
 ```
 
 Possible actions:
@@ -52,10 +43,9 @@ Show the recommended action and ask user to confirm.
 
 ### Step 4: Resume the pipeline
 
-```bash
-curl -s -X POST http://localhost:3900/api/pipelines/<run-id>/resume \
-  -H "Content-Type: application/json" \
-  -d '{"fromPhase":"<phase>","stateOverrides":{}}'
+Use the `shiki_save_event` MCP tool with:
+```json
+{ "type": "pipeline_resumed", "scope": "retry", "data": { "runId": "<run-id>", "fromPhase": "<phase>", "stateOverrides": {} } }
 ```
 
 The response includes:
@@ -72,10 +62,7 @@ The resumed pipeline continues checkpointing as normal. If it fails again, `/ret
 
 ## Status View
 
-When invoked with `status`:
-```bash
-curl -s http://localhost:3900/api/pipelines?limit=10
-```
+When invoked with `status`: Use the `shiki_search` MCP tool with: `{ query: "pipeline runs recent", projectIds: [] }`
 
 Display as a table:
 ```

@@ -308,32 +308,28 @@ Compare changed files against test files. Flag files with new business logic tha
 
 ## Pipeline Checkpointing
 
-If Shiki backend is available (`curl -sf http://localhost:3900/health`), checkpoint each gate for resume support. If unavailable, skip checkpointing silently — the pipeline works without it.
+If ShikiMCP tools are available (verify with `shiki_health` MCP tool), checkpoint each gate for resume support. If unavailable, skip checkpointing silently — the pipeline works without it.
 
-**On start**: Create a pipeline run:
-```bash
-RUN_ID=$(curl -sf -X POST http://localhost:3900/api/pipelines \
-  -H 'Content-Type: application/json' \
-  -d '{"pipelineType":"pre-pr","config":{"mode":"standard"}}' | jq -r '.id // empty')
+**On start**: Create a pipeline run: Use the `shiki_save_event` MCP tool with:
+```json
+{ "type": "pipeline_started", "scope": "pre-pr", "data": { "pipelineType": "pre-pr", "config": { "mode": "standard" } } }
 ```
+Store the returned ID as RUN_ID.
 
-**After each gate**: Record a checkpoint:
-```bash
-curl -sf -X POST http://localhost:3900/api/pipelines/$RUN_ID/checkpoints \
-  -H 'Content-Type: application/json' \
-  -d '{"phase":"<gate>","phaseIndex":<N>,"status":"completed","stateAfter":{...}}'
+**After each gate**: Record a checkpoint: Use the `shiki_save_event` MCP tool with:
+```json
+{ "type": "pipeline_checkpoint", "scope": "pre-pr", "data": { "runId": "<RUN_ID>", "phase": "<gate>", "phaseIndex": "<N>", "status": "completed", "stateAfter": {...} } }
 ```
 
 **Phase names**: `gate_1a_spec_review` (0), `gate_1b_quality_review` (1), `gate_1c_adversarial` (2), `gate_2_fix_loop` (3), `gate_3_test_coverage` (4), `gate_4_fix_loop` (5), `gate_5_visual_qc` (6), `gate_6_user_review` (7), `gate_7_fix_loop` (8), `gate_8_ai_slop` (9), `gate_9_pr_creation` (10)
 
-**On gate failure**: Record with `"status":"failed"`, then check routing rules:
-```bash
-curl -sf -X POST http://localhost:3900/api/pipelines/$RUN_ID/route \
-  -H 'Content-Type: application/json' -d '{"failedPhase":"<gate>"}'
+**On gate failure**: Record with `"status":"failed"`, then check routing rules: Use the `shiki_save_event` MCP tool with:
+```json
+{ "type": "pipeline_route", "scope": "pre-pr", "data": { "runId": "<RUN_ID>", "failedPhase": "<gate>" } }
 ```
 Actions: `auto_fix` (attempt fix + retry), `retry_phase` (re-run gate), `escalate` (ask @Daimyo).
 
-**On completion**: `curl -sf -X PATCH http://localhost:3900/api/pipelines/$RUN_ID -H 'Content-Type: application/json' -d '{"status":"completed"}'`
+**On completion**: Use the `shiki_save_event` MCP tool with: `{ "type": "pipeline_completed", "scope": "pre-pr", "data": { "runId": "<RUN_ID>", "status": "completed" } }`
 
 **On resume** (via `/retry`): Skip gates with index < resumeFromIndex. Use the provided state.
 

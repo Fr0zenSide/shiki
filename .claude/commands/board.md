@@ -38,7 +38,8 @@ List any recently completed background agents with their output summaries.
 
 ### 4. Company Status (Orchestrator)
 
-If the orchestrator is running (check `curl -sf http://localhost:3900/api/orchestrator/status`), show:
+If the orchestrator is running (check via `shiki_health` MCP tool), show:
+<!-- TODO: migrate to shiki_health when orchestrator status is added to MCP -->
 
 ```
 ## Companies

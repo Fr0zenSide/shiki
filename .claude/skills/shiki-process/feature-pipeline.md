@@ -276,19 +276,21 @@ When Phase 7 passes and PR is merged (validated via `/validate-pr`):
 
 ## Shiki Sync
 
-After each phase, sync to Shiki if available:
-```bash
-POST http://localhost:3900/api/memories
+After each phase, sync to Shiki if available: Use the `shiki_save_event` MCP tool with:
+```json
 {
-  "projectId": "{project_id}",
-  "content": "<phase summary>",
-  "category": "feature",
-  "importance": 0.8,
-  "metadata": { "sourceFile": "features/<name>.md" }
+  "type": "feature_phase_completed",
+  "scope": "<project-slug>",
+  "data": {
+    "content": "<phase summary>",
+    "category": "feature",
+    "importance": 0.8,
+    "metadata": { "sourceFile": "features/<name>.md" }
+  }
 }
 ```
 
-Note: `{project_id}` comes from the project adapter or Shiki workspace registration.
+Note: `<project-slug>` comes from the project adapter or Shiki workspace registration.
 
 ## Information Density Check
 
@@ -340,31 +342,27 @@ A competitive advantage comes from doing what others don't — not from followin
 
 ## Pipeline Checkpointing
 
-If Shiki backend is available (`curl -sf http://localhost:3900/health`), checkpoint each phase for resume support. If unavailable, skip checkpointing silently — the pipeline works without it.
+If ShikiMCP tools are available (verify with `shiki_health` MCP tool), checkpoint each phase for resume support. If unavailable, skip checkpointing silently — the pipeline works without it.
 
-**On start**: Create a pipeline run:
-```bash
-RUN_ID=$(curl -sf -X POST http://localhost:3900/api/pipelines \
-  -H 'Content-Type: application/json' \
-  -d '{"pipelineType":"md-feature","config":{}}' | jq -r '.id // empty')
+**On start**: Create a pipeline run: Use the `shiki_save_event` MCP tool with:
+```json
+{ "type": "pipeline_started", "scope": "md-feature", "data": { "pipelineType": "md-feature", "config": {} } }
 ```
+Store the returned ID as RUN_ID.
 
-**After each phase**: Record a checkpoint:
-```bash
-curl -sf -X POST http://localhost:3900/api/pipelines/$RUN_ID/checkpoints \
-  -H 'Content-Type: application/json' \
-  -d '{"phase":"<phase>","phaseIndex":<N>,"status":"completed","stateAfter":{...}}'
+**After each phase**: Record a checkpoint: Use the `shiki_save_event` MCP tool with:
+```json
+{ "type": "pipeline_checkpoint", "scope": "md-feature", "data": { "runId": "<RUN_ID>", "phase": "<phase>", "phaseIndex": "<N>", "status": "completed", "stateAfter": {...} } }
 ```
 
 **Phase names**: `phase_1_inspiration` (0), `phase_2_synthesis` (1), `phase_3_business_rules` (2), `phase_4_test_plan` (3), `phase_5_architecture` (4), `phase_5b_execution_plan` (5), `phase_5b_readiness_gate` (6), `phase_6_implementation` (7), `phase_7_quality_gate` (8)
 
-**On failure**: Record with `"status":"failed"`, then check routing:
-```bash
-curl -sf -X POST http://localhost:3900/api/pipelines/$RUN_ID/route \
-  -H 'Content-Type: application/json' -d '{"failedPhase":"<phase>"}'
+**On failure**: Record with `"status":"failed"`, then check routing: Use the `shiki_save_event` MCP tool with:
+```json
+{ "type": "pipeline_route", "scope": "md-feature", "data": { "runId": "<RUN_ID>", "failedPhase": "<phase>" } }
 ```
 
-**On completion**: `curl -sf -X PATCH http://localhost:3900/api/pipelines/$RUN_ID -H 'Content-Type: application/json' -d '{"status":"completed"}'`
+**On completion**: Use the `shiki_save_event` MCP tool with: `{ "type": "pipeline_completed", "scope": "md-feature", "data": { "runId": "<RUN_ID>", "status": "completed" } }`
 
 **On resume** (via `/retry`): Skip phases with index < resumeFromIndex. Use the provided state.
 

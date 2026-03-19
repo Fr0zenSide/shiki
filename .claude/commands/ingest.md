@@ -21,7 +21,7 @@ Parse the argument `$ARGUMENTS` to determine the action:
 ## Execution
 
 ### Step 0: Resolve project ID
-Query `GET http://localhost:3900/api/projects` to find the project UUID from the slug.
+Use the `shiki_search` MCP tool with: `{ query: "<project-slug>", projectIds: [] }` to find the project UUID from the slug.
 If no `--project` flag, detect from the current working directory name or default to "shiki".
 
 ### For GitHub repos:
@@ -34,7 +34,7 @@ If no `--project` flag, detect from the current working directory name or defaul
    - What are the key interfaces/types/exports?
    - What architectural decisions are embedded here?
 5. Chunk the extracted insights — aim for self-contained pieces (~1000-1500 chars each)
-6. POST all chunks to `http://localhost:3900/api/ingest` as a single batch
+6. Save all chunks: Use the `shiki_save_event` MCP tool for each batch with: `{ type: "ingest_chunks", scope: "<project-slug>", data: { sourceType: "github_repo", sourceUri: "...", chunks: [...] } }`
 7. Clean up the temp clone
 8. Report results: inserted, duplicates skipped, total
 
@@ -42,16 +42,16 @@ If no `--project` flag, detect from the current working directory name or defaul
 1. Fetch the URL content using WebFetch
 2. Extract meaningful text (strip HTML boilerplate)
 3. Summarize and chunk the useful content
-4. POST to the ingest API
+4. Save via `shiki_save_event` MCP tool (same as GitHub repos step 6)
 
 ### For local paths:
 1. Read files matching common source patterns (*.ts, *.swift, *.py, *.md, etc.)
 2. Same structured extraction as GitHub repos
-3. POST to the ingest API
+3. Save via `shiki_save_event` MCP tool (same as GitHub repos step 6)
 
 ### For raw text:
 1. Chunk if longer than 1500 chars (with 200 char overlap)
-2. POST directly to the ingest API
+2. Save directly via `shiki_save_event` MCP tool (same as GitHub repos step 6)
 
 ## Smart Extraction Rules
 
@@ -66,20 +66,16 @@ If no `--project` flag, detect from the current working directory name or defaul
 
 Each chunk should be a **self-contained piece of knowledge** that an AI agent can use without needing surrounding context. Include enough specificity (file paths, function names) to be actionable.
 
-## API Reference
+## MCP Tool Reference
 
-```bash
-# Ingest chunks
-curl -X POST http://localhost:3900/api/ingest \
-  -H "Content-Type: application/json" \
-  -d '{"projectId":"<uuid>","sourceType":"github_repo","sourceUri":"https://github.com/org/repo","displayName":"RepoName","chunks":[{"content":"...","category":"architecture"}]}'
-
-# List sources
-curl http://localhost:3900/api/ingest/sources?project_id=<uuid>
-
-# Delete source
-curl -X DELETE http://localhost:3900/api/ingest/sources/<source-id>
+**Ingest chunks**: Use the `shiki_save_event` MCP tool with:
+```json
+{ "type": "ingest_chunks", "scope": "<project-slug>", "data": { "sourceType": "github_repo", "sourceUri": "https://github.com/org/repo", "displayName": "RepoName", "chunks": [{ "content": "...", "category": "architecture" }] } }
 ```
+
+**List sources**: Use the `shiki_search` MCP tool with: `{ query: "ingest sources", projectIds: ["<uuid>"] }`
+
+**Delete source**: Use the `shiki_save_event` MCP tool with: `{ "type": "ingest_source_deleted", "scope": "<project-slug>", "data": { "sourceId": "<source-id>" } }`
 
 ## Response Format
 

@@ -19,13 +19,11 @@ Parse `$ARGUMENTS` for subcommand and args.
 
 ## Implementation
 
-All operations go through the Shiki DB REST API at `http://localhost:3900`.
+All operations go through the ShikiMCP tools (native `shiki_*` MCP tools).
 
 ### `list`
 
-```bash
-curl -s http://localhost:3900/api/companies | jq
-```
+Use the `shiki_list_companies` MCP tool to fetch all companies.
 
 Display as a table:
 
@@ -40,25 +38,15 @@ Where P/R/B = pending/running/blocked task counts.
 
 ### `create <slug> <project-slug>`
 
-1. Look up project by slug: `GET /api/projects` → find matching slug
+1. Look up project by slug: Use the `shiki_search` MCP tool with: `{ query: "<slug>", projectIds: [] }` or list projects to find matching slug
 2. If not found, error with "Project '<slug>' not found. Available: ..."
-3. Create company:
-   ```bash
-   curl -s -X POST http://localhost:3900/api/companies \
-     -H "Content-Type: application/json" \
-     -d '{"projectId": "<uuid>", "slug": "<slug>", "displayName": "<project name>"}'
-   ```
+3. Create company: Use the `shiki_save_event` MCP tool with: `{ type: "company_created", scope: "orchestrator", data: { projectId: "<uuid>", slug: "<slug>", displayName: "<project name>" } }`
 4. Confirm: "Company '<slug>' created for project '<name>'"
 
 ### `activate <slug>` / `pause <slug>` / `archive <slug>`
 
 1. Find company by slug from list
-2. PATCH status:
-   ```bash
-   curl -s -X PATCH http://localhost:3900/api/companies/<id> \
-     -H "Content-Type: application/json" \
-     -d '{"status": "active"}'
-   ```
+2. Update status: Use the `shiki_save_event` MCP tool with: `{ type: "company_status_updated", scope: "orchestrator", data: { companyId: "<id>", status: "active" } }`
 
 ### `budget <slug> [daily] [monthly]`
 
@@ -71,9 +59,7 @@ PATCH the priority field. Lower = higher priority = wakes first.
 
 ### `status <slug>`
 
-```bash
-curl -s http://localhost:3900/api/companies/<id>
-```
+Use the `shiki_search` MCP tool with: `{ query: "<slug> company status", projectIds: [] }` to fetch company details.
 
 Display detailed view:
 
@@ -99,4 +85,4 @@ Display detailed view:
 
 - Always confirm destructive operations (archive) before executing
 - Show the result after each operation
-- If the API is down, show a clear error: "Shiki DB unreachable at localhost:3900"
+- If MCP tools are unavailable, show a clear error: "ShikiMCP tools not available — check MCP server status"
