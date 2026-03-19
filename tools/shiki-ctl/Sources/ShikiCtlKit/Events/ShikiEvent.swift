@@ -79,6 +79,14 @@ public enum EventType: Codable, Sendable, Hashable {
     case notificationSent
     case notificationActioned
 
+    // Ship
+    case shipStarted
+    case shipGateStarted
+    case shipGatePassed
+    case shipGateFailed
+    case shipCompleted
+    case shipAborted
+
     // Generic
     case custom(String)
 }

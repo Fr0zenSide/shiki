@@ -145,6 +145,14 @@ public enum EventClassifier {
         case .contextCompaction:
             return .alert
 
+        // Ship
+        case .shipStarted, .shipCompleted:
+            return .milestone
+        case .shipGateStarted, .shipGatePassed:
+            return .progress
+        case .shipGateFailed, .shipAborted:
+            return .alert
+
         // Custom
         case .custom(let name):
             if name == "redFlag" { return .critical }
