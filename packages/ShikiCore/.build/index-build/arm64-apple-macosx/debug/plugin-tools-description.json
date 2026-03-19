@@ -1,0 +1,528 @@
+{
+  "builtTestProducts" : [
+
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.InMemoryLogging-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/InMemoryLogging.build/sources",
+      "importPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/InMemoryLogging/InMemoryLogHandler.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/swift-version-596C98914D6876CD.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Modules/Logging.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/InMemoryLogging.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "InMemoryLogging",
+      "moduleOutputPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Modules/InMemoryLogging.swiftmodule",
+      "objects" : [
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/InMemoryLogging.build/InMemoryLogHandler.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx10.13",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j12",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/InMemoryLogging.build/include/InMemoryLogging-Swift.h",
+        "-swift-version",
+        "6",
+        "-enable-upcoming-feature",
+        "ExistentialAny",
+        "-enable-upcoming-feature",
+        "MemberImportVisibility",
+        "-enable-upcoming-feature",
+        "InternalImportsByDefault",
+        "-enable-upcoming-feature",
+        "NonisolatedNonsendingByDefault",
+        "-Xfrontend",
+        "-require-explicit-sendable",
+        "-Xfrontend",
+        "-experimental-lazy-typecheck",
+        "-Xfrontend",
+        "-experimental-skip-all-function-bodies",
+        "-Xfrontend",
+        "-experimental-allow-module-with-compiler-errors",
+        "-Xfrontend",
+        "-empty-abi-descriptor",
+        "-plugin-path",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-suppress-warnings",
+        "-user-module-version",
+        "1.10.1",
+        "-package-name",
+        "swift_log"
+      ],
+      "outputFileMapPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/InMemoryLogging.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Modules/InMemoryLogging.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : true,
+      "sources" : [
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/InMemoryLogging/InMemoryLogHandler.swift"
+      ],
+      "tempsPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/InMemoryLogging.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.Logging-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Logging.build/sources",
+      "importPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/Locks.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/LogHandler.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/Logging.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/MetadataProvider.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/swift-version-596C98914D6876CD.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Logging.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "Logging",
+      "moduleOutputPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Modules/Logging.swiftmodule",
+      "objects" : [
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Logging.build/Locks.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Logging.build/LogHandler.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Logging.build/Logging.swift.o",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Logging.build/MetadataProvider.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx10.13",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j12",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Logging.build/include/Logging-Swift.h",
+        "-swift-version",
+        "6",
+        "-enable-upcoming-feature",
+        "ExistentialAny",
+        "-enable-upcoming-feature",
+        "MemberImportVisibility",
+        "-enable-upcoming-feature",
+        "InternalImportsByDefault",
+        "-enable-upcoming-feature",
+        "NonisolatedNonsendingByDefault",
+        "-Xfrontend",
+        "-require-explicit-sendable",
+        "-Xfrontend",
+        "-experimental-lazy-typecheck",
+        "-Xfrontend",
+        "-experimental-skip-all-function-bodies",
+        "-Xfrontend",
+        "-experimental-allow-module-with-compiler-errors",
+        "-Xfrontend",
+        "-empty-abi-descriptor",
+        "-plugin-path",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-suppress-warnings",
+        "-user-module-version",
+        "1.10.1",
+        "-package-name",
+        "swift_log"
+      ],
+      "outputFileMapPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Logging.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Modules/Logging.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : true,
+      "sources" : [
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/Locks.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/LogHandler.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/Logging.swift",
+        "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/MetadataProvider.swift"
+      ],
+      "tempsPath" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Logging.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "InMemoryLogging" : [
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "InMemoryLogging",
+      "-package-name",
+      "swift_log",
+      "-c",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/InMemoryLogging/InMemoryLogHandler.swift",
+      "-I",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx10.13",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j12",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/InMemoryLogging.build/include/InMemoryLogging-Swift.h",
+      "-swift-version",
+      "6",
+      "-enable-upcoming-feature",
+      "ExistentialAny",
+      "-enable-upcoming-feature",
+      "MemberImportVisibility",
+      "-enable-upcoming-feature",
+      "InternalImportsByDefault",
+      "-enable-upcoming-feature",
+      "NonisolatedNonsendingByDefault",
+      "-Xfrontend",
+      "-require-explicit-sendable",
+      "-Xfrontend",
+      "-experimental-lazy-typecheck",
+      "-Xfrontend",
+      "-experimental-skip-all-function-bodies",
+      "-Xfrontend",
+      "-experimental-allow-module-with-compiler-errors",
+      "-Xfrontend",
+      "-empty-abi-descriptor",
+      "-plugin-path",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-suppress-warnings",
+      "-user-module-version",
+      "1.10.1",
+      "-package-name",
+      "swift_log",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "Logging" : [
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "Logging",
+      "-package-name",
+      "swift_log",
+      "-c",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/Locks.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/LogHandler.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/Logging.swift",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/MetadataProvider.swift",
+      "-I",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx10.13",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j12",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Logging.build/include/Logging-Swift.h",
+      "-swift-version",
+      "6",
+      "-enable-upcoming-feature",
+      "ExistentialAny",
+      "-enable-upcoming-feature",
+      "MemberImportVisibility",
+      "-enable-upcoming-feature",
+      "InternalImportsByDefault",
+      "-enable-upcoming-feature",
+      "NonisolatedNonsendingByDefault",
+      "-Xfrontend",
+      "-require-explicit-sendable",
+      "-Xfrontend",
+      "-experimental-lazy-typecheck",
+      "-Xfrontend",
+      "-experimental-skip-all-function-bodies",
+      "-Xfrontend",
+      "-experimental-allow-module-with-compiler-errors",
+      "-Xfrontend",
+      "-empty-abi-descriptor",
+      "-plugin-path",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-suppress-warnings",
+      "-user-module-version",
+      "1.10.1",
+      "-package-name",
+      "swift_log",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "InMemoryLogging" : [
+      "Logging"
+    ],
+    "Logging" : [
+
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/InMemoryLogging.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/InMemoryLogging/InMemoryLogHandler.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/InMemoryLogging.build/sources"
+    },
+    "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Logging.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/Locks.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/LogHandler.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/Logging.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/Logging/MetadataProvider.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/Logging.build/sources"
+    },
+    "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/swift-version-596C98914D6876CD.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode-26.3.0-Release.Candidate.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/swift-version-596C98914D6876CD.txt"
+    }
+  }
+}
