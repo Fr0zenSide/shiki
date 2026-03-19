@@ -23,7 +23,18 @@ struct StatusCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Toggle between compact and expanded tmux format")
     var toggleExpand: Bool = false
 
+    @Option(name: .long, help: "Set arrow separator style: none, left, right, both (Dracula-style powerline arrows)")
+    var arrowStyle: String?
+
     func run() async throws {
+        // Handle arrow style change: persist and continue
+        if let arrowRaw = arrowStyle {
+            let stateManager = TmuxStateManager()
+            if let style = ArrowStyle(rawValue: arrowRaw) {
+                stateManager.setArrowStyle(style)
+            }
+        }
+
         // Handle toggle-expand: flip state and continue with mini output
         if toggleExpand {
             let stateManager = TmuxStateManager()
@@ -153,6 +164,7 @@ struct StatusCommand: AsyncParsableCommand {
     // MARK: - Mini Mode
 
     private func runMini() async throws {
+        let stateManager = TmuxStateManager()
         let registry = SessionRegistry(
             discoverer: TmuxDiscoverer(),
             journal: SessionJournal()
@@ -167,7 +179,7 @@ struct StatusCommand: AsyncParsableCommand {
         if !isHealthy {
             try? await client.shutdown()
             // No trailing newline for tmux
-            print(MiniStatusFormatter.formatUnreachable(), terminator: "")
+            print(MiniStatusFormatter.formatUnreachable(arrowStyle: stateManager.arrowStyle), terminator: "")
             return
         }
 
@@ -186,17 +198,19 @@ struct StatusCommand: AsyncParsableCommand {
             try? await client.shutdown()
         }
 
-        let stateManager = TmuxStateManager()
+        let arrows = stateManager.arrowStyle
         let output: String
         if stateManager.isExpanded {
             output = MiniStatusFormatter.formatExpanded(
                 sessions: sessions, pendingQuestions: pendingQuestions,
-                spentUsd: spentUsd, budgetUsd: budgetUsd
+                spentUsd: spentUsd, budgetUsd: budgetUsd,
+                arrowStyle: arrows
             )
         } else {
             output = MiniStatusFormatter.formatCompact(
                 sessions: sessions, pendingQuestions: pendingQuestions,
-                spentUsd: spentUsd, budgetUsd: budgetUsd
+                spentUsd: spentUsd, budgetUsd: budgetUsd,
+                arrowStyle: arrows
             )
         }
         // No trailing newline for tmux status bar

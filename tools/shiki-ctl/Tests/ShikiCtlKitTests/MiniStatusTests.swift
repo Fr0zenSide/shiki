@@ -121,6 +121,74 @@ struct MiniStatusTests {
         #expect(output.contains("Q:0"))
         #expect(output.contains("$0/$0"))
     }
+
+    // MARK: - Arrow Style Tests
+
+    @Test("Arrow style none produces no arrows")
+    func arrowStyleNone() {
+        let output = MiniStatusFormatter.wrapWithArrows("content", style: .none)
+        #expect(output == "content")
+    }
+
+    @Test("Arrow style left adds left powerline arrow")
+    func arrowStyleLeft() {
+        let output = MiniStatusFormatter.wrapWithArrows("content", style: .left)
+        #expect(output.hasPrefix("\u{E0B2}"))
+        #expect(output.contains("content"))
+        #expect(!output.hasSuffix("\u{E0B0}"))
+    }
+
+    @Test("Arrow style right adds right powerline arrow")
+    func arrowStyleRight() {
+        let output = MiniStatusFormatter.wrapWithArrows("content", style: .right)
+        #expect(output.hasSuffix("\u{E0B0}"))
+        #expect(output.contains("content"))
+        #expect(!output.hasPrefix("\u{E0B2}"))
+    }
+
+    @Test("Arrow style both adds both powerline arrows")
+    func arrowStyleBoth() {
+        let output = MiniStatusFormatter.wrapWithArrows("content", style: .both)
+        #expect(output.hasPrefix("\u{E0B2}"))
+        #expect(output.hasSuffix("\u{E0B0}"))
+        #expect(output.contains("content"))
+    }
+
+    @Test("Compact format with arrows wraps output")
+    func compactWithArrows() async {
+        let registry = await makeRegistry(sessions: [
+            ("maya:task1", .working),
+        ])
+        let sessions = await registry.allSessions
+        let output = MiniStatusFormatter.formatCompact(
+            sessions: sessions, pendingQuestions: 0, spentUsd: 0, budgetUsd: 0, arrowStyle: .both
+        )
+        #expect(output.hasPrefix("\u{E0B2}"))
+        #expect(output.hasSuffix("\u{E0B0}"))
+        #expect(output.contains("●1"))
+    }
+
+    @Test("Arrow style persists to disk")
+    func arrowStylePersists() throws {
+        let tmpDir = NSTemporaryDirectory() + "shiki-arrow-test-\(UUID().uuidString)"
+        try FileManager.default.createDirectory(atPath: tmpDir, withIntermediateDirectories: true)
+        let statePath = "\(tmpDir)/tmux-state.json"
+
+        let manager = TmuxStateManager(statePath: statePath)
+        #expect(manager.arrowStyle == .none)
+
+        manager.setArrowStyle(.both)
+        #expect(manager.arrowStyle == .both)
+
+        let reloaded = TmuxStateManager(statePath: statePath)
+        #expect(reloaded.arrowStyle == .both)
+
+        manager.setArrowStyle(.left)
+        let reloaded2 = TmuxStateManager(statePath: statePath)
+        #expect(reloaded2.arrowStyle == .left)
+
+        try? FileManager.default.removeItem(atPath: tmpDir)
+    }
 }
 
 // MARK: - Test Double
