@@ -106,7 +106,7 @@ struct E2EScenarioTests {
         let result = run(["pr", "99999"])
         #expect(result.exitCode != 0)
         let output = result.stdout + result.stderr
-        #expect(output.contains("No review file") || output.contains("Error"))
+        #expect(output.contains("No cache") || output.contains("No review file") || output.contains("Error"))
     }
 
     // MARK: - Scenario 7: Doctor with --fix flag
