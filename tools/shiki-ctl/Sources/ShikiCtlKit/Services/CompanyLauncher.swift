@@ -242,8 +242,9 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
         try process.run()
-        process.waitUntilExit()
+        // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
         return String(data: data, encoding: .utf8) ?? ""
     }
 }
