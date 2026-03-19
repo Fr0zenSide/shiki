@@ -26,9 +26,8 @@ public actor BudgetEnforcer {
 
     /// Check if company can spend amount.
     public func canSpend(company: String, amount: Double) -> Bool {
-        guard var budget = budgets[company] else { return true } // no limit set
         resetIfNewDay(company: company)
-        budget = budgets[company]!
+        guard let budget = budgets[company] else { return true } // no limit set
         return budget.spentToday + amount <= budget.dailyLimit
     }
 
@@ -36,6 +35,17 @@ public actor BudgetEnforcer {
     public func record(company: String, amount: Double) {
         resetIfNewDay(company: company)
         budgets[company]?.spentToday += amount
+    }
+
+    /// Atomically check and record spend. Returns true if budget allows.
+    public func trySpend(company: String, amount: Double) -> Bool {
+        resetIfNewDay(company: company)
+        guard let budget = budgets[company] else { return true }
+        if budget.spentToday + amount <= budget.dailyLimit {
+            budgets[company]?.spentToday += amount
+            return true
+        }
+        return false
     }
 
     /// Get remaining budget.

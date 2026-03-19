@@ -32,11 +32,22 @@ struct LifecycleStateTests {
         }
     }
 
-    @Test("Blocked transition: any state -> blocked succeeds")
-    func anyToBlockedSucceeds() throws {
+    @Test("Blocked transition: active states -> blocked succeeds")
+    func activeToBlockedSucceeds() throws {
         let validator = TransitionValidator()
-        for state in LifecycleState.allCases where state != .blocked {
+        for state in LifecycleState.allCases where state != .blocked && state != .done && state != .failed {
             #expect(validator.isValid(from: state, to: .blocked))
+        }
+    }
+
+    @Test("Terminal states reject -> blocked")
+    func terminalStatesRejectBlocked() throws {
+        let validator = TransitionValidator()
+        #expect(throws: TransitionError.self) {
+            try validator.validate(from: .done, to: .blocked)
+        }
+        #expect(throws: TransitionError.self) {
+            try validator.validate(from: .failed, to: .blocked)
         }
     }
 
