@@ -66,8 +66,9 @@ struct RestartCommand: AsyncParsableCommand {
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
         try? process.run()
-        process.waitUntilExit()
+        // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
         let output = String(data: data, encoding: .utf8) ?? ""
         guard let orchLine = output.split(separator: "\n").first(where: { $0.contains("orchestrator") }) else {
             return nil
@@ -83,8 +84,9 @@ struct RestartCommand: AsyncParsableCommand {
         paneProcess.standardOutput = panePipe
         paneProcess.standardError = FileHandle.nullDevice
         try? paneProcess.run()
-        paneProcess.waitUntilExit()
+        // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
         let paneData = panePipe.fileHandleForReading.readDataToEndOfFile()
+        paneProcess.waitUntilExit()
         let paneOutput = String(data: paneData, encoding: .utf8) ?? ""
         return paneOutput.split(separator: "\n").first.map(String.init)
     }

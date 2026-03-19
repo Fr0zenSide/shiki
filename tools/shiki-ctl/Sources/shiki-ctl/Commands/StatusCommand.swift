@@ -229,9 +229,10 @@ struct StatusCommand: AsyncParsableCommand {
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
         try? process.run()
+        // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         guard process.terminationStatus == 0 else { return [] }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
         let output = String(data: data, encoding: .utf8) ?? ""
 
         // Filter: sessions that have an orchestrator window (shiki-created sessions)
@@ -244,9 +245,11 @@ struct StatusCommand: AsyncParsableCommand {
             check.standardOutput = checkPipe
             check.standardError = FileHandle.nullDevice
             try? check.run()
+            // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
+            let windowsData = checkPipe.fileHandleForReading.readDataToEndOfFile()
             check.waitUntilExit()
             guard check.terminationStatus == 0 else { return nil }
-            let windows = String(data: checkPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            let windows = String(data: windowsData, encoding: .utf8) ?? ""
             // A shiki session has an "orchestrator" window
             return windows.contains("orchestrator") ? name : nil
         }

@@ -161,12 +161,13 @@ public actor BackendClient {
             try process.run()
         }
 
+        // Read pipes BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
+        let data = stdout.fileHandleForReading.readDataToEndOfFile()
+        let errData = stderr.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
 
-        let data = stdout.fileHandleForReading.readDataToEndOfFile()
-
         guard process.terminationStatus == 0 else {
-            let errString = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            let errString = String(data: errData, encoding: .utf8) ?? ""
             logger.error("curl \(method) \(path) failed (exit \(process.terminationStatus)): \(errString)")
             throw BackendError.httpError(statusCode: Int(process.terminationStatus), body: errString)
         }

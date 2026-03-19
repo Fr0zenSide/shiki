@@ -85,11 +85,12 @@ public struct EnvironmentDetector: EnvironmentChecking, Sendable {
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
         try process.run()
+        // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         guard process.terminationStatus == 0 else {
             throw EnvironmentDetectorError.processExitedWithCode(process.terminationStatus)
         }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
         return String(data: data, encoding: .utf8) ?? ""
     }
 }

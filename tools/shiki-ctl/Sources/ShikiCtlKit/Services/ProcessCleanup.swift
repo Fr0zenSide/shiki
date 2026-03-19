@@ -159,9 +159,10 @@ public struct ProcessCleanup: Sendable {
         process.standardError = FileHandle.nullDevice
         do {
             try process.run()
+            // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
             guard process.terminationStatus == 0 else { return nil }
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
             return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
             return nil

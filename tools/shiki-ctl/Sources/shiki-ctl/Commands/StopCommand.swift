@@ -90,8 +90,9 @@ struct StopCommand: AsyncParsableCommand {
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
         try? process.run()
-        process.waitUntilExit()
+        // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
         let output = String(data: data, encoding: .utf8) ?? ""
         let reserved = ProcessCleanup.reservedWindows
         return output.split(separator: "\n")
