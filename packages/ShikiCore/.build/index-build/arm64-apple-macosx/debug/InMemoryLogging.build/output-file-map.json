@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/InMemoryLogging.build/master.swiftdeps"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/checkouts/swift-log/Sources/InMemoryLogging/InMemoryLogHandler.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/InMemoryLogging.build/InMemoryLogHandler.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/InMemoryLogging.build/InMemoryLogHandler.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/InMemoryLogging.build/InMemoryLogHandler~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/InMemoryLogging.build/InMemoryLogHandler.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/index-build/arm64-apple-macosx/debug/InMemoryLogging.build/InMemoryLogHandler.dia"
+  }
+}

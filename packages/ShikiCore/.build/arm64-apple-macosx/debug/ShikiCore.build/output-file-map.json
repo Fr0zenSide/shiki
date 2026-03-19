@@ -1,0 +1,54 @@
+{
+  "": {
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/master.swiftdeps"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/Sources/ShikiCore/Agent/AgentProvider.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/AgentProvider.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/AgentProvider.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/AgentProvider~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/AgentProvider.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/AgentProvider.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/Sources/ShikiCore/Agent/ClaudeProvider.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/ClaudeProvider.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/ClaudeProvider.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/ClaudeProvider~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/ClaudeProvider.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/ClaudeProvider.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/Sources/ShikiCore/Events/CoreEvent.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/CoreEvent.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/CoreEvent.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/CoreEvent~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/CoreEvent.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/CoreEvent.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/Sources/ShikiCore/Events/EventPersister.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/EventPersister.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/EventPersister.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/EventPersister~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/EventPersister.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/EventPersister.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/Sources/ShikiCore/Lifecycle/LifecycleCheckpoint.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/LifecycleCheckpoint.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/LifecycleCheckpoint.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/LifecycleCheckpoint~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/LifecycleCheckpoint.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/LifecycleCheckpoint.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/Sources/ShikiCore/Lifecycle/LifecycleEvent.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/LifecycleEvent.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/LifecycleEvent.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/LifecycleEvent~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/LifecycleEvent.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/LifecycleEvent.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/Sources/ShikiCore/Lifecycle/LifecycleState.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/LifecycleState.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/LifecycleState.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/LifecycleState~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/LifecycleState.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a658e67d/packages/ShikiCore/.build/arm64-apple-macosx/debug/ShikiCore.build/LifecycleState.dia"
+  }
+}
