@@ -100,17 +100,29 @@ struct SessionPauseCommand: AsyncParsableCommand {
     }
 
     private func saveToDB(checkpoint: PausedSession) {
+        // Build JSON safely via JSONSerialization (no string interpolation injection)
+        let data: [String: Any] = [
+            "type": "agent_event",
+            "scope": "shiki",
+            "data": [
+                "eventType": "session_paused",
+                "sessionId": checkpoint.sessionId,
+                "summary": checkpoint.summary ?? "",
+                "branch": checkpoint.branch,
+                "nextAction": checkpoint.nextAction ?? "",
+            ] as [String: Any],
+        ]
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: data),
+              let jsonString = String(data: jsonData, encoding: .utf8) else { return }
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        let payload = """
-        {"type":"agent_event","scope":"shiki","data":{"eventType":"session_paused","sessionId":"\(checkpoint.sessionId)","summary":"\(checkpoint.summary ?? "")","branch":"\(checkpoint.branch)","nextAction":"\(checkpoint.nextAction ?? "")"}}
-        """
         process.arguments = [
             "curl", "-s", "--max-time", "5",
             "-X", "POST",
             "-H", "Content-Type: application/json",
-            "-d", payload,
-            "http://localhost:3900/api/data-sync"
+            "-d", jsonString,
+            "http://localhost:3900/api/data-sync",
         ]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
