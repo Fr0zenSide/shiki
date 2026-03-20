@@ -1,0 +1,173 @@
+name: Deploy OBYW Web Platform
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'projects/obyw-one/**'
+      - 'projects/obyw-one/deploy/**'
+      - 'projects/obyw-one/pb_migrations/**'
+
+  workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: 'What to deploy'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - landing
+          - caddy
+          - pocketbase
+
+env:
+  SERVER_USER: deploy
+  DEPLOY_PATH: /opt/obyw
+  POCKETBASE_URL: https://api.obyw.one
+  MAYA_URL: https://maya.fit
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      landing: ${{ steps.changes.outputs.landing }}
+      caddy: ${{ steps.changes.outputs.caddy }}
+      pocketbase: ${{ steps.changes.outputs.pocketbase }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            landing:
+              - 'projects/obyw-one/index.html'
+              - 'projects/obyw-one/css/**'
+              - 'projects/obyw-one/js/**'
+              - 'projects/obyw-one/assets/**'
+            caddy:
+              - 'projects/obyw-one/deploy/Caddyfile'
+            pocketbase:
+              - 'projects/obyw-one/pb_migrations/**'
+              - 'projects/obyw-one/deploy/docker-compose.web.yml'
+
+  deploy-landing:
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.landing == 'true' ||
+      github.event.inputs.deploy_target == 'all' ||
+      github.event.inputs.deploy_target == 'landing'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy landing pages via rsync
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avz --delete --exclude='.git'
+          path: projects/obyw-one/index.html projects/obyw-one/css/ projects/obyw-one/js/ projects/obyw-one/assets/
+          remote_path: ${{ env.DEPLOY_PATH }}/www/maya.fit/
+          remote_host: ${{ secrets.SERVER_IP }}
+          remote_user: ${{ env.SERVER_USER }}
+          remote_key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Health check - maya.fit
+        run: |
+          sleep 5
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.MAYA_URL }}")
+          if [ "$STATUS" != "200" ]; then
+            echo "Health check failed: maya.fit returned $STATUS"
+            exit 1
+          fi
+          echo "maya.fit is live (HTTP $STATUS)"
+
+  deploy-caddy:
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.caddy == 'true' ||
+      github.event.inputs.deploy_target == 'all' ||
+      github.event.inputs.deploy_target == 'caddy'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Caddyfile syntax
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/projects/obyw-one/deploy/Caddyfile:/etc/caddy/Caddyfile:ro \
+            caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
+
+      - name: Deploy Caddyfile
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ env.SERVER_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: projects/obyw-one/deploy/Caddyfile
+          target: ${{ env.DEPLOY_PATH }}/caddy/
+          strip_components: 3
+
+      - name: Reload Caddy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ env.SERVER_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/obyw
+            docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
+
+      - name: Health check - endpoints
+        run: |
+          sleep 5
+          for url in "${{ env.MAYA_URL }}" "${{ env.POCKETBASE_URL }}/api/health"; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+            echo "$url -> HTTP $STATUS"
+            if [ "$STATUS" -ge 400 ]; then
+              echo "Health check failed for $url"
+              exit 1
+            fi
+          done
+
+  deploy-pocketbase:
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.pocketbase == 'true' ||
+      github.event.inputs.deploy_target == 'all' ||
+      github.event.inputs.deploy_target == 'pocketbase'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy migrations and compose file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ env.SERVER_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: projects/obyw-one/pb_migrations/,projects/obyw-one/deploy/docker-compose.web.yml
+          target: ${{ env.DEPLOY_PATH }}/
+          strip_components: 2
+
+      - name: Apply migrations
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ env.SERVER_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/obyw
+            cp deploy/docker-compose.web.yml docker-compose.yml
+            docker compose up -d pocketbase
+            sleep 5
+            docker compose exec pocketbase /pb/pocketbase migrate up
+
+      - name: Health check - PocketBase API
+        run: |
+          sleep 5
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.POCKETBASE_URL }}/api/health")
+          if [ "$STATUS" != "200" ]; then
+            echo "PocketBase health check failed: HTTP $STATUS"
+            exit 1
+          fi
+          echo "PocketBase API is healthy (HTTP $STATUS)"
