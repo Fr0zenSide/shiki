@@ -1,0 +1,859 @@
+[
+  {
+    "path" : "scripts\/install-completions.sh",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Events\/PRReviewEvents.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Events\/ShikiEvent.swift",
+    "reasons" : [
+      "Large change: +130\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/AgentMessages.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/BackendClient.swift",
+    "reasons" : [
+      "Large change: +154\/-51",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/ChatTargetResolver.swift",
+    "reasons" : [
+      "Large change: +114\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/DashboardSnapshot.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/DependencyTree.swift",
+    "reasons" : [
+      "Large change: +134\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/HandoffChain.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/HeartbeatLoop.swift",
+    "reasons" : [
+      "Large change: +154\/-29",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/MenuRenderer.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/MiniStatusFormatter.swift",
+    "reasons" : [
+      "Large change: +112\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/ObservatoryEngine.swift",
+    "reasons" : [
+      "Large change: +227\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRConfig.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRFixAgent.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRReviewState.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/RecoveryManager.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/ShikiDoctor.swift",
+    "reasons" : [
+      "Large change: +135\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/TmuxStateManager.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/FuzzyMatcher.swift",
+    "reasons" : [
+      "Large change: +222\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/PaletteEngine.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/PaletteSource.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/PaletteSources.swift",
+    "reasons" : [
+      "Large change: +206\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/SelectionMenu.swift",
+    "reasons" : [
+      "Large change: +114\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/TerminalInput.swift",
+    "reasons" : [
+      "Large change: +103\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/AttachCommand.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/DashboardCommand.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/DoctorCommand.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/MenuCommand.swift",
+    "reasons" : [
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/PRCommand.swift",
+    "reasons" : [
+      "Large change: +269\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/RestartCommand.swift",
+    "reasons" : [
+      "Large change: +115\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/SearchCommand.swift",
+    "reasons" : [
+      "Large change: +201\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/StartupCommand.swift",
+    "reasons" : [
+      "Large change: +502\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/StatusCommand.swift",
+    "reasons" : [
+      "Large change: +162\/-1",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/StopCommand.swift",
+    "reasons" : [
+      "Large change: +125\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Formatters\/PRReviewRenderer.swift",
+    "reasons" : [
+      "Large change: +227\/-0",
+      "New file without matching test",
+      "No matching test file"
+    ],
+    "risk" : "high"
+  },
+  {
+    "path" : "scripts\/shiki",
+    "reasons" : [
+      "No matching test file"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Events\/EventBus.swift",
+    "reasons" : [
+
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Events\/EventRouter.swift",
+    "reasons" : [
+      "Large change: +374\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/AgentPersona.swift",
+    "reasons" : [
+      "Large change: +166\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/EnvironmentDetector.swift",
+    "reasons" : [
+      "Large change: +122\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/ExternalTools.swift",
+    "reasons" : [
+
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/NotificationService.swift",
+    "reasons" : [
+      "No matching test file"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRCacheBuilder.swift",
+    "reasons" : [
+      "Large change: +230\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRQueue.swift",
+    "reasons" : [
+
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRReviewEngine.swift",
+    "reasons" : [
+      "Large change: +187\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRReviewParser.swift",
+    "reasons" : [
+      "Large change: +248\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRRiskEngine.swift",
+    "reasons" : [
+      "Large change: +135\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/ProcessCleanup.swift",
+    "reasons" : [
+      "Large change: +182\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/S3Parser.swift",
+    "reasons" : [
+      "Large change: +340\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/SessionJournal.swift",
+    "reasons" : [
+      "Large change: +143\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/SessionLifecycle.swift",
+    "reasons" : [
+      "Large change: +168\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/SessionRegistry.swift",
+    "reasons" : [
+      "Large change: +243\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/SessionStats.swift",
+    "reasons" : [
+      "Large change: +221\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/StartupRenderer.swift",
+    "reasons" : [
+      "Large change: +225\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/Watchdog.swift",
+    "reasons" : [
+      "Large change: +108\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/KeyMode.swift",
+    "reasons" : [
+      "Large change: +112\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/PaletteRenderer.swift",
+    "reasons" : [
+      "Large change: +164\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/TerminalOutput.swift",
+    "reasons" : [
+      "Large change: +103\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/TerminalSnapshot.swift",
+    "reasons" : [
+      "Large change: +110\/-0"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/DecideCommand.swift",
+    "reasons" : [
+      "No matching test file"
+    ],
+    "risk" : "medium"
+  },
+  {
+    "path" : "src\/backend\/src\/orchestrator.ts",
+    "reasons" : [
+      "Small change with test coverage"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "src\/backend\/src\/routes.ts",
+    "reasons" : [
+      "Small change with test coverage"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Events\/ShikiDBEventLogger.swift",
+    "reasons" : [
+      "Small change with test coverage"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/CompanyLauncher.swift",
+    "reasons" : [
+      "Small change with test coverage"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/S3TestGenerator.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/SpecDocument.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/HeartbeatCommand.swift",
+    "reasons" : [
+      "Small change with test coverage"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Formatters\/StatusRenderer.swift",
+    "reasons" : [
+      "Small change with test coverage"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/ShikiCtl.swift",
+    "reasons" : [
+      "Small change with test coverage"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/AgentCoordinationTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/AgentPersonaTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/AutopilotV2Tests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/BackendClientConnectionTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/ChatEditorTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/DoctorTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/EnvironmentDetectorTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/EventBusTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/EventRouterTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/ExternalToolsTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/KeyModeTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/MiniStatusTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/ObservatoryTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/PRCacheBuilderTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/PRQueueTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/PRReviewEngineTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/PRReviewParserTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/PRRiskEngineTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/PaletteRendererTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/ProcessCleanupTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/S3ParserTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/SessionIntegrationTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/SessionJournalTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/SessionLifecycleTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/SessionRegistryTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/SessionStatsTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/ShikiDBEventLoggerTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/SpecDocumentTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/StartupRendererTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/TerminalOutputTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/TerminalSnapshotTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/UserFlowTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/WatchdogTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/__Snapshots__\/RendererSnapshots\/attention-zones.snapshot",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/__Snapshots__\/RendererSnapshots\/dashboard-sessions.snapshot",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/__Snapshots__\/RendererSnapshots\/doctor-diagnostics.snapshot",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlTests\/CommandParsingTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlTests\/E2EScenarioTests.swift",
+    "reasons" : [
+      "Test file"
+    ],
+    "risk" : "low"
+  },
+  {
+    "path" : "README.md",
+    "reasons" : [
+      "Documentation file"
+    ],
+    "risk" : "skip"
+  },
+  {
+    "path" : "docs\/session-2026-03-16-vision-and-architecture.md",
+    "reasons" : [
+      "Documentation file"
+    ],
+    "risk" : "skip"
+  },
+  {
+    "path" : "features\/shiki-db-backup-strategy.md",
+    "reasons" : [
+      "Documentation file"
+    ],
+    "risk" : "skip"
+  },
+  {
+    "path" : "features\/shiki-enterprise-safety.md",
+    "reasons" : [
+      "Documentation file"
+    ],
+    "risk" : "skip"
+  },
+  {
+    "path" : "features\/shiki-os-vision.md",
+    "reasons" : [
+      "Documentation file"
+    ],
+    "risk" : "skip"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Package.resolved",
+    "reasons" : [
+      "Configuration file"
+    ],
+    "risk" : "skip"
+  },
+  {
+    "path" : "tools\/shiki-ctl\/Package.swift",
+    "reasons" : [
+      "Configuration file"
+    ],
+    "risk" : "skip"
+  }
+]
