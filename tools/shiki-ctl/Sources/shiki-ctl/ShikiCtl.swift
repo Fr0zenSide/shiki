@@ -25,6 +25,7 @@ struct ShikiCtl: AsyncParsableCommand {
             MenuCommand.self,
             SearchCommand.self,
             ShipCommand.self,
+            SessionCommand.self,
         ]
     )
 }
