@@ -23,7 +23,7 @@ All operations go through the ShikiMCP tools (native `shiki_*` MCP tools).
 
 ### `list`
 
-Use the `shiki_search` MCP tool with: `{ query: "company", types: ["company_created", "company_status_updated"] }` to fetch all companies.
+Use the `shiki_list_companies` MCP tool to fetch all companies.
 
 Display as a table:
 
