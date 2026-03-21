@@ -593,7 +593,7 @@ struct ReadSubcommand: AsyncParsableCommand {
 struct CommentSubcommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "comment",
-        abstract: "Attach a comment to a file"
+        abstract: "Attach a comment to a file (optionally targeting a line or range)"
     )
 
     @Argument(help: "PR number")
@@ -604,6 +604,12 @@ struct CommentSubcommand: AsyncParsableCommand {
 
     @Argument(help: "Comment text")
     var message: String
+
+    @Option(name: .shortAndLong, help: "Target line number (e.g. -l 42)")
+    var line: Int?
+
+    @Option(name: .long, help: "End line for range comment (e.g. --line 42 --end-line 50)")
+    var endLine: Int?
 
     func run() async throws {
         let stateManager = PRReviewStateManager(prNumber: number)
@@ -628,14 +634,23 @@ struct CommentSubcommand: AsyncParsableCommand {
         // Fetch current HEAD
         let currentHead = fetchCurrentHead(number: number)
         let now = Date()
-        state.addComment(to: resolvedPath, message: message, at: now, commit: currentHead)
+        state.addComment(to: resolvedPath, message: message, line: line, endLine: endLine, at: now, commit: currentHead)
         try stateManager.save(state)
 
         let basename = (resolvedPath as NSString).lastPathComponent
-        print("\(ANSI.cyan)[✎]\(ANSI.reset) \(basename): \"\(message)\"")
+        let lineInfo: String
+        if let l = line, let e = endLine {
+            lineInfo = " L\(l)-\(e)"
+        } else if let l = line {
+            lineInfo = " L\(l)"
+        } else {
+            lineInfo = ""
+        }
+        print("\(ANSI.cyan)[✎]\(ANSI.reset) \(basename)\(lineInfo): \"\(message)\"")
 
-        // Best-effort GitHub sync (queued, non-blocking)
-        ghPostComment(prNumber: number, path: resolvedPath, body: message)
+        // Best-effort GitHub sync with line info
+        let ghBody = line != nil ? "L\(line!)\(endLine != nil ? "-\(endLine!)" : ""): \(message)" : message
+        ghPostComment(prNumber: number, path: resolvedPath, body: ghBody, line: line)
     }
 
     private func fetchCurrentHead(number: Int) -> String {
@@ -658,17 +673,46 @@ struct CommentSubcommand: AsyncParsableCommand {
     }
 
     /// Best-effort post comment to GitHub. Failure is silent — local is source of truth.
-    private func ghPostComment(prNumber: Int, path: String, body: String) {
+    private func ghPostComment(prNumber: Int, path: String, body: String, line: Int? = nil) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = [
-            "gh", "pr", "comment", "\(prNumber)",
-            "--body", "**\(path)**\n\n\(body)",
-        ]
+
+        if let line {
+            // Inline review comment on specific line
+            let commitOid = fetchCurrentHead(number: prNumber)
+            let owner = getRepoOwner()
+            process.arguments = [
+                "gh", "api", "repos/\(owner)/pulls/\(prNumber)/comments",
+                "-f", "body=\(body)",
+                "-f", "path=\(path)",
+                "-F", "line=\(line)",
+                "-f", "side=RIGHT",
+                "-f", "commit_id=\(commitOid)",
+            ]
+        } else {
+            // General PR comment
+            process.arguments = [
+                "gh", "pr", "comment", "\(prNumber)",
+                "--body", "**\(path)**\n\n\(body)",
+            ]
+        }
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try? process.run()
-        // Don't wait — fire and forget
+        // Don't wait — fire and forget (local is source of truth)
+    }
+
+    private func getRepoOwner() -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["gh", "repo", "view", "--json", "owner,name", "-q", ".owner.login + \"/\" + .name"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "unknown/unknown"
     }
 }
 

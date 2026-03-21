@@ -23,15 +23,44 @@ public struct PRReviewProgress: Codable, Sendable {
         public let path: String
         public var status: ReviewStatus
         public var reviewedAt: Date?
-        public var comment: String?
+        public var comment: String?          // legacy single comment (backward compat)
+        public var comments: [ReviewComment] // line-targeted comments
         public var reviewedAtCommit: String?
 
-        public init(path: String, status: ReviewStatus = .pending, reviewedAt: Date? = nil, comment: String? = nil, reviewedAtCommit: String? = nil) {
+        public init(path: String, status: ReviewStatus = .pending, reviewedAt: Date? = nil, comment: String? = nil, comments: [ReviewComment] = [], reviewedAtCommit: String? = nil) {
             self.path = path
             self.status = status
             self.reviewedAt = reviewedAt
             self.comment = comment
+            self.comments = comments
             self.reviewedAtCommit = reviewedAtCommit
+        }
+    }
+
+    /// A comment targeting a specific line or range in a file.
+    public struct ReviewComment: Codable, Sendable {
+        public let message: String
+        public let line: Int?           // single line (e.g. L42)
+        public let endLine: Int?        // end of range (e.g. L42-L50 → line=42, endLine=50)
+        public let createdAt: Date
+        public let commit: String?
+
+        public init(message: String, line: Int? = nil, endLine: Int? = nil, createdAt: Date = Date(), commit: String? = nil) {
+            self.message = message
+            self.line = line
+            self.endLine = endLine
+            self.createdAt = createdAt
+            self.commit = commit
+        }
+
+        /// Display format: "L42: message" or "L42-50: message" or "message"
+        public var displayText: String {
+            if let line, let endLine {
+                return "L\(line)-\(endLine): \(message)"
+            } else if let line {
+                return "L\(line): \(message)"
+            }
+            return message
         }
     }
 
@@ -83,17 +112,21 @@ public struct PRReviewProgress: Codable, Sendable {
             reviewedFiles[i].status = .pending
             reviewedFiles[i].reviewedAt = nil
             reviewedFiles[i].comment = nil
+            reviewedFiles[i].comments = []
             reviewedFiles[i].reviewedAtCommit = nil
         }
         lastReviewedAt = nil
         lastReviewedCommit = ""
     }
 
-    /// Attach a comment to a file (marks as commented).
-    public mutating func addComment(to path: String, message: String, at date: Date = Date(), commit: String) {
+    /// Attach a comment to a file, optionally targeting a line or range.
+    public mutating func addComment(to path: String, message: String, line: Int? = nil, endLine: Int? = nil, at date: Date = Date(), commit: String) {
         guard let index = reviewedFiles.firstIndex(where: { $0.path == path }) else { return }
         reviewedFiles[index].status = .commented
-        reviewedFiles[index].comment = message
+        reviewedFiles[index].comment = message // legacy compat
+        reviewedFiles[index].comments.append(
+            ReviewComment(message: message, line: line, endLine: endLine, createdAt: date, commit: commit)
+        )
         reviewedFiles[index].reviewedAt = date
         reviewedFiles[index].reviewedAtCommit = commit
         lastReviewedAt = date
