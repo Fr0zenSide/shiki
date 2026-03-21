@@ -111,9 +111,50 @@ struct PRCommand: AsyncParsableCommand {
         let totalIns = files.reduce(0) { $0 + ($1["insertions"] as? Int ?? 0) }
         let totalDel = files.reduce(0) { $0 + ($1["deletions"] as? Int ?? 0) }
 
-        // Header
-        print("\(ANSI.bold)PR #\(number)\(ANSI.reset) — \(files.count) files, \(ANSI.green)+\(totalIns)\(ANSI.reset)/\(ANSI.red)-\(totalDel)\(ANSI.reset)")
+        // Fetch PR metadata from gh
+        let prInfo = fetchPRInfo()
+
+        // Header with PR context
+        print()
+        if let title = prInfo["title"] {
+            print("\(ANSI.bold)PR #\(number): \(title)\(ANSI.reset)")
+        } else {
+            print("\(ANSI.bold)PR #\(number)\(ANSI.reset)")
+        }
+
+        if let branch = prInfo["branch"], let baseBranch = prInfo["base"] {
+            print("\(ANSI.dim)\(branch) → \(baseBranch)\(ANSI.reset) │ \(files.count) files │ \(ANSI.green)+\(totalIns)\(ANSI.reset)/\(ANSI.red)-\(totalDel)\(ANSI.reset)")
+        } else {
+            print("\(files.count) files │ \(ANSI.green)+\(totalIns)\(ANSI.reset)/\(ANSI.red)-\(totalDel)\(ANSI.reset)")
+        }
+
+        if let author = prInfo["author"], let age = prInfo["age"] {
+            print("\(ANSI.dim)Author: @\(author) │ \(age)\(ANSI.reset)")
+        }
+
         print(String(repeating: "─", count: 56))
+
+        // PR description summary (first 3 lines)
+        if let body = prInfo["body"], !body.isEmpty {
+            let summaryLines = body.components(separatedBy: "\n")
+                .filter { !$0.isEmpty && !$0.hasPrefix("#") && !$0.hasPrefix("🤖") }
+                .prefix(3)
+            if !summaryLines.isEmpty {
+                print()
+                for line in summaryLines {
+                    let trimmed = line.count > 80 ? String(line.prefix(77)) + "..." : line
+                    print("  \(ANSI.dim)\(trimmed)\(ANSI.reset)")
+                }
+            }
+        }
+
+        // Layer summary (counts per layer)
+        print()
+        let layerCounts = Dictionary(grouping: files) { layerPriority(path: $0["path"] as? String ?? "") }
+            .sorted { $0.key < $1.key }
+        let layerSummary = layerCounts.map { "\(layerName($0.key, short: true)):\($0.value.count)" }
+        print("  \(ANSI.dim)\(layerSummary.joined(separator: " │ "))\(ANSI.reset)")
+        print()
 
         // Sort by architecture layer priority
         let sorted = files.sorted { a, b in
@@ -146,8 +187,57 @@ struct PRCommand: AsyncParsableCommand {
         }
 
         print()
-        print("\(ANSI.dim)Pipe: shiki pr \(number) --json | jq '.'")
-        print("Diff: shiki pr \(number) --json | delta\(ANSI.reset)")
+        print("\(ANSI.dim)──────────────────────────────────────────────────────────\(ANSI.reset)")
+        print("\(ANSI.dim)  shiki pr \(number) --diff | delta   syntax-highlighted diff")
+        print("  shiki pr \(number) --json | jq     raw JSON for piping")
+        print("  /review \(number)                  interactive review\(ANSI.reset)")
+        print()
+    }
+
+    // MARK: - Fetch PR Metadata
+
+    private func fetchPRInfo() -> [String: String] {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = [
+            "gh", "pr", "view", "\(number)",
+            "--json", "title,headRefName,baseRefName,author,createdAt,body",
+            "--jq", "[.title, .headRefName, .baseRefName, .author.login, .createdAt, .body] | @tsv",
+        ]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0,
+              let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !output.isEmpty else {
+            return [:]
+        }
+
+        let parts = output.components(separatedBy: "\t")
+        guard parts.count >= 5 else { return [:] }
+
+        // Calculate age
+        let formatter = ISO8601DateFormatter()
+        var age = ""
+        if let date = formatter.date(from: parts[4]) {
+            let interval = Date().timeIntervalSince(date)
+            if interval < 3600 { age = "\(Int(interval / 60))m ago" }
+            else if interval < 86400 { age = "\(Int(interval / 3600))h ago" }
+            else { age = "\(Int(interval / 86400))d ago" }
+        }
+
+        return [
+            "title": parts[0],
+            "branch": parts[1],
+            "base": parts[2],
+            "author": parts[3],
+            "age": age,
+            "body": parts.count > 5 ? parts[5] : "",
+        ]
     }
 
     // MARK: - Architecture Layer Sorting
@@ -176,7 +266,21 @@ struct PRCommand: AsyncParsableCommand {
         return 5
     }
 
-    private func layerName(_ priority: Int) -> String {
+    private func layerName(_ priority: Int, short: Bool = false) -> String {
+        if short {
+            switch priority {
+            case 0: return "proto"
+            case 1: return "types"
+            case 2: return "model"
+            case 3: return "impl"
+            case 4: return "gates"
+            case 5: return "cmd"
+            case 6: return "fmt"
+            case 7: return "docs"
+            case 8: return "test"
+            default: return "other"
+            }
+        }
         switch priority {
         case 0: return "── Protocols & Interfaces ──"
         case 1: return "── Errors & State Enums ──"
