@@ -11,6 +11,7 @@ No code ships without passing this pipeline.
 | `--skip-qc` | Standard sans QC | Gates 1a-4 + 8-9 (no visual QC) |
 | `--adversarial` | + Adversarial | Adds optional Gate 1c after 1b (any mode) |
 | `--yolo` | YOLO | Auto-proceed through passing gates (any mode) |
+| `--autofix` | Autofix | Auto-fix gate failures and re-run (any mode) |
 
 ### YOLO Mode (`--yolo`)
 
@@ -28,6 +29,40 @@ Add `--yolo` to `/pre-pr` to auto-proceed through passing gates.
 - Any FAIL result (failures always stop for fixing)
 
 YOLO saves ~2 minutes of confirmation prompts on a clean run.
+
+### Autofix Mode (`--autofix`)
+
+When `/pre-pr --autofix` is used:
+
+1. Run gates 1a through 8 as normal
+2. On any gate FAILURE:
+   a. Analyze the failure output
+   b. If fixable (code quality issues, missing tests, slop markers):
+      - Create branch `fix/pre-pr-autofix` from current HEAD
+      - Apply fixes (edit files, add tests, remove slop)
+      - Commit: "fix(pre-pr): auto-fix gate N issues"
+      - Re-run the failed gate
+   c. If not fixable (architecture issue, spec mismatch):
+      - Report to user, do not attempt fix
+   d. After 3 failed fix attempts on same gate: escalate per Three-Failure rule
+3. After all gates pass:
+   - Push the autofix branch
+   - Update PR with new commits
+   - Report: "N issues auto-fixed, all gates green"
+
+Fixable categories:
+- Missing imports -> add import
+- Unused variables -> remove or prefix with _
+- Force unwraps -> convert to guard/optional
+- Missing test coverage -> generate test stubs
+- AI slop markers -> remove and rephrase
+- Formatting issues -> apply formatter
+
+Non-fixable categories:
+- Architecture violations (wrong abstraction boundary)
+- Missing BRs (spec compliance -- needs design decision)
+- Concurrency bugs (need human judgment)
+- Security issues (need security review)
 
 ## Gate Flow
 
