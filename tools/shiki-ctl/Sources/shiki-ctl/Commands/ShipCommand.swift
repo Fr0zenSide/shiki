@@ -26,6 +26,9 @@ struct ShipCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Show ship history from log")
     var history: Bool = false
 
+    @Option(name: .long, help: "Epic branch name — scopes changelog to epic range instead of last tag")
+    var epic: String?
+
     func run() async throws {
         // Handle --history mode
         if history {
@@ -57,18 +60,19 @@ struct ShipCommand: AsyncParsableCommand {
         let branch = String(data: branchData, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? "unknown"
 
-        // Build context
+        // Build context — when --epic is set, target the epic branch for PR creation
+        let resolvedTarget = epic ?? target
         let context: ShipContext
         if dryRun {
             context = DryRunShipContext(
                 branch: branch,
-                target: target,
+                target: resolvedTarget,
                 projectRoot: projectRoot
             )
         } else {
             context = RealShipContext(
                 branch: branch,
-                target: target,
+                target: resolvedTarget,
                 projectRoot: projectRoot
             )
         }
@@ -79,7 +83,7 @@ struct ShipCommand: AsyncParsableCommand {
             TestGate(),
             CoverageGate(),
             RiskGate(),
-            ChangelogGate(),
+            ChangelogGate(scopeBranch: epic),
             VersionBumpGate(versionOverride: version),
             CommitGate(squash: squash),
             PRGate(),
