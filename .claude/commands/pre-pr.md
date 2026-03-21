@@ -19,6 +19,7 @@ If a `project-adapter.md` exists, read it for:
 - `--skip-qc` — Skip visual QC gate (Gates 1-4 + 8-9)
 - `--adversarial` — Add Gate 1c (@Ronin adversarial review)
 - `--yolo` — Auto-proceed through passing gates
+- `--autofix` — Auto-fix gate failures and re-run (fixable issues only)
 - Default — Full mode (all 9 gates)
 
 ## Execution
@@ -26,7 +27,7 @@ If a `project-adapter.md` exists, read it for:
 1. Read the skill files above for checklists and flow
 2. Run `git diff` to get the changes
 3. Execute gates sequentially per `pre-pr-pipeline.md`
-4. Stop on failure, report to user, enter fix loop
+4. Stop on failure, report to user, enter fix loop (with `--autofix`: auto-fix fixable issues, re-run gate)
 5. After all gates pass, create PR via `gh pr create`
 6. Return the PR URL
 
