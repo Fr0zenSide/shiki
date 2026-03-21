@@ -605,11 +605,8 @@ struct CommentSubcommand: AsyncParsableCommand {
     @Argument(help: "Comment text")
     var message: String
 
-    @Option(name: .shortAndLong, help: "Target line number (e.g. -l 42)")
-    var line: Int?
-
-    @Option(name: .long, help: "End line for range comment (e.g. --line 42 --end-line 50)")
-    var endLine: Int?
+    @Option(name: .shortAndLong, help: "Target lines: -l 42, -l 18-25, -l 10-15/22/30-35")
+    var line: String?
 
     func run() async throws {
         let stateManager = PRReviewStateManager(prNumber: number)
@@ -631,26 +628,37 @@ struct CommentSubcommand: AsyncParsableCommand {
 
         let resolvedPath = try state.resolveFile(file)
 
+        // Parse line spec: "42", "18-25", "10-15/22/30-35"
+        let lineSpec = line.flatMap { parseLineSpec($0) }
+
         // Fetch current HEAD
         let currentHead = fetchCurrentHead(number: number)
         let now = Date()
-        state.addComment(to: resolvedPath, message: message, line: line, endLine: endLine, at: now, commit: currentHead)
+
+        // Use first range for the model (full spec stored in comment text)
+        let firstLine = lineSpec?.first?.start
+        let firstEndLine = lineSpec?.first.flatMap { $0.end != $0.start ? $0.end : nil }
+
+        state.addComment(to: resolvedPath, message: message, line: firstLine, endLine: firstEndLine, at: now, commit: currentHead)
         try stateManager.save(state)
 
         let basename = (resolvedPath as NSString).lastPathComponent
-        let lineInfo: String
-        if let l = line, let e = endLine {
-            lineInfo = " L\(l)-\(e)"
-        } else if let l = line {
-            lineInfo = " L\(l)"
-        } else {
-            lineInfo = ""
-        }
+        let lineInfo = line.map { " L\($0)" } ?? ""
         print("\(ANSI.cyan)[✎]\(ANSI.reset) \(basename)\(lineInfo): \"\(message)\"")
 
-        // Best-effort GitHub sync with line info
-        let ghBody = line != nil ? "L\(line!)\(endLine != nil ? "-\(endLine!)" : ""): \(message)" : message
-        ghPostComment(prNumber: number, path: resolvedPath, body: ghBody, line: line)
+        // Best-effort GitHub sync (first line for inline comment)
+        let ghBody = line != nil ? "L\(line!): \(message)" : message
+        ghPostComment(prNumber: number, path: resolvedPath, body: ghBody, line: firstLine)
+    }
+
+    /// Parse line spec: "42" → [(42,42)], "18-25" → [(18,25)], "10-15/22/30-35" → [(10,15),(22,22),(30,35)]
+    private func parseLineSpec(_ spec: String) -> [(start: Int, end: Int)] {
+        spec.split(separator: "/").compactMap { segment in
+            let parts = segment.split(separator: "-", maxSplits: 1)
+            guard let start = Int(parts[0]) else { return nil }
+            let end = parts.count > 1 ? Int(parts[1]) ?? start : start
+            return (start, end)
+        }
     }
 
     private func fetchCurrentHead(number: Int) -> String {
