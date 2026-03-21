@@ -54,6 +54,28 @@ public actor BudgetEnforcer {
         return budget.dailyLimit - budget.spentToday
     }
 
+    /// Aggregate real spend from all active providers and sync into a company's ledger.
+    /// Call periodically to keep the budget enforcer in sync with actual API costs.
+    public func aggregateFromProviders(_ providers: [any AgentProvider], company: String) async {
+        var total: Double = 0
+        for provider in providers {
+            total += await provider.currentSessionSpend
+        }
+        // Reset and record the aggregated spend (providers track cumulative)
+        resetIfNewDay(company: company)
+        if budgets[company] != nil {
+            budgets[company]!.spentToday = total
+        }
+    }
+
+    /// Format remaining budget as a display string: "$12/$31".
+    public func displayString(company: String) -> String {
+        guard let budget = budgets[company] else { return "$?/$?" }
+        let spent = String(format: "%.0f", budget.spentToday)
+        let limit = String(format: "%.0f", budget.dailyLimit)
+        return "$\(spent)/$\(limit)"
+    }
+
     private func resetIfNewDay(company: String) {
         let today = Self.todayString()
         if budgets[company]?.lastResetDate != today {
