@@ -149,19 +149,32 @@ public struct RiskGate: ShipGate, Sendable {
 
 // MARK: - Gate 5: ChangelogGate (BR-05)
 
-/// Generates changelog from commits since last tag.
+/// Generates changelog from commits since last tag or scoped to an epic branch.
 public struct ChangelogGate: ShipGate, Sendable {
     public let name = "Changelog"
     public let index = 4
 
-    public init() {}
+    /// Optional scope branch. When set, changelog covers `scopeBranch..HEAD` (epic range).
+    /// When nil, falls back to `lastTag..HEAD` (default behavior).
+    public let scopeBranch: String?
+
+    public init(scopeBranch: String? = nil) {
+        self.scopeBranch = scopeBranch
+    }
 
     public func evaluate(context: ShipContext) async throws -> GateResult {
-        // Get commits since last tag
-        let tagResult = try await context.shell("git describe --tags --abbrev=0 2>/dev/null || echo ''")
-        let lastTag = tagResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        let logRange: String
 
-        let logRange = lastTag.isEmpty ? "HEAD" : "\(shellEscape(lastTag))..HEAD"
+        if let scope = scopeBranch {
+            // Epic scoping: commits since the epic branch point
+            logRange = "\(shellEscape(scope))..HEAD"
+        } else {
+            // Default: commits since last tag
+            let tagResult = try await context.shell("git describe --tags --abbrev=0 2>/dev/null || echo ''")
+            let lastTag = tagResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            logRange = lastTag.isEmpty ? "HEAD" : "\(shellEscape(lastTag))..HEAD"
+        }
+
         let logResult = try await context.shell("git log \(logRange) --pretty=format:%s")
         let commits = logResult.stdout
             .split(separator: "\n")
