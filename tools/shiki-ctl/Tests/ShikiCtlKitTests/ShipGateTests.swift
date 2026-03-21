@@ -292,3 +292,70 @@ struct VersionBumpGateTests {
         #expect(detail?.contains("1.1.0") == true)
     }
 }
+
+// MARK: - ChangelogGate Tests
+
+@Suite("Ship Gate — Changelog")
+struct ChangelogGateTests {
+
+    @Test("Default behavior uses last tag range")
+    func defaultUsesLastTag() async throws {
+        let ctx = MockShipContext()
+        await ctx.stubShell("git describe", result: ShellResult(stdout: "v1.0.0", stderr: "", exitCode: 0))
+        await ctx.stubShell("git log", result: ShellResult(
+            stdout: "feat: add splash screen\nfix: typo in readme\n",
+            stderr: "", exitCode: 0
+        ))
+
+        let gate = ChangelogGate()
+        let result = try await gate.evaluate(context: ctx)
+
+        guard case .pass(let detail) = result else {
+            Issue.record("Expected .pass, got \(result)")
+            return
+        }
+        #expect(detail?.contains("2 commits") == true)
+
+        // Verify the shell call used tag-based range
+        let calls = await ctx.shellCalls
+        #expect(calls.contains { $0.contains("git describe") })
+    }
+
+    @Test("Epic scope uses branch range instead of tag")
+    func epicScopeUsesBranchRange() async throws {
+        let ctx = MockShipContext()
+        await ctx.stubShell("git log", result: ShellResult(
+            stdout: "feat: wave U1a personality\nfeat: wave U1b splash\nfeat: wave U1c changelog\n",
+            stderr: "", exitCode: 0
+        ))
+
+        let gate = ChangelogGate(scopeBranch: "epic/shikki-v1")
+        let result = try await gate.evaluate(context: ctx)
+
+        guard case .pass(let detail) = result else {
+            Issue.record("Expected .pass, got \(result)")
+            return
+        }
+        #expect(detail?.contains("3 commits") == true)
+
+        // Verify NO git describe call (scope branch bypasses tag lookup)
+        let calls = await ctx.shellCalls
+        #expect(!calls.contains { $0.contains("git describe") })
+        #expect(calls.contains { $0.contains("epic/shikki-v1") })
+    }
+
+    @Test("Epic scope with no commits warns")
+    func epicScopeNoCommitsWarns() async throws {
+        let ctx = MockShipContext()
+        await ctx.stubShell("git log", result: ShellResult(stdout: "", stderr: "", exitCode: 0))
+
+        let gate = ChangelogGate(scopeBranch: "epic/shikki-v1")
+        let result = try await gate.evaluate(context: ctx)
+
+        guard case .warn(let reason) = result else {
+            Issue.record("Expected .warn, got \(result)")
+            return
+        }
+        #expect(reason.contains("No commits"))
+    }
+}

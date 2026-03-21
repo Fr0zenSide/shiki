@@ -24,11 +24,36 @@ struct StartupCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Don't auto-attach to tmux after startup")
     var noAttach: Bool = false
 
+    @Flag(name: .long, help: "Skip the splash screen")
+    var noSplash: Bool = false
+
+    @Flag(name: .long, help: "Replay the splash screen and exit")
+    var splashmode: Bool = false
+
     func run() async throws {
+        // --splashmode: replay splash and exit
+        if splashmode {
+            SplashRenderer.render(version: "1.0.0")
+            return
+        }
+
         let workspacePath = resolveWorkspace()
         let sessionName = session ?? URL(fileURLWithPath: workspacePath).lastPathComponent
         let env = EnvironmentDetector()
         let stats = SessionStats()
+
+        // Splash screen (before environment checks)
+        if !noSplash {
+            // Try to get resume context from session checkpoint
+            let checkpointManager = PausedSessionManager()
+            let resumeContext: String?
+            if let checkpoint = try? checkpointManager.resume() {
+                resumeContext = "Resuming: \(checkpoint.branch) — \(checkpoint.summary ?? "no summary")"
+            } else {
+                resumeContext = nil
+            }
+            SplashRenderer.render(version: "1.0.0", resumeContext: resumeContext)
+        }
 
         // Silently refresh zsh completions if stale
         refreshCompletionsIfNeeded()
