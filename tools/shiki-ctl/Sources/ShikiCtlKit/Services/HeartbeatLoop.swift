@@ -35,7 +35,23 @@ public actor HeartbeatLoop {
         self.logger = logger
     }
 
+    /// Install signal handlers that auto-save session state before exit.
+    public func installSignalHandlers() {
+        let handler: @convention(c) (Int32) -> Void = { signal in
+            let manager = PausedSessionManager()
+            if let checkpoint = manager.autoSave() {
+                FileHandle.standardError.write(Data("\nAuto-saved session: \(checkpoint.sessionId)\n".utf8))
+            }
+            // Re-raise the signal with default handler for clean exit
+            Foundation.signal(signal, SIG_DFL)
+            raise(signal)
+        }
+        signal(SIGINT, handler)
+        signal(SIGTERM, handler)
+    }
+
     public func run() async {
+        installSignalHandlers()
         logger.info("Heartbeat loop started (interval: \(interval))")
 
         while !Task.isCancelled {
