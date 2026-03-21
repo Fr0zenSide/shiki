@@ -27,8 +27,29 @@ struct PRCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Show only files with comments")
     var comments: Bool = false
 
-    @Option(name: .long, help: "Base branch for diff (default: develop)")
+    @Option(name: .long, help: "Base: branch name, #N, prN, pr#N (default: develop)")
     var base: String = "develop"
+
+    private var resolvedBase: String {
+        let t = base.trimmingCharacters(in: .whitespaces)
+        let num: String?
+        if t.hasPrefix("pr#") { num = String(t.dropFirst(3)) }
+        else if t.hasPrefix("pr") { num = String(t.dropFirst(2)) }
+        else if t.hasPrefix("#") { num = String(t.dropFirst(1)) }
+        else { num = nil }
+        guard let n = num, Int(n) != nil else { return t }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        p.arguments = ["gh", "pr", "view", n, "--json", "headRefName", "-q", ".headRefName"]
+        let pipe = Pipe()
+        p.standardOutput = pipe
+        p.standardError = FileHandle.nullDevice
+        try? p.run()
+        let d = pipe.fileHandleForReading.readDataToEndOfFile()
+        p.waitUntilExit()
+        if p.terminationStatus == 0, let b = String(data: d, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !b.isEmpty { return b }
+        return t
+    }
 
     func run() async throws {
         let cacheDir = "docs/pr\(number)-cache"
@@ -176,9 +197,14 @@ struct PRCommand: AsyncParsableCommand {
         let paths = sorted.compactMap { $0["path"] as? String }
         guard !paths.isEmpty else { return }
 
+        // Header comment with base info
+        let header = "// PR #\(number) diff: \(resolvedBase)...HEAD (\(paths.count) files, architecture-ordered)\n"
+        FileHandle.standardOutput.write(Data(header.utf8))
+
+        // Run git diff with files in architecture order
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        process.arguments = ["diff", "\(base)...HEAD", "--"] + paths
+        process.arguments = ["diff", "\(resolvedBase)...HEAD", "--"] + paths
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
@@ -205,8 +231,9 @@ struct PRCommand: AsyncParsableCommand {
             print("\(ANSI.bold)PR #\(number)\(ANSI.reset)")
         }
 
-        if let branch = prInfo["branch"], let baseBranch = prInfo["base"] {
-            print("\(ANSI.dim)\(branch) → \(baseBranch)\(ANSI.reset) │ \(files.count) files │ \(ANSI.green)+\(totalIns)\(ANSI.reset)/\(ANSI.red)-\(totalDel)\(ANSI.reset)")
+        if let branch = prInfo["branch"] {
+            let displayBase = base != "develop" ? resolvedBase : (prInfo["base"] ?? "develop")
+            print("\(ANSI.dim)\(branch) → \(displayBase)\(ANSI.reset) │ \(files.count) files │ \(ANSI.green)+\(totalIns)\(ANSI.reset)/\(ANSI.red)-\(totalDel)\(ANSI.reset)")
         } else {
             print("\(files.count) files │ \(ANSI.green)+\(totalIns)\(ANSI.reset)/\(ANSI.red)-\(totalDel)\(ANSI.reset)")
         }
@@ -454,7 +481,7 @@ struct PRCommand: AsyncParsableCommand {
 
         let diffStat = Process()
         diffStat.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        diffStat.arguments = ["diff", "--numstat", "\(base)...HEAD"]
+        diffStat.arguments = ["diff", "--numstat", "\(resolvedBase)...HEAD"]
         let statPipe = Pipe()
         diffStat.standardOutput = statPipe
         try diffStat.run()
