@@ -17,10 +17,13 @@ final class MockDBClient: ShikiDBClientProtocol, @unchecked Sendable {
     var lastSearchTypes: [String]?
     var lastSearchLimit: Int?
 
-    func dataSyncWrite(type: String, scope: String, data: [String: JSONValue]) async throws -> JSONValue {
+    var lastWriteProjectId: String?
+
+    func dataSyncWrite(type: String, scope: String, data: [String: JSONValue], projectId: String? = nil) async throws -> JSONValue {
         lastWriteType = type
         lastWriteScope = scope
         lastWriteData = data
+        lastWriteProjectId = projectId
         if let error = shouldThrow { throw error }
         return dataSyncResult
     }
