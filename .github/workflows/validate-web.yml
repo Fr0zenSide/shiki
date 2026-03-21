@@ -1,0 +1,80 @@
+name: Validate OBYW Web Changes
+
+on:
+  pull_request:
+    paths:
+      - 'projects/obyw-one/**'
+
+jobs:
+  validate-html:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate HTML files
+        run: |
+          npm install -g html-validate
+          find projects/obyw-one -name '*.html' -not -path '*/node_modules/*' | while read f; do
+            echo "Validating $f..."
+            html-validate "$f" || EXIT=1
+          done
+          exit ${EXIT:-0}
+
+  validate-caddy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Caddyfile exists
+        id: check
+        run: |
+          if [ -f projects/obyw-one/deploy/Caddyfile ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate Caddyfile syntax
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/projects/obyw-one/deploy/Caddyfile:/etc/caddy/Caddyfile:ro \
+            caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
+
+  validate-migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate PocketBase migration JSON
+        run: |
+          FOUND=0
+          ERRORS=0
+          for f in projects/obyw-one/pb_migrations/*.json; do
+            [ -f "$f" ] || continue
+            FOUND=1
+            echo "Checking $f..."
+            if ! python3 -m json.tool "$f" > /dev/null 2>&1; then
+              echo "Invalid JSON: $f"
+              ERRORS=1
+            fi
+          done
+          if [ "$FOUND" = "0" ]; then
+            echo "No migration files found, skipping."
+          fi
+          exit $ERRORS
+
+  validate-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check compose file exists
+        id: check
+        run: |
+          if [ -f projects/obyw-one/deploy/docker-compose.web.yml ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate docker-compose syntax
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          docker compose -f projects/obyw-one/deploy/docker-compose.web.yml config --quiet

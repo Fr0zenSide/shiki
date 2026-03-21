@@ -6,3 +6,21 @@ backups/
 .pids/
 projects/*/
 !projects/.gitkeep
+
+# Local dev overrides
+docker-compose.override.yml
+.claude/settings.local.json
+
+# Generated PR caches (rebuilt by shiki pr --build)
+docs/pr*-cache/
+
+# SPM build artifacts (each package has own .gitignore too)
+.build/
+.swiftpm/
+build/
+
+# External tools cloned locally
+tools/qmd/
+
+# Backend public assets (generated)
+src/backend/public/

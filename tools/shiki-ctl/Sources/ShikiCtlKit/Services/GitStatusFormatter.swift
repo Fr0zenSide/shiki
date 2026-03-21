@@ -51,6 +51,45 @@ public enum GitStatusFormatter {
     private static let dim    = "\u{1B}[38;2;98;114;164m"   // #6272a4
     private static let reset  = "\u{1B}[0m"
 
+    // MARK: - Branch Abbreviation
+
+    /// Abbreviate git flow prefixes and truncate long names for tmux display.
+    /// feature/session-persistence → f/session-pers
+    /// story/onboarding-v2        → s/onboarding-v2
+    /// epic/shiki-v1-core         → e/shiki-v1-core
+    /// fix/pipe-deadlock          → x/pipe-deadlock
+    /// hotfix/urgent-patch        → h/urgent-patch
+    /// release/1.0.0              → r/1.0.0
+    /// develop                    → develop
+    /// main                       → main
+    private static func abbreviateBranch(_ branch: String, maxLength: Int = 18) -> String {
+        let prefixMap: [(prefix: String, abbrev: String)] = [
+            ("feature/", "f/"),
+            ("feat/", "f/"),
+            ("story/", "s/"),
+            ("epic/", "e/"),
+            ("fix/", "x/"),
+            ("hotfix/", "h/"),
+            ("release/", "r/"),
+            ("refactor/", "rf/"),
+            ("chore/", "c/"),
+        ]
+
+        var name = branch
+        for (prefix, abbrev) in prefixMap {
+            if branch.hasPrefix(prefix) {
+                name = abbrev + String(branch.dropFirst(prefix.count))
+                break
+            }
+        }
+
+        // Truncate if still too long
+        if name.count > maxLength {
+            return String(name.prefix(maxLength - 1)) + "…"
+        }
+        return name
+    }
+
     // MARK: - Remote Icons
 
     private static func remoteIcon(for remote: String?) -> String {
@@ -67,15 +106,11 @@ public enum GitStatusFormatter {
     public static func format(_ info: GitInfo, arrowStyle: ArrowStyle = .none) -> String {
         var parts: [String] = []
 
-        // Remote icon
+        // Remote icon only (branch name shown in terminal prompt, not tmux)
         let remote = remoteIcon(for: info.remote)
-
-        // Branch name (truncate at 20 chars)
-        let branchDisplay = info.isDetached
-            ? "\(red)@\(String(info.branch.prefix(8)))\(reset)"
-            : "\(purple)\(info.branch.count > 20 ? String(info.branch.prefix(17)) + "..." : info.branch)\(reset)"
-
-        parts.append("\(dim)\(remote)\(reset)\(branchDisplay)")
+        if !remote.isEmpty {
+            parts.append("\(dim)\(remote)\(reset)")
+        }
 
         // Worktree indicator
         if info.isWorktree {
