@@ -136,7 +136,7 @@ struct SessionPauseCommand: AsyncParsableCommand {
 struct SessionResumeCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "resume",
-        abstract: "Resume a paused session — output context for Claude injection"
+        abstract: "Resume a paused session — launch tmux and inject context"
     )
 
     @Argument(help: "Session ID to resume (default: most recent)")
@@ -145,15 +145,18 @@ struct SessionResumeCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Output raw JSON instead of formatted context")
     var json: Bool = false
 
+    @Flag(name: .long, help: "Only output context, don't launch tmux")
+    var contextOnly: Bool = false
+
     func run() async throws {
         let manager = PausedSessionManager()
 
         guard let checkpoint = try manager.resume(sessionId: sessionId) else {
             if sessionId != nil {
-                print("\u{1B}[31mError:\u{1B}[0m Session '\(sessionId!)' not found")
+                FileHandle.standardError.write(Data("\u{1B}[31mError:\u{1B}[0m Session '\(sessionId!)' not found\n".utf8))
             } else {
-                print("\u{1B}[31mError:\u{1B}[0m No paused sessions found")
-                print("  Pause first: \u{1B}[2mshiki session pause --summary \"what I was doing\"\u{1B}[0m")
+                FileHandle.standardError.write(Data("\u{1B}[31mError:\u{1B}[0m No paused sessions found\n".utf8))
+                FileHandle.standardError.write(Data("  Pause first: \u{1B}[2mshiki session pause --summary \"what I was doing\"\u{1B}[0m\n".utf8))
             }
             throw ExitCode.failure
         }
@@ -165,11 +168,67 @@ struct SessionResumeCommand: AsyncParsableCommand {
             let data = try encoder.encode(checkpoint)
             FileHandle.standardOutput.write(data)
             FileHandle.standardOutput.write(Data("\n".utf8))
-        } else {
-            // Output context injection for Claude
-            let context = manager.buildResumeContext(checkpoint: checkpoint)
-            print(context)
+            return
         }
+
+        // Build resume context for Claude injection
+        let context = manager.buildResumeContext(checkpoint: checkpoint)
+
+        if contextOnly {
+            print(context)
+            return
+        }
+
+        // Launch or attach tmux session
+        let tmuxSessionName = "shiki"
+        let tmuxExists = tmuxSessionExists(tmuxSessionName)
+
+        if tmuxExists {
+            // Attach to existing tmux session
+            FileHandle.standardError.write(Data("\u{1B}[32m●\u{1B}[0m Attaching to existing tmux session '\(tmuxSessionName)'\n".utf8))
+            launchTmuxAttach(sessionName: tmuxSessionName)
+        } else {
+            // Create new tmux session in workspace directory
+            FileHandle.standardError.write(Data("\u{1B}[32m●\u{1B}[0m Launching tmux session '\(tmuxSessionName)' in \(checkpoint.workspaceRoot)\n".utf8))
+            launchTmuxNew(sessionName: tmuxSessionName, workDir: checkpoint.workspaceRoot)
+        }
+
+        // Output context to stdout for piping to claude
+        print(context)
+    }
+
+    private func tmuxSessionExists(_ name: String) -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["tmux", "has-session", "-t", name]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        process.waitUntilExit()
+        return process.terminationStatus == 0
+    }
+
+    private func launchTmuxAttach(sessionName: String) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["tmux", "attach-session", "-t", sessionName]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        // Don't wait — let tmux attach run in the background
+    }
+
+    private func launchTmuxNew(sessionName: String, workDir: String) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["tmux", "new-session", "-d", "-s", sessionName, "-c", workDir]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        process.waitUntilExit()
+
+        // Now attach
+        launchTmuxAttach(sessionName: sessionName)
     }
 }
 

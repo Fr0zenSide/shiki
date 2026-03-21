@@ -287,9 +287,12 @@ public struct PRGate: ShipGate, Sendable {
             return .fail(reason: "Cannot target '\(context.target)' directly. Use 'develop' or 'release/*' per git flow.")
         }
 
-        // Validate target is develop or release/*
-        if context.target != "develop" && !context.target.hasPrefix("release/") {
-            return .fail(reason: "Target must be 'develop' or 'release/*'. Got: '\(context.target)'")
+        // Validate target is develop, release/*, epic/*, or story/*
+        if context.target != "develop"
+            && !context.target.hasPrefix("release/")
+            && !context.target.hasPrefix("epic/")
+            && !context.target.hasPrefix("story/") {
+            return .fail(reason: "Target must be 'develop', 'release/*', 'epic/*', or 'story/*'. Got: '\(context.target)'")
         }
 
         if context.isDryRun {
