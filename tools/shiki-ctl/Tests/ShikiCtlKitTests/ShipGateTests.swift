@@ -242,6 +242,32 @@ struct PRGateTests {
             return
         }
     }
+
+    @Test("Target epic/* passes")
+    func targetEpicPasses() async throws {
+        let ctx = MockShipContext(isDryRun: true, target: "epic/shikki-v1")
+        let gate = PRGate()
+
+        let result = try await gate.evaluate(context: ctx)
+
+        guard case .pass = result else {
+            Issue.record("Expected .pass, got \(result)")
+            return
+        }
+    }
+
+    @Test("Target story/* passes")
+    func targetStoryPasses() async throws {
+        let ctx = MockShipContext(isDryRun: true, target: "story/swift-platform-migration")
+        let gate = PRGate()
+
+        let result = try await gate.evaluate(context: ctx)
+
+        guard case .pass = result else {
+            Issue.record("Expected .pass, got \(result)")
+            return
+        }
+    }
 }
 
 // MARK: - VersionBumpGate Tests
