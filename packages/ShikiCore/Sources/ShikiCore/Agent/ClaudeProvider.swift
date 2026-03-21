@@ -7,8 +7,12 @@ public actor ClaudeProvider: AgentProvider {
     public nonisolated let name = "claude"
     private let logger = Logger(label: "shiki.core.claude-provider")
     private var currentProcess: Process?
+    private var _sessionSpend: Double = 0
 
     public init() {}
+
+    /// Accumulated session spend in USD, parsed from claude JSON output.
+    public var currentSessionSpend: Double { _sessionSpend }
 
     /// Build CLI arguments for the claude binary.
     /// Exposed for testing — callers should use `dispatch()`.
@@ -74,6 +78,12 @@ public actor ClaudeProvider: AgentProvider {
 
         currentProcess = nil
 
+        // Parse spend from claude JSON output if available
+        let parsedSpend = Self.parseSpend(from: output)
+        if let spend = parsedSpend {
+            _sessionSpend += spend
+        }
+
         return AgentResult(
             output: output,
             exitCode: process.terminationStatus,
@@ -85,5 +95,17 @@ public actor ClaudeProvider: AgentProvider {
     public func cancel() async {
         currentProcess?.terminate()
         currentProcess = nil
+    }
+
+    /// Parse spend from claude CLI JSON output.
+    /// Looks for `"cost_usd"` or `"total_cost"` in the JSON response.
+    nonisolated static func parseSpend(from output: String) -> Double? {
+        guard let data = output.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+
+        if let cost = json["cost_usd"] as? Double { return cost }
+        if let cost = json["total_cost"] as? Double { return cost }
+        return nil
     }
 }

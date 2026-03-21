@@ -6,6 +6,10 @@ public protocol AgentProvider: Sendable {
     var name: String { get }
     func dispatch(prompt: String, workingDirectory: URL, options: AgentOptions) async throws -> AgentResult
     func cancel() async
+
+    /// Current session spend in USD. Providers parse this from their
+    /// respective APIs or status output.
+    var currentSessionSpend: Double { get async }
 }
 
 // MARK: - Options
