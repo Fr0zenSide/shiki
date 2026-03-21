@@ -17,6 +17,9 @@ struct PRCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Output raw JSON (for piping to jq, shiki-qa)")
     var json: Bool = false
 
+    @Flag(name: .long, help: "Output architecture-ordered diff (pipe to delta for syntax highlight)")
+    var diff: Bool = false
+
     @Option(name: .long, help: "Base branch for diff (default: develop)")
     var base: String = "develop"
 
@@ -63,8 +66,43 @@ struct PRCommand: AsyncParsableCommand {
             return
         }
 
+        // Diff mode: architecture-ordered diff output (pipe to delta)
+        if diff {
+            renderOrderedDiff(files: files)
+            return
+        }
+
         // Default: smart prioritized summary for human review
         renderSmartSummary(files: files, risk: risk)
+    }
+
+    // MARK: - Ordered Diff (pipe to delta)
+
+    private func renderOrderedDiff(files: [[String: Any]]) {
+        // Sort by architecture layer
+        let sorted = files.sorted { a, b in
+            let pa = layerPriority(path: a["path"] as? String ?? "")
+            let pb = layerPriority(path: b["path"] as? String ?? "")
+            if pa != pb { return pa < pb }
+            let sizeA = (a["insertions"] as? Int ?? 0) + (a["deletions"] as? Int ?? 0)
+            let sizeB = (b["insertions"] as? Int ?? 0) + (b["deletions"] as? Int ?? 0)
+            return sizeA > sizeB
+        }
+
+        let paths = sorted.compactMap { $0["path"] as? String }
+
+        // Run git diff with files in architecture order
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = ["diff", "\(base)...HEAD", "--"] + paths
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+
+        FileHandle.standardOutput.write(data)
     }
 
     // MARK: - Smart Summary (default output)
