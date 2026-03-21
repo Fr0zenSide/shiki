@@ -72,6 +72,85 @@ public struct PausedSessionManager: Sendable {
         }
     }
 
+    // MARK: - Auto-save (called on SIGTERM/SIGINT)
+
+    /// Auto-save current session state by detecting git branch and open PRs.
+    /// Designed for signal handlers — best-effort, never throws to caller.
+    public func autoSave() -> PausedSession? {
+        let branch = detectGitBranch()
+        let pendingPRs = detectOpenPRs()
+        let summary = detectLastCommitMessage()
+        let workspaceRoot = findWorkspaceRoot()
+
+        let checkpoint = PausedSession(
+            branch: branch,
+            summary: summary,
+            pendingPRs: pendingPRs,
+            nextAction: nil,
+            workspaceRoot: workspaceRoot
+        )
+
+        do {
+            try pause(checkpoint: checkpoint)
+            try cleanup(keep: 10)
+            logger.info("Auto-saved session: \(checkpoint.sessionId)")
+            return checkpoint
+        } catch {
+            logger.error("Auto-save failed: \(error)")
+            return nil
+        }
+    }
+
+    // MARK: - Git detection helpers (synchronous for signal handler use)
+
+    private func detectGitBranch() -> String {
+        runGitCommand(["rev-parse", "--abbrev-ref", "HEAD"]) ?? "unknown"
+    }
+
+    private func detectOpenPRs() -> [Int] {
+        guard let output = runCommand("/usr/bin/env", arguments: ["gh", "pr", "list", "--json", "number", "--jq", ".[].number"]) else {
+            return []
+        }
+        return output.split(separator: "\n").compactMap { Int($0) }
+    }
+
+    private func detectLastCommitMessage() -> String? {
+        runGitCommand(["log", "-1", "--pretty=format:%s"])
+    }
+
+    private func findWorkspaceRoot() -> String {
+        var dir = FileManager.default.currentDirectoryPath
+        while dir != "/" {
+            if FileManager.default.fileExists(atPath: "\(dir)/.git") {
+                return dir
+            }
+            dir = (dir as NSString).deletingLastPathComponent
+        }
+        return FileManager.default.currentDirectoryPath
+    }
+
+    private func runGitCommand(_ arguments: [String]) -> String? {
+        runCommand("/usr/bin/git", arguments: arguments)
+    }
+
+    private func runCommand(_ executable: String, arguments: [String]) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { return nil }
+            return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        } catch {
+            return nil
+        }
+    }
+
     // MARK: - Build context injection for Claude
 
     public func buildResumeContext(checkpoint: PausedSession) -> String {
