@@ -9,6 +9,7 @@ public struct WaveNode: Codable, Sendable, Identifiable {
     public var testCount: Int
     public var status: WaveStatus
     public var dependsOn: [String]  // wave IDs
+    public var testScope: TestScope?
 
     public init(
         id: String,
@@ -18,7 +19,8 @@ public struct WaveNode: Codable, Sendable, Identifiable {
         files: [String] = [],
         testCount: Int = 0,
         status: WaveStatus = .pending,
-        dependsOn: [String] = []
+        dependsOn: [String] = [],
+        testScope: TestScope? = nil
     ) {
         self.id = id
         self.name = name
@@ -28,6 +30,7 @@ public struct WaveNode: Codable, Sendable, Identifiable {
         self.testCount = testCount
         self.status = status
         self.dependsOn = dependsOn
+        self.testScope = testScope
     }
 }
 
