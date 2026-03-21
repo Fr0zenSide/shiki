@@ -35,6 +35,9 @@ struct StatusCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Working directory for git/project detection (default: cwd)")
     var path: String?
 
+    @Flag(name: .long, help: "Strip ANSI colors from output (for tmux status-right)")
+    var plain: Bool = false
+
     func run() async throws {
         // Handle arrow style change: persist and continue
         if let arrowRaw = arrowStyle {
@@ -238,6 +241,15 @@ struct StatusCommand: AsyncParsableCommand {
         print(output, terminator: "")
     }
 
+    // MARK: - ANSI Stripping
+
+    private func stripANSI(_ string: String) -> String {
+        string.replacingOccurrences(
+            of: "\u{1B}\\[[0-9;]*[a-zA-Z]", with: "",
+            options: .regularExpression
+        )
+    }
+
     // MARK: - Git Segment
 
     private func runGit() {
@@ -246,10 +258,12 @@ struct StatusCommand: AsyncParsableCommand {
         let arrows = stateManager.arrowStyle
 
         guard let info = GitStatusFormatter.collectGitInfo(at: dir) else {
-            print(GitStatusFormatter.formatNoRepo(arrowStyle: arrows), terminator: "")
+            let out = GitStatusFormatter.formatNoRepo(arrowStyle: arrows)
+            print(plain ? stripANSI(out) : out, terminator: "")
             return
         }
-        print(GitStatusFormatter.format(info, arrowStyle: arrows), terminator: "")
+        let out = GitStatusFormatter.format(info, arrowStyle: arrows)
+        print(plain ? stripANSI(out) : out, terminator: "")
     }
 
     // MARK: - Project Segment
@@ -261,7 +275,8 @@ struct StatusCommand: AsyncParsableCommand {
 
         let projectInfo = ProjectStatusFormatter.detectProject(at: dir)
         let testStatus = ProjectStatusFormatter.readCachedTests(at: dir)
-        print(ProjectStatusFormatter.format(project: projectInfo, tests: testStatus, arrowStyle: arrows), terminator: "")
+        let out = ProjectStatusFormatter.format(project: projectInfo, tests: testStatus, arrowStyle: arrows)
+        print(plain ? stripANSI(out) : out, terminator: "")
     }
 
     // MARK: - Workspace Detection
