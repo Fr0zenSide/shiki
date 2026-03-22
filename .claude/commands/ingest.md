@@ -3,6 +3,7 @@ Run the /ingest pipeline to import external knowledge into Shiki's memory.
 ## Arguments
 
 Parse the argument `$ARGUMENTS` to determine the action:
+- `<youtube-url>` — Extract knowledge from YouTube video (metadata + captions + optional frames)
 - `<github-url>` — Clone and analyze a GitHub repository
 - `<url>` — Fetch and extract content from a web URL
 - `<local-path>` — Read and analyze a local directory or file
@@ -10,6 +11,8 @@ Parse the argument `$ARGUMENTS` to determine the action:
 - `sources [--project <slug>]` — List all ingestion sources for a project
 - `status <source-id>` — Check status of a specific ingestion
 - `delete <source-id>` — Delete a source and all its memories
+
+YouTube URL patterns: `youtube.com/watch?v=`, `youtu.be/`, `youtube.com/shorts/`
 
 ## Configuration (optional flags in argument)
 
@@ -37,6 +40,46 @@ If no `--project` flag, detect from the current working directory name or defaul
 6. Save all chunks: Use the `shiki_save_event` MCP tool for each batch with: `{ type: "ingest_chunks", scope: "<project-slug>", data: { sourceType: "github_repo", sourceUri: "...", chunks: [...] } }`
 7. Clean up the temp clone
 8. Report results: inserted, duplicates skipped, total
+
+### For YouTube videos:
+**PRIVATE EXTENSION — do NOT publish to skills.sh or any public marketplace.**
+
+Requires `yt-dlp` installed locally (`brew install yt-dlp`).
+
+1. Extract metadata via yt-dlp:
+   ```bash
+   yt-dlp --print title --print description --print duration_string --print channel --print upload_date --no-download "<url>"
+   ```
+2. Download auto-generated captions (English, SRT format):
+   ```bash
+   yt-dlp --write-auto-sub --sub-lang en --sub-format srt --skip-download -o "/tmp/yt-%(id)s" "<url>"
+   ```
+3. Read the `.srt` file and clean it:
+   - Strip SRT timestamps and sequence numbers
+   - Deduplicate overlapping subtitle lines (auto-captions repeat)
+   - Join into paragraphs by chapter markers (from description) or every ~60 seconds
+4. If `--frames` flag is present OR the video has no captions:
+   - Download lowest quality video: `yt-dlp -f "worst[ext=mp4]" -o "/tmp/yt-%(id)s.mp4" "<url>"`
+   - Extract key frames with ffmpeg: `ffmpeg -i /tmp/yt-<id>.mp4 -vf "fps=1/30,select='gt(scene,0.3)'" -frames:v 10 /tmp/yt-<id>-frame-%02d.jpg`
+   - Read each frame image for OCR / UI analysis (Claude is multimodal)
+   - Clean up video file after frame extraction
+5. Combine: metadata + cleaned transcript + frame analysis (if any)
+6. Chunk into knowledge pieces (~1000-1500 chars each):
+   - First chunk: video overview (title, channel, date, description summary)
+   - Subsequent chunks: key topics by chapter or by transcript segments
+   - Frame chunks: UI/demo observations (if frames extracted)
+7. Save via `shiki_save_event` MCP tool with `sourceType: "youtube"`:
+   ```json
+   { "type": "ingest_chunks", "scope": "<project-slug>", "data": { "sourceType": "youtube", "sourceUri": "<youtube-url>", "displayName": "<video title>", "chunks": [...] } }
+   ```
+8. Clean up temp files: `/tmp/yt-<id>*`
+
+**SRT cleaning recipe** (deduplicate auto-caption overlaps):
+```bash
+# Strip timestamps and numbers, deduplicate adjacent lines
+grep -v '^\d' /tmp/yt-<id>.en.srt | grep -v '^$' | grep -v '^\-\->' | awk '!seen[$0]++' | tr '\n' ' ' | fold -s -w 1000
+```
+Or read the raw .srt in Claude and ask for a clean transcript — Claude handles this natively.
 
 ### For URLs:
 1. Fetch the URL content using WebFetch
