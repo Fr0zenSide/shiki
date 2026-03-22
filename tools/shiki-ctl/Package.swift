@@ -3,10 +3,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "shiki-ctl",
+    name: "shikki",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "shiki-ctl", targets: ["shiki-ctl"]),
+        .executable(name: "shikki", targets: ["shikki"]),
         .library(name: "ShikiCtlKit", targets: ["ShikiCtlKit"]),
     ],
     dependencies: [
@@ -21,7 +21,7 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "shiki-ctl",
+            name: "shikki",
             dependencies: [
                 "ShikiCtlKit",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
@@ -35,7 +35,7 @@ let package = Package(
         .testTarget(
             name: "ShikiCtlTests",
             dependencies: [
-                "shiki-ctl",
+                "shikki",
                 "ShikiCtlKit",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]

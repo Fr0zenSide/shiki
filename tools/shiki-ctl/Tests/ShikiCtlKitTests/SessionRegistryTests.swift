@@ -84,16 +84,17 @@ struct SessionRegistryTests {
 
     @Test("Discover ignores reserved windows")
     func discoverIgnoresReserved() async throws {
+        // Single-window layout: only "orchestrator" is reserved
         let (registry, _) = makeRegistry(sessions: [
             DiscoveredSession(windowName: "orchestrator", paneId: "%1", pid: 99999),
-            DiscoveredSession(windowName: "board", paneId: "%2", pid: 99998),
-            DiscoveredSession(windowName: "research", paneId: "%3", pid: 99997),
             DiscoveredSession(windowName: "maya:task", paneId: "%5", pid: 12345),
+            DiscoveredSession(windowName: "flsh:deploy", paneId: "%6", pid: 12346),
         ])
         await registry.refresh()
         let all = await registry.allSessions
-        #expect(all.count == 1)
-        #expect(all.first?.windowName == "maya:task")
+        #expect(all.count == 2)
+        #expect(all.contains { $0.windowName == "maya:task" })
+        #expect(all.contains { $0.windowName == "flsh:deploy" })
     }
 
     @Test("Reconcile: missing pane + 5min stale → reap")
