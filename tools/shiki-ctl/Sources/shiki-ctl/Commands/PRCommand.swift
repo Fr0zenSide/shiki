@@ -31,7 +31,9 @@ struct PRCommand: AsyncParsableCommand {
     var from: String?
 
     /// Resolve git root so commands work from any cwd.
+    /// Tries cwd first, then resolves from the binary's symlink path.
     private var gitRoot: URL {
+        // Try cwd first
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/git")
         p.arguments = ["rev-parse", "--show-toplevel"]
@@ -45,6 +47,22 @@ struct PRCommand: AsyncParsableCommand {
            let out = String(data: d, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
            !out.isEmpty {
             return URL(fileURLWithPath: out)
+        }
+        // Fallback: resolve from the binary's symlink to find the workspace
+        // Binary is at: <workspace>/tools/shiki-ctl/.build/debug/shiki-ctl
+        let binaryPath = CommandLine.arguments[0]
+        var resolved = URL(fileURLWithPath: binaryPath).standardizedFileURL
+        // Resolve symlink chain
+        if let realPath = try? FileManager.default.destinationOfSymbolicLink(atPath: binaryPath) {
+            resolved = URL(fileURLWithPath: realPath).standardizedFileURL
+        }
+        // Walk up from .build/debug/shiki-ctl to find .git
+        var dir = resolved.deletingLastPathComponent()
+        for _ in 0..<10 {
+            if FileManager.default.fileExists(atPath: dir.appendingPathComponent(".git").path) {
+                return dir
+            }
+            dir = dir.deletingLastPathComponent()
         }
         return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     }
