@@ -17,7 +17,7 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
     let logger: Logger
 
     public init(
-        session: String = "shiki-board",
+        session: String = "shiki",
         workspacePath: String,
         logger: Logger = Logger(label: "shiki-ctl.launcher")
     ) {
