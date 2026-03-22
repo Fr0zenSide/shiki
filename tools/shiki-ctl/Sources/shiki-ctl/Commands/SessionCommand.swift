@@ -211,13 +211,13 @@ struct SessionResumeCommand: AsyncParsableCommand {
     }
 
     private func launchTmuxAttach(sessionName: String) {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["tmux", "attach-session", "-t", sessionName]
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        try? process.run()
-        // Don't wait — let tmux attach run in the background
+        // Replace current process with tmux attach (needs real tty)
+        let path = "/usr/bin/env"
+        let args = ["env", "tmux", "attach-session", "-t", sessionName]
+        let cArgs = args.map { strdup($0) } + [nil]
+        execv(path, cArgs)
+        // If execv returns, it failed
+        FileHandle.standardError.write(Data("\u{1B}[31mFailed to attach to tmux session\u{1B}[0m\n".utf8))
     }
 
     private func copyToClipboard(_ text: String) {
@@ -232,6 +232,7 @@ struct SessionResumeCommand: AsyncParsableCommand {
     }
 
     private func launchTmuxNew(sessionName: String, workDir: String) {
+        // Create detached session first
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = ["tmux", "new-session", "-d", "-s", sessionName, "-c", workDir]
@@ -240,7 +241,7 @@ struct SessionResumeCommand: AsyncParsableCommand {
         try? process.run()
         process.waitUntilExit()
 
-        // Now attach
+        // Then replace process with attach (needs real tty)
         launchTmuxAttach(sessionName: sessionName)
     }
 }
