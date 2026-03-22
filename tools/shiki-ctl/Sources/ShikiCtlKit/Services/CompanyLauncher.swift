@@ -1,16 +1,13 @@
 import Foundation
 import Logging
 
-/// Tmux-based task session launcher.
+/// Pane-based task session launcher.
 ///
-/// Creates one tmux window per dispatched task with a dynamically generated name
-/// (`"{company}:{task-short}"`). Pane border titles show the full company + task name.
-/// After each launch or stop, the board is re-tiled so the layout adapts automatically.
+/// Company panes are pre-created in the tmux sidebar during startup.
+/// This launcher finds the right pane by title and sends `claude 'prompt'`
+/// via `send-keys`. No new windows are ever created.
 ///
-/// The autopilot prompt embedded in each window instructs Claude to:
-/// 1. Claim the assigned task via the orchestrator API
-/// 2. Work in TDD mode with `/pre-pr` before PRs
-/// 3. Send heartbeats every 60s with context pressure data
+/// Pane mapping is read from `/tmp/shiki-panes-{session}.json`.
 public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
     let session: String
     let workspacePath: String
@@ -30,19 +27,18 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
         taskId: String, companyId: String, companySlug: String,
         title: String, projectPath: String
     ) async throws {
-        let windowName = Self.windowName(companySlug: companySlug, title: title)
+        // Check if the company pane already has Claude running
+        guard !(await isCompanyPaneActive(slug: companySlug)) else {
+            logger.debug("Company pane already active: \(companySlug)")
+            return
+        }
 
-        guard !(await isSessionRunning(slug: windowName)) else {
-            logger.debug("Session already running: \(windowName)")
+        guard let paneId = findCompanyPane(slug: companySlug) else {
+            logger.warning("No pane found for company: \(companySlug)")
             return
         }
 
         let projectDir = "\(workspacePath)/projects/\(projectPath)"
-
-        // Ensure tmux session exists
-        if !tmuxSessionExists() {
-            try runProcess("tmux", arguments: ["new-session", "-d", "-s", session, "-c", workspacePath])
-        }
 
         // Build the autopilot prompt for this task session
         let prompt = Self.buildAutopilotPrompt(
@@ -50,56 +46,47 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
             taskId: taskId, title: title
         )
 
-        // Create new window running Claude with the autopilot prompt
-        let shellCommand = "claude \(Self.shellEscape(prompt))"
+        // cd into project dir, then launch Claude with the prompt
+        let cdCmd = "cd \(Self.shellEscapePath(projectDir))"
+        let claudeCmd = "claude \(Self.shellEscape(prompt))"
         try runProcess("tmux", arguments: [
-            "new-window", "-t", session, "-n", windowName, "-c", projectDir,
-            "bash", "-c", shellCommand,
+            "send-keys", "-t", paneId, "\(cdCmd) && \(claudeCmd)", "C-m",
         ])
 
-        // Set pane border title
-        let borderTitle = "\(companySlug.uppercased()): \(title)"
-        if let paneId = paneIdForWindow(windowName) {
-            try? runProcess("tmux", arguments: [
-                "select-pane", "-t", paneId, "-T", borderTitle,
-            ])
-        }
-
-        // Re-tile the board tab so panes adapt to the new window count
-        retileBoard()
-
-        logger.info("Launched task session: \(windowName) in \(projectDir)")
+        logger.info("Launched task session: \(companySlug) in \(projectDir)")
     }
 
-    // FIXME: isSessionRunning should use NetKit HTTP polling or a proper session registry
-    // instead of shelling out to tmux. Fragile if tmux session name changes or is not running.
-    /// Check if a tmux window with the exact name `slug` exists in the board session.
+    /// Check if a company's pane has an active Claude process (not idle shell).
     public func isSessionRunning(slug: String) async -> Bool {
-        do {
-            let output = try runProcessCapture("tmux", arguments: [
-                "list-windows", "-t", session, "-F", "#{window_name}",
-            ])
-            return output.split(separator: "\n").contains(where: { String($0) == slug })
-        } catch {
-            return false
-        }
+        // Extract company slug from "company:task-short" format
+        let companySlug = slug.split(separator: ":", maxSplits: 1).first.map(String.init) ?? slug
+        return await isCompanyPaneActive(slug: companySlug)
     }
 
-    /// Kill the tmux window for the given session slug and re-tile remaining panes.
-    /// Captures the pane scrollback buffer before killing (for session transcripts).
+    /// Send Ctrl-C to the company pane to stop the running Claude session.
     public func stopSession(slug: String) async throws {
-        try runProcess("tmux", arguments: [
-            "kill-window", "-t", "\(session):\(slug)",
-        ])
-        retileBoard()
-        logger.info("Stopped session: \(slug)")
+        let companySlug = slug.split(separator: ":", maxSplits: 1).first.map(String.init) ?? slug
+        guard let paneId = findCompanyPane(slug: companySlug) else {
+            logger.warning("No pane found for company: \(companySlug)")
+            return
+        }
+
+        // Send Ctrl-C to interrupt Claude
+        try runProcess("tmux", arguments: ["send-keys", "-t", paneId, "C-c", ""])
+        // Brief wait for process to exit
+        usleep(500_000)
+        // Send another Ctrl-C in case Claude is in a prompt
+        try? runProcess("tmux", arguments: ["send-keys", "-t", paneId, "C-c", ""])
+
+        logger.info("Stopped session in pane: \(companySlug)")
     }
 
-    /// Capture the full scrollback buffer of a session's pane before killing it.
-    /// Returns the raw terminal output (with ANSI codes stripped).
+    /// Capture the full scrollback buffer of a company's pane.
     public func captureSessionOutput(slug: String) -> String? {
+        let companySlug = slug.split(separator: ":", maxSplits: 1).first.map(String.init) ?? slug
+        guard let paneId = findCompanyPane(slug: companySlug) else { return nil }
         guard let output = try? runProcessCapture("tmux", arguments: [
-            "capture-pane", "-t", "\(session):\(slug)", "-p", "-S", "-",
+            "capture-pane", "-t", paneId, "-p", "-S", "-",
         ]) else { return nil }
         // Strip ANSI escape codes for cleaner storage
         return output.replacingOccurrences(
@@ -108,28 +95,41 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
         )
     }
 
-    // FIXME: listRunningSessions should query a session registry (DB or in-memory)
-    // instead of parsing tmux output. Breaks if panes are renamed manually.
-    /// List all active task session window names (excludes `orchestrator` and `research` tabs).
     /// Reserved window names that are NOT task sessions — never clean them up.
+    /// With single-window layout, only "orchestrator" exists.
     private static var reservedWindows: Set<String> { ProcessCleanup.reservedWindows }
 
+    /// List active company sessions by checking which panes have Claude running.
+    /// Returns slugs in "company:active" format for compatibility with HeartbeatLoop.
     public func listRunningSessions() async -> [String] {
-        do {
-            let output = try runProcessCapture("tmux", arguments: [
-                "list-windows", "-t", session, "-F", "#{window_name}",
-            ])
-            return output.split(separator: "\n")
-                .map(String.init)
-                .filter { !Self.reservedWindows.contains($0) }
-        } catch {
-            return []
+        // List all panes with their title and current command
+        guard let output = try? runProcessCapture("tmux", arguments: [
+            "list-panes", "-t", "\(session):orchestrator",
+            "-F", "#{pane_title} #{pane_current_command}",
+        ]) else { return [] }
+
+        let reservedTitles: Set<String> = ["ORCHESTRATOR", "HEARTBEAT"]
+
+        return output.split(separator: "\n").compactMap { line in
+            let parts = line.split(separator: " ", maxSplits: 1)
+            guard parts.count == 2 else { return nil }
+            let title = String(parts[0])
+            let command = String(parts[1])
+
+            // Skip non-company panes
+            guard !reservedTitles.contains(title) else { return nil }
+
+            // Active = running claude (not idle shell)
+            let isActive = command != "zsh" && command != "bash" && !command.isEmpty
+            guard isActive else { return nil }
+
+            return "\(title.lowercased()):active"
         }
     }
 
-    // MARK: - Window Naming
+    // MARK: - Window Naming (kept for compatibility)
 
-    /// Generates a tmux window name: "{company}:{task-short}" (max ~25 chars)
+    /// Generates a session slug: "{company}:{task-short}" (max ~25 chars)
     static func windowName(companySlug: String, title: String) -> String {
         let short = String(title.prefix(15))
             .replacingOccurrences(of: " ", with: "-")
@@ -137,10 +137,39 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
         return "\(companySlug):\(short)"
     }
 
+    // MARK: - Pane Discovery
+
+    /// Find a company pane by its title (set during layout creation).
+    private func findCompanyPane(slug: String) -> String? {
+        let titleToFind = slug.uppercased()
+        guard let output = try? runProcessCapture("tmux", arguments: [
+            "list-panes", "-t", "\(session):orchestrator",
+            "-F", "#{pane_id} #{pane_title}",
+        ]) else { return nil }
+
+        for line in output.split(separator: "\n") {
+            let parts = line.split(separator: " ", maxSplits: 1)
+            guard parts.count == 2 else { continue }
+            if String(parts[1]) == titleToFind {
+                return String(parts[0])
+            }
+        }
+        return nil
+    }
+
+    /// Check if a company pane has an active process (not idle shell).
+    private func isCompanyPaneActive(slug: String) async -> Bool {
+        guard let paneId = findCompanyPane(slug: slug) else { return false }
+        guard let output = try? runProcessCapture("tmux", arguments: [
+            "display-message", "-t", paneId, "-p", "#{pane_current_command}",
+        ]) else { return false }
+
+        let command = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        return command != "zsh" && command != "bash" && !command.isEmpty
+    }
+
     // MARK: - Autopilot Prompt
 
-    // FIXME: buildAutopilotPrompt should load from a template file or CLAUDE.md
-    // instead of hardcoding the prompt. Makes iteration require recompilation.
     private static func buildAutopilotPrompt(
         companyId: String, companySlug: String,
         taskId: String, title: String
@@ -197,29 +226,11 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
         return "$'\(escaped)'"
     }
 
+    private static func shellEscapePath(_ path: String) -> String {
+        path.replacingOccurrences(of: " ", with: "\\ ")
+    }
+
     // MARK: - Helpers
-
-    private func tmuxSessionExists() -> Bool {
-        do {
-            try runProcess("tmux", arguments: ["has-session", "-t", session])
-            return true
-        } catch {
-            return false
-        }
-    }
-
-    private func paneIdForWindow(_ windowName: String) -> String? {
-        guard let output = try? runProcessCapture("tmux", arguments: [
-            "list-panes", "-t", "\(session):\(windowName)", "-F", "#{pane_id}",
-        ]) else { return nil }
-        return output.trimmingCharacters(in: .whitespacesAndNewlines)
-            .split(separator: "\n").first.map(String.init)
-    }
-
-    private func retileBoard() {
-        // Re-tile all windows in the board tab so the layout adapts dynamically
-        try? runProcess("tmux", arguments: ["select-layout", "-t", session, "tiled"])
-    }
 
     private func runProcess(_ executable: String, arguments: [String]) throws {
         let process = Process()
@@ -242,7 +253,6 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
         try process.run()
-        // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         return String(data: data, encoding: .utf8) ?? ""

@@ -456,24 +456,25 @@ public enum DashboardRenderer {
     }
 
     private static func gatherAgents(session sessionName: String) -> [DashboardState.AgentStatus] {
+        // Single-window layout: use pane titles to identify company panes
         guard let output = runCapture("/usr/bin/env", args: [
-            "tmux", "list-panes", "-s", "-t", sessionName,
-            "-F", "#{window_name} #{pane_current_command}",
+            "tmux", "list-panes", "-t", "\(sessionName):orchestrator",
+            "-F", "#{pane_title} #{pane_current_command}",
         ]) else { return [] }
 
-        let reservedWindows: Set<String> = ["orchestrator", "board", "research"]
+        let reservedTitles: Set<String> = ["ORCHESTRATOR", "HEARTBEAT"]
 
         return output.split(separator: "\n").compactMap { line in
             let parts = line.split(separator: " ", maxSplits: 1)
-            guard let windowName = parts.first else { return nil }
-            let name = String(windowName)
-            guard !reservedWindows.contains(name) else { return nil }
+            guard let paneTitle = parts.first else { return nil }
+            let title = String(paneTitle)
+            guard !reservedTitles.contains(title) else { return nil }
 
             let command = parts.count > 1 ? String(parts[1]) : ""
             let isActive = !command.isEmpty && command != "zsh" && command != "bash"
 
             return DashboardState.AgentStatus(
-                name: name,
+                name: title.lowercased(),
                 status: isActive ? .active : .queued,
                 progress: isActive ? 50 : 0,
                 detail: isActive ? command : "Waiting"
