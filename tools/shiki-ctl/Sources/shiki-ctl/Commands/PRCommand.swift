@@ -147,8 +147,14 @@ struct PRCommand: AsyncParsableCommand {
                 return resolveRef(String(parts.last!))
             }
         }
-        // Default: resolve from the PR number argument
-        return resolveRef("pr\(number)")
+        // Resolve from the PR number argument
+        let resolved = resolveRef("pr\(number)")
+        // If resolution failed (returned raw string), use HEAD —
+        // the PR is likely the current branch (open, not merged)
+        if resolved.hasPrefix("pr") || resolved.hasPrefix("#") {
+            return "HEAD"
+        }
+        return resolved
     }
 
     /// The diff spec string: base...head
