@@ -31,7 +31,7 @@ struct PRCommand: AsyncParsableCommand {
     var from: String?
 
     /// Resolve git root so commands work from any cwd.
-    /// Tries cwd first, then resolves from the binary's symlink path.
+    /// Tries cwd first, then resolves from the binary's real path.
     private var gitRoot: URL {
         // Try cwd first
         let p = Process()
@@ -48,15 +48,20 @@ struct PRCommand: AsyncParsableCommand {
            !out.isEmpty {
             return URL(fileURLWithPath: out)
         }
-        // Fallback: resolve from the binary's symlink to find the workspace
-        // Binary is at: <workspace>/tools/shiki-ctl/.build/debug/shiki-ctl
-        let binaryPath = CommandLine.arguments[0]
-        var resolved = URL(fileURLWithPath: binaryPath).standardizedFileURL
-        // Resolve symlink chain
-        if let realPath = try? FileManager.default.destinationOfSymbolicLink(atPath: binaryPath) {
-            resolved = URL(fileURLWithPath: realPath).standardizedFileURL
+        // Fallback: get the binary's real path via _NSGetExecutablePath
+        // then walk up to find .git
+        var pathBuf = [CChar](repeating: 0, count: Int(PATH_MAX))
+        var size = UInt32(PATH_MAX)
+        guard _NSGetExecutablePath(&pathBuf, &size) == 0 else {
+            return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         }
-        // Walk up from .build/debug/shiki-ctl to find .git
+        // Resolve all symlinks to get the real path
+        guard let realPath = realpath(pathBuf, nil) else {
+            return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        }
+        let resolved = URL(fileURLWithPath: String(cString: realPath))
+        free(realPath)
+        // Walk up from .build/arm64-apple-macosx/debug/shiki-ctl to find .git
         var dir = resolved.deletingLastPathComponent()
         for _ in 0..<10 {
             if FileManager.default.fileExists(atPath: dir.appendingPathComponent(".git").path) {
