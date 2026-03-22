@@ -81,18 +81,25 @@ struct PRCommand: AsyncParsableCommand {
         return p
     }
 
+    /// Cache for resolved refs — each ref is resolved only once.
+    private static var refCache: [String: String] = [:]
+
     /// Resolve a ref string to a git-usable ref.
     /// Accepts: branch name, commit SHA, #N, prN, pr#N.
     /// For PRs: resolves to headRefOid (SHA) — works even after branch deletion.
     /// Falls back to git log if gh is unavailable (e.g. SSH without auth).
     private func resolveRef(_ ref: String) -> String {
+        if let cached = Self.refCache[ref] { return cached }
         let t = ref.trimmingCharacters(in: .whitespaces)
         let num: String?
         if t.hasPrefix("pr#") { num = String(t.dropFirst(3)) }
         else if t.hasPrefix("pr") { num = String(t.dropFirst(2)) }
         else if t.hasPrefix("#") { num = String(t.dropFirst(1)) }
         else { num = nil }
-        guard let n = num, Int(n) != nil else { return t }
+        guard let n = num, Int(n) != nil else {
+            Self.refCache[ref] = t
+            return t
+        }
 
         // Try gh first (needs auth)
         let p = makeProcess(arguments: ["gh", "pr", "view", n, "--json", "headRefOid", "-q", ".headRefOid"])
@@ -102,10 +109,12 @@ struct PRCommand: AsyncParsableCommand {
         try? p.run()
         let d = pipe.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
-        if p.terminationStatus == 0, let sha = String(data: d, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !sha.isEmpty { return sha }
+        if p.terminationStatus == 0, let sha = String(data: d, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !sha.isEmpty {
+            Self.refCache[ref] = sha
+            return sha
+        }
 
         // Fallback: find PR merge commit via git log (works without gh auth)
-        // Searches for "Merge PR #N" or "PR #N" in commit messages
         let git = makeProcess(executable: "/usr/bin/git", arguments: [
             "log", "--all", "--grep=PR #\(n)", "--grep=#\(n)", "--format=%H", "-1"
         ])
@@ -117,10 +126,12 @@ struct PRCommand: AsyncParsableCommand {
         git.waitUntilExit()
         if git.terminationStatus == 0, let sha = String(data: gitData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !sha.isEmpty {
             FileHandle.standardError.write(Data("  \u{1B}[2m(resolved PR #\(n) via git log — gh unavailable)\u{1B}[0m\n".utf8))
+            Self.refCache[ref] = sha
             return sha
         }
 
         FileHandle.standardError.write(Data("\u{1B}[33m⚠\u{1B}[0m \u{1B}[2mCannot resolve PR #\(n) — gh unavailable, no merge commit found\u{1B}[0m\n".utf8))
+        Self.refCache[ref] = t
         return t
     }
 
