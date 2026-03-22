@@ -84,6 +84,7 @@ struct PRCommand: AsyncParsableCommand {
     /// Resolve a ref string to a git-usable ref.
     /// Accepts: branch name, commit SHA, #N, prN, pr#N.
     /// For PRs: resolves to headRefOid (SHA) — works even after branch deletion.
+    /// Falls back to git log if gh is unavailable (e.g. SSH without auth).
     private func resolveRef(_ ref: String) -> String {
         let t = ref.trimmingCharacters(in: .whitespaces)
         let num: String?
@@ -92,7 +93,8 @@ struct PRCommand: AsyncParsableCommand {
         else if t.hasPrefix("#") { num = String(t.dropFirst(1)) }
         else { num = nil }
         guard let n = num, Int(n) != nil else { return t }
-        // Resolve PR to head commit SHA — survives branch deletion
+
+        // Try gh first (needs auth)
         let p = makeProcess(arguments: ["gh", "pr", "view", n, "--json", "headRefOid", "-q", ".headRefOid"])
         let pipe = Pipe()
         p.standardOutput = pipe
@@ -101,6 +103,24 @@ struct PRCommand: AsyncParsableCommand {
         let d = pipe.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
         if p.terminationStatus == 0, let sha = String(data: d, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !sha.isEmpty { return sha }
+
+        // Fallback: find PR merge commit via git log (works without gh auth)
+        // Searches for "Merge PR #N" or "PR #N" in commit messages
+        let git = makeProcess(executable: "/usr/bin/git", arguments: [
+            "log", "--all", "--grep=PR #\(n)", "--grep=#\(n)", "--format=%H", "-1"
+        ])
+        let gitPipe = Pipe()
+        git.standardOutput = gitPipe
+        git.standardError = FileHandle.nullDevice
+        try? git.run()
+        let gitData = gitPipe.fileHandleForReading.readDataToEndOfFile()
+        git.waitUntilExit()
+        if git.terminationStatus == 0, let sha = String(data: gitData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !sha.isEmpty {
+            FileHandle.standardError.write(Data("  \u{1B}[2m(resolved PR #\(n) via git log — gh unavailable)\u{1B}[0m\n".utf8))
+            return sha
+        }
+
+        FileHandle.standardError.write(Data("\u{1B}[31mError: Cannot resolve PR #\(n) — gh auth failed and no matching commit found\u{1B}[0m\n".utf8))
         return t
     }
 
