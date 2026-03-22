@@ -238,7 +238,8 @@ enum WriteTools: Sendable {
 
     private static func writeToDB(type: String, scope: String, data: [String: JSONValue], dbClient: ShikiDBClientProtocol) async -> JSONValue {
         do {
-            let result = try await dbClient.dataSyncWrite(type: type, scope: scope, data: data)
+            let projectId = ShikiDBClient.resolveProjectId(scope)
+            let result = try await dbClient.dataSyncWrite(type: type, scope: scope, data: data, projectId: projectId)
             return successResult("Saved \(type) to ShikiDB", data: result)
         } catch let error as ShikiDBError {
             return errorResult("ShikiDB error: \(error.description)")
