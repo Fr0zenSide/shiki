@@ -81,25 +81,18 @@ struct PRCommand: AsyncParsableCommand {
         return p
     }
 
-    /// Cache for resolved refs — each ref is resolved only once.
-    private static var refCache: [String: String] = [:]
-
     /// Resolve a ref string to a git-usable ref.
     /// Accepts: branch name, commit SHA, #N, prN, pr#N.
     /// For PRs: resolves to headRefOid (SHA) — works even after branch deletion.
     /// Falls back to git log if gh is unavailable (e.g. SSH without auth).
     private func resolveRef(_ ref: String) -> String {
-        if let cached = Self.refCache[ref] { return cached }
         let t = ref.trimmingCharacters(in: .whitespaces)
         let num: String?
         if t.hasPrefix("pr#") { num = String(t.dropFirst(3)) }
         else if t.hasPrefix("pr") { num = String(t.dropFirst(2)) }
         else if t.hasPrefix("#") { num = String(t.dropFirst(1)) }
         else { num = nil }
-        guard let n = num, Int(n) != nil else {
-            Self.refCache[ref] = t
-            return t
-        }
+        guard let n = num, Int(n) != nil else { return t }
 
         // Try gh first (needs auth)
         let p = makeProcess(arguments: ["gh", "pr", "view", n, "--json", "headRefOid", "-q", ".headRefOid"])
@@ -110,7 +103,6 @@ struct PRCommand: AsyncParsableCommand {
         let d = pipe.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
         if p.terminationStatus == 0, let sha = String(data: d, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !sha.isEmpty {
-            Self.refCache[ref] = sha
             return sha
         }
 
@@ -126,61 +118,54 @@ struct PRCommand: AsyncParsableCommand {
         git.waitUntilExit()
         if git.terminationStatus == 0, let sha = String(data: gitData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !sha.isEmpty {
             FileHandle.standardError.write(Data("  \u{1B}[2m(resolved PR #\(n) via git log — gh unavailable)\u{1B}[0m\n".utf8))
-            Self.refCache[ref] = sha
             return sha
         }
 
         FileHandle.standardError.write(Data("\u{1B}[33m⚠\u{1B}[0m \u{1B}[2mCannot resolve PR #\(n) — gh unavailable, no merge commit found\u{1B}[0m\n".utf8))
-        Self.refCache[ref] = t
         return t
     }
 
-    /// The resolved base ref for diff (left side).
-    private var resolvedBase: String {
+    /// Resolve base and head refs once. Returns (base, head, diffSpec).
+    private func resolveDiffSpec() -> (base: String, head: String, spec: String) {
+        // Resolve base
+        let base: String
         if let fromSpec = from {
             if fromSpec.contains("..") {
                 let parts = fromSpec.split(separator: ".", maxSplits: 2, omittingEmptySubsequences: true)
-                if let first = parts.first {
-                    return resolveRef(String(first))
-                }
+                base = resolveRef(String(parts.first ?? "develop"))
+            } else {
+                base = resolveRef(fromSpec)
             }
-            return resolveRef(fromSpec)
+        } else {
+            base = resolveRef("develop")
         }
-        return resolveRef("develop")
-    }
 
-    /// The resolved head ref for diff (right side).
-    /// Normally HEAD, but --from pr20..pr24 uses the second ref.
-    private var resolvedHead: String {
+        // Resolve head
+        let head: String
         if let fromSpec = from, fromSpec.contains("..") {
             let parts = fromSpec.split(separator: ".", maxSplits: 2, omittingEmptySubsequences: true)
             if parts.count >= 2 {
-                return resolveRef(String(parts.last!))
+                head = resolveRef(String(parts.last!))
+            } else {
+                head = "HEAD"
             }
+        } else {
+            let resolved = resolveRef("pr\(number)")
+            head = (resolved.hasPrefix("pr") || resolved.hasPrefix("#")) ? "HEAD" : resolved
         }
-        // Resolve from the PR number argument
-        let resolved = resolveRef("pr\(number)")
-        // If resolution failed (returned raw string), use HEAD —
-        // the PR is likely the current branch (open, not merged)
-        if resolved.hasPrefix("pr") || resolved.hasPrefix("#") {
-            return "HEAD"
-        }
-        return resolved
-    }
 
-    /// The diff spec string: base...head
-    private var diffSpec: String {
-        "\(resolvedBase)...\(resolvedHead)"
+        return (base, head, "\(base)...\(head)")
     }
 
     func run() async throws {
         let root = gitRoot
+        let (resolvedBase, _, diffSpec) = resolveDiffSpec()
         let cacheDir = "\(root.path)/docs/pr\(number)-cache"
         let filesPath = "\(cacheDir)/files.json"
 
         // Force rebuild (does NOT destroy review-state.json per BR-11)
         if build {
-            try buildCache()
+            try buildCache(diffSpec: diffSpec)
             return
         }
 
@@ -199,7 +184,7 @@ struct PRCommand: AsyncParsableCommand {
         }
         if needsRebuild {
             FileHandle.standardError.write(Data("Building cache for PR #\(number)...\n".utf8))
-            try buildCache()
+            try buildCache(diffSpec: diffSpec)
         }
 
         // Load cache
@@ -282,9 +267,9 @@ struct PRCommand: AsyncParsableCommand {
                 // --delta --diff: only diff delta files
                 let deltaFiles = reviewState.deltaFiles.map(\.path)
                 let deltaFileEntries = files.filter { deltaFiles.contains($0["path"] as? String ?? "") }
-                renderOrderedDiff(files: deltaFileEntries)
+                renderOrderedDiff(files: deltaFileEntries, diffSpec: diffSpec)
             } else {
-                renderOrderedDiff(files: files)
+                renderOrderedDiff(files: files, diffSpec: diffSpec)
             }
             return
         }
@@ -293,9 +278,9 @@ struct PRCommand: AsyncParsableCommand {
         if delta {
             let deltaFiles = reviewState.deltaFiles.map(\.path)
             let deltaFileEntries = files.filter { deltaFiles.contains($0["path"] as? String ?? "") }
-            renderSmartSummary(files: deltaFileEntries, risk: risk, reviewState: reviewState, isDelta: true)
+            renderSmartSummary(files: deltaFileEntries, risk: risk, reviewState: reviewState, isDelta: true, resolvedBase: resolvedBase)
         } else {
-            renderSmartSummary(files: files, risk: risk, reviewState: reviewState, isDelta: false)
+            renderSmartSummary(files: files, risk: risk, reviewState: reviewState, isDelta: false, resolvedBase: resolvedBase)
         }
     }
 
@@ -325,7 +310,7 @@ struct PRCommand: AsyncParsableCommand {
 
     // MARK: - Ordered Diff (pipe to delta)
 
-    private func renderOrderedDiff(files: [[String: Any]]) {
+    private func renderOrderedDiff(files: [[String: Any]], diffSpec: String) {
         let sorted = files.sorted { a, b in
             let pa = layerPriority(path: a["path"] as? String ?? "")
             let pb = layerPriority(path: b["path"] as? String ?? "")
@@ -356,7 +341,7 @@ struct PRCommand: AsyncParsableCommand {
 
     // MARK: - Smart Summary (default output)
 
-    private func renderSmartSummary(files: [[String: Any]], risk: [[String: Any]]?, reviewState: PRReviewProgress, isDelta: Bool) {
+    private func renderSmartSummary(files: [[String: Any]], risk: [[String: Any]]?, reviewState: PRReviewProgress, isDelta: Bool, resolvedBase: String) {
         let totalIns = files.reduce(0) { $0 + ($1["insertions"] as? Int ?? 0) }
         let totalDel = files.reduce(0) { $0 + ($1["deletions"] as? Int ?? 0) }
 
@@ -608,7 +593,7 @@ struct PRCommand: AsyncParsableCommand {
 
     // MARK: - Build Cache
 
-    private func buildCache() throws {
+    private func buildCache(diffSpec: String) throws {
         let root = gitRoot
         let cacheDir = "\(root.path)/docs/pr\(number)-cache"
         try FileManager.default.createDirectory(atPath: cacheDir, withIntermediateDirectories: true)
