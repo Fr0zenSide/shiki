@@ -30,6 +30,34 @@ struct PRCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Base: branch name, #N, prN, pr#N (default: develop)")
     var base: String = "develop"
 
+    /// Resolve git root so commands work from any cwd.
+    private var gitRoot: URL {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        p.arguments = ["rev-parse", "--show-toplevel"]
+        let pipe = Pipe()
+        p.standardOutput = pipe
+        p.standardError = FileHandle.nullDevice
+        try? p.run()
+        let d = pipe.fileHandleForReading.readDataToEndOfFile()
+        p.waitUntilExit()
+        if p.terminationStatus == 0,
+           let out = String(data: d, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !out.isEmpty {
+            return URL(fileURLWithPath: out)
+        }
+        return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    }
+
+    /// Create a Process pre-configured with the git root as working directory.
+    private func makeProcess(executable: String = "/usr/bin/env", arguments: [String]) -> Process {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: executable)
+        p.currentDirectoryURL = gitRoot
+        p.arguments = arguments
+        return p
+    }
+
     private var resolvedBase: String {
         let t = base.trimmingCharacters(in: .whitespaces)
         let num: String?
@@ -38,9 +66,7 @@ struct PRCommand: AsyncParsableCommand {
         else if t.hasPrefix("#") { num = String(t.dropFirst(1)) }
         else { num = nil }
         guard let n = num, Int(n) != nil else { return t }
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        p.arguments = ["gh", "pr", "view", n, "--json", "headRefName", "-q", ".headRefName"]
+        let p = makeProcess(arguments: ["gh", "pr", "view", n, "--json", "headRefName", "-q", ".headRefName"])
         let pipe = Pipe()
         p.standardOutput = pipe
         p.standardError = FileHandle.nullDevice
@@ -52,7 +78,8 @@ struct PRCommand: AsyncParsableCommand {
     }
 
     func run() async throws {
-        let cacheDir = "docs/pr\(number)-cache"
+        let root = gitRoot
+        let cacheDir = "\(root.path)/docs/pr\(number)-cache"
         let filesPath = "\(cacheDir)/files.json"
 
         // Force rebuild (does NOT destroy review-state.json per BR-11)
@@ -202,9 +229,7 @@ struct PRCommand: AsyncParsableCommand {
         FileHandle.standardOutput.write(Data(header.utf8))
 
         // Run git diff with files in architecture order
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        process.arguments = ["diff", "\(resolvedBase)...HEAD", "--"] + paths
+        let process = makeProcess(executable: "/usr/bin/git", arguments: ["diff", "\(resolvedBase)...HEAD", "--"] + paths)
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
@@ -348,13 +373,11 @@ struct PRCommand: AsyncParsableCommand {
     // MARK: - Fetch PR Metadata
 
     private func fetchPRInfo() -> [String: String] {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = [
+        let process = makeProcess(arguments: [
             "gh", "pr", "view", "\(number)",
             "--json", "title,headRefName,baseRefName,author,createdAt,body",
             "--jq", "[.title, .headRefName, .baseRefName, .author.login, .createdAt, .body] | @tsv",
-        ]
+        ])
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
@@ -392,9 +415,7 @@ struct PRCommand: AsyncParsableCommand {
 
     /// Fetch current PR HEAD commit SHA.
     private func fetchPRHead() -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["gh", "pr", "view", "\(number)", "--json", "headRefOid", "-q", ".headRefOid"]
+        let process = makeProcess(arguments: ["gh", "pr", "view", "\(number)", "--json", "headRefOid", "-q", ".headRefOid"])
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
@@ -412,9 +433,7 @@ struct PRCommand: AsyncParsableCommand {
 
     /// Get files changed between two commits.
     private func gitDiffFiles(from: String, to: String) -> [String] {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        process.arguments = ["diff", "--name-only", "\(from)..\(to)"]
+        let process = makeProcess(executable: "/usr/bin/git", arguments: ["diff", "--name-only", "\(from)..\(to)"])
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
@@ -476,12 +495,11 @@ struct PRCommand: AsyncParsableCommand {
     // MARK: - Build Cache
 
     private func buildCache() throws {
-        let cacheDir = "docs/pr\(number)-cache"
+        let root = gitRoot
+        let cacheDir = "\(root.path)/docs/pr\(number)-cache"
         try FileManager.default.createDirectory(atPath: cacheDir, withIntermediateDirectories: true)
 
-        let diffStat = Process()
-        diffStat.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        diffStat.arguments = ["diff", "--numstat", "\(resolvedBase)...HEAD"]
+        let diffStat = makeProcess(executable: "/usr/bin/git", arguments: ["diff", "--numstat", "\(resolvedBase)...HEAD"])
         let statPipe = Pipe()
         diffStat.standardOutput = statPipe
         try diffStat.run()
