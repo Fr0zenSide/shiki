@@ -142,16 +142,16 @@ struct PRCommand: AsyncParsableCommand {
             return
         }
 
-        // Auto-build cache if missing or if --base/--from changed the diff spec
+        // Auto-build cache if missing or if --from changed the diff spec
         let needsRebuild: Bool
-        let metaPath = "\(cacheDir)/cache-meta.json"
         if !FileManager.default.fileExists(atPath: filesPath) {
             needsRebuild = true
-        } else if let metaData = FileManager.default.contents(atPath: metaPath),
-                  let meta = try? JSONSerialization.jsonObject(with: metaData) as? [String: String],
-                  meta["diffSpec"] != diffSpec {
+        } else if let cacheData = FileManager.default.contents(atPath: filesPath),
+                  let cache = try? JSONSerialization.jsonObject(with: cacheData) as? [String: Any],
+                  let cachedSpec = cache["_diffSpec"] as? String,
+                  cachedSpec != diffSpec {
             needsRebuild = true
-            FileHandle.standardError.write(Data("Base changed (\(meta["diffSpec"] ?? "?") → \(diffSpec)), rebuilding...\n".utf8))
+            FileHandle.standardError.write(Data("Base changed (\(cachedSpec) → \(diffSpec)), rebuilding...\n".utf8))
         } else {
             needsRebuild = false
         }
@@ -167,7 +167,13 @@ struct PRCommand: AsyncParsableCommand {
         }
 
         let filesData = try Data(contentsOf: URL(fileURLWithPath: filesPath))
-        guard let files = try JSONSerialization.jsonObject(with: filesData) as? [[String: Any]] else {
+        let files: [[String: Any]]
+        let parsed = try JSONSerialization.jsonObject(with: filesData)
+        if let wrapper = parsed as? [String: Any], let f = wrapper["files"] as? [[String: Any]] {
+            files = f
+        } else if let flat = parsed as? [[String: Any]] {
+            files = flat  // backward compat with old cache format
+        } else {
             throw ExitCode.failure
         }
 
@@ -587,14 +593,16 @@ struct PRCommand: AsyncParsableCommand {
             ])
         }
 
+        // Save files + metadata in one file
+        let cacheData: [String: Any] = [
+            "_command": "shiki pr \(number) --from \(from ?? "develop") --diff",
+            "_diffSpec": diffSpec,
+            "_builtAt": ISO8601DateFormatter().string(from: Date()),
+            "files": files,
+        ]
         let encoder = JSONSerialization.self
-        let filesJSON = try encoder.data(withJSONObject: files, options: [.prettyPrinted, .sortedKeys])
-        try filesJSON.write(to: URL(fileURLWithPath: "\(cacheDir)/files.json"))
-
-        // Save cache metadata so we know when to auto-rebuild
-        let meta: [String: String] = ["diffSpec": diffSpec, "builtAt": ISO8601DateFormatter().string(from: Date())]
-        let metaJSON = try JSONSerialization.data(withJSONObject: meta, options: [.prettyPrinted, .sortedKeys])
-        try metaJSON.write(to: URL(fileURLWithPath: "\(cacheDir)/cache-meta.json"))
+        let cacheJSON = try encoder.data(withJSONObject: cacheData, options: [.prettyPrinted, .sortedKeys])
+        try cacheJSON.write(to: URL(fileURLWithPath: "\(cacheDir)/files.json"))
 
         let total = files.count
         let ins = files.reduce(0) { $0 + ($1["insertions"] as? Int ?? 0) }
