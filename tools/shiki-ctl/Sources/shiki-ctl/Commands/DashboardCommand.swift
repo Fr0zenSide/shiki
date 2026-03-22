@@ -5,13 +5,32 @@ import ShikiCtlKit
 struct DashboardCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "dashboard",
-        abstract: "Show all sessions sorted by attention zone"
+        abstract: "Reactive dashboard — the command center"
     )
 
     @Option(name: .long, help: "Tmux session name")
     var session: String = "shiki"
 
+    @Flag(name: .long, help: "Show legacy attention-zone view")
+    var legacy: Bool = false
+
+    @Flag(name: .long, help: "Single snapshot (no live refresh)")
+    var snapshot: Bool = false
+
     func run() async throws {
+        if legacy {
+            try await runLegacy()
+        } else if snapshot {
+            let state = await DashboardRenderer.gatherState(session: session)
+            let width = TerminalOutput.terminalWidth()
+            print(DashboardRenderer.render(state: state, width: width))
+        } else {
+            await DashboardRenderer.runLive(session: session)
+        }
+    }
+
+    /// Legacy view: sessions sorted by attention zone.
+    private func runLegacy() async throws {
         let discoverer = TmuxDiscoverer(sessionName: session)
         let journal = SessionJournal()
         let registry = SessionRegistry(discoverer: discoverer, journal: journal)
