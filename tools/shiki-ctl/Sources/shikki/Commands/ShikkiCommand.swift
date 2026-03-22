@@ -27,11 +27,11 @@ struct ShikkiCommand: AsyncParsableCommand {
             ShipCommand.self,
             StatusCommand.self,
             WakeCommand.self,
-            // Legacy: kept during transition, will be removed in PR C
+            // Legacy: StartupCommand kept — ShikkiCommand delegates to it for layout creation
+            // StopCommand kept — contains ShikiCommandError used by StartupCommand
+            // TODO: Extract layout logic to TmuxLayoutManager, then delete both
             StartupCommand.self,
             StopCommand.self,
-            AttachCommand.self,
-            SessionCommand.self,
         ]
     )
 
