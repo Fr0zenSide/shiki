@@ -27,10 +27,7 @@ struct PRCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Show only files with comments")
     var comments: Bool = false
 
-    @Option(name: .long, help: "Base ref: branch, #N, prN, pr#N, SHA (default: develop)")
-    var base: String = "develop"
-
-    @Option(name: .long, help: "Range: --from pr24 (single base) or --from pr20..pr24 (base..head)")
+    @Option(name: .long, help: "Base ref: branch, prN, #N, SHA (default: develop). Example: --from pr24")
     var from: String?
 
     /// Resolve git root so commands work from any cwd.
@@ -86,7 +83,6 @@ struct PRCommand: AsyncParsableCommand {
 
     /// The resolved base ref for diff (left side).
     private var resolvedBase: String {
-        // --from takes priority over --base
         if let fromSpec = from {
             if fromSpec.contains("..") {
                 let parts = fromSpec.split(separator: ".", maxSplits: 2, omittingEmptySubsequences: true)
@@ -96,7 +92,7 @@ struct PRCommand: AsyncParsableCommand {
             }
             return resolveRef(fromSpec)
         }
-        return resolveRef(base)
+        return resolveRef("develop")
     }
 
     /// The resolved head ref for diff (right side).
@@ -309,7 +305,7 @@ struct PRCommand: AsyncParsableCommand {
         }
 
         if let branch = prInfo["branch"] {
-            let displayBase = base != "develop" ? resolvedBase : (prInfo["base"] ?? "develop")
+            let displayBase = from != nil ? resolvedBase : (prInfo["base"] ?? "develop")
             print("\(ANSI.dim)\(branch) → \(displayBase)\(ANSI.reset) │ \(files.count) files │ \(ANSI.green)+\(totalIns)\(ANSI.reset)/\(ANSI.red)-\(totalDel)\(ANSI.reset)")
         } else {
             print("\(files.count) files │ \(ANSI.green)+\(totalIns)\(ANSI.reset)/\(ANSI.red)-\(totalDel)\(ANSI.reset)")
