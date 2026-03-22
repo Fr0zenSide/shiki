@@ -27,8 +27,11 @@ struct PRCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Show only files with comments")
     var comments: Bool = false
 
-    @Option(name: .long, help: "Base: branch name, #N, prN, pr#N (default: develop)")
+    @Option(name: .long, help: "Base ref: branch, #N, prN, pr#N, SHA (default: develop)")
     var base: String = "develop"
+
+    @Option(name: .long, help: "Range: --from pr24 (single base) or --from pr20..pr24 (base..head)")
+    var from: String?
 
     /// Resolve git root so commands work from any cwd.
     private var gitRoot: URL {
@@ -58,23 +61,60 @@ struct PRCommand: AsyncParsableCommand {
         return p
     }
 
-    private var resolvedBase: String {
-        let t = base.trimmingCharacters(in: .whitespaces)
+    /// Resolve a ref string to a git-usable ref.
+    /// Accepts: branch name, commit SHA, #N, prN, pr#N.
+    /// For PRs: resolves to headRefOid (SHA) — works even after branch deletion.
+    private func resolveRef(_ ref: String) -> String {
+        let t = ref.trimmingCharacters(in: .whitespaces)
         let num: String?
         if t.hasPrefix("pr#") { num = String(t.dropFirst(3)) }
         else if t.hasPrefix("pr") { num = String(t.dropFirst(2)) }
         else if t.hasPrefix("#") { num = String(t.dropFirst(1)) }
         else { num = nil }
         guard let n = num, Int(n) != nil else { return t }
-        let p = makeProcess(arguments: ["gh", "pr", "view", n, "--json", "headRefName", "-q", ".headRefName"])
+        // Resolve PR to head commit SHA — survives branch deletion
+        let p = makeProcess(arguments: ["gh", "pr", "view", n, "--json", "headRefOid", "-q", ".headRefOid"])
         let pipe = Pipe()
         p.standardOutput = pipe
         p.standardError = FileHandle.nullDevice
         try? p.run()
         let d = pipe.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
-        if p.terminationStatus == 0, let b = String(data: d, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !b.isEmpty { return b }
+        if p.terminationStatus == 0, let sha = String(data: d, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !sha.isEmpty { return sha }
         return t
+    }
+
+    /// The resolved base ref for diff (left side).
+    private var resolvedBase: String {
+        // --from takes priority over --base
+        if let fromSpec = from {
+            if fromSpec.contains("..") {
+                let parts = fromSpec.split(separator: ".", maxSplits: 2, omittingEmptySubsequences: true)
+                if let first = parts.first {
+                    return resolveRef(String(first))
+                }
+            }
+            return resolveRef(fromSpec)
+        }
+        return resolveRef(base)
+    }
+
+    /// The resolved head ref for diff (right side).
+    /// Normally HEAD, but --from pr20..pr24 uses the second ref.
+    private var resolvedHead: String {
+        if let fromSpec = from, fromSpec.contains("..") {
+            let parts = fromSpec.split(separator: ".", maxSplits: 2, omittingEmptySubsequences: true)
+            if parts.count >= 2 {
+                return resolveRef(String(parts.last!))
+            }
+        }
+        // Default: resolve from the PR number argument
+        return resolveRef("pr\(number)")
+    }
+
+    /// The diff spec string: base...head
+    private var diffSpec: String {
+        "\(resolvedBase)...\(resolvedHead)"
     }
 
     func run() async throws {
@@ -88,8 +128,20 @@ struct PRCommand: AsyncParsableCommand {
             return
         }
 
-        // Auto-build cache if missing
+        // Auto-build cache if missing or if --base/--from changed the diff spec
+        let needsRebuild: Bool
+        let metaPath = "\(cacheDir)/cache-meta.json"
         if !FileManager.default.fileExists(atPath: filesPath) {
+            needsRebuild = true
+        } else if let metaData = FileManager.default.contents(atPath: metaPath),
+                  let meta = try? JSONSerialization.jsonObject(with: metaData) as? [String: String],
+                  meta["diffSpec"] != diffSpec {
+            needsRebuild = true
+            FileHandle.standardError.write(Data("Base changed (\(meta["diffSpec"] ?? "?") → \(diffSpec)), rebuilding...\n".utf8))
+        } else {
+            needsRebuild = false
+        }
+        if needsRebuild {
             FileHandle.standardError.write(Data("Building cache for PR #\(number)...\n".utf8))
             try buildCache()
         }
@@ -225,11 +277,11 @@ struct PRCommand: AsyncParsableCommand {
         guard !paths.isEmpty else { return }
 
         // Header comment with base info
-        let header = "// PR #\(number) diff: \(resolvedBase)...HEAD (\(paths.count) files, architecture-ordered)\n"
+        let header = "// PR #\(number) diff: \(diffSpec) (\(paths.count) files, architecture-ordered)\n"
         FileHandle.standardOutput.write(Data(header.utf8))
 
         // Run git diff with files in architecture order
-        let process = makeProcess(executable: "/usr/bin/git", arguments: ["diff", "\(resolvedBase)...HEAD", "--"] + paths)
+        let process = makeProcess(executable: "/usr/bin/git", arguments: ["diff", diffSpec, "--"] + paths)
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
@@ -499,7 +551,7 @@ struct PRCommand: AsyncParsableCommand {
         let cacheDir = "\(root.path)/docs/pr\(number)-cache"
         try FileManager.default.createDirectory(atPath: cacheDir, withIntermediateDirectories: true)
 
-        let diffStat = makeProcess(executable: "/usr/bin/git", arguments: ["diff", "--numstat", "\(resolvedBase)...HEAD"])
+        let diffStat = makeProcess(executable: "/usr/bin/git", arguments: ["diff", "--numstat", diffSpec])
         let statPipe = Pipe()
         diffStat.standardOutput = statPipe
         try diffStat.run()
@@ -524,6 +576,11 @@ struct PRCommand: AsyncParsableCommand {
         let encoder = JSONSerialization.self
         let filesJSON = try encoder.data(withJSONObject: files, options: [.prettyPrinted, .sortedKeys])
         try filesJSON.write(to: URL(fileURLWithPath: "\(cacheDir)/files.json"))
+
+        // Save cache metadata so we know when to auto-rebuild
+        let meta: [String: String] = ["diffSpec": diffSpec, "builtAt": ISO8601DateFormatter().string(from: Date())]
+        let metaJSON = try JSONSerialization.data(withJSONObject: meta, options: [.prettyPrinted, .sortedKeys])
+        try metaJSON.write(to: URL(fileURLWithPath: "\(cacheDir)/cache-meta.json"))
 
         let total = files.count
         let ins = files.reduce(0) { $0 + ($1["insertions"] as? Int ?? 0) }
