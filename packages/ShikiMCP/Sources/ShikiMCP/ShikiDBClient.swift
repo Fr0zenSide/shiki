@@ -29,7 +29,7 @@ enum ShikiDBError: Error, Sendable, CustomStringConvertible {
 // MARK: - Protocol for testability
 
 protocol ShikiDBClientProtocol: Sendable {
-    func dataSyncWrite(type: String, scope: String, data: [String: JSONValue]) async throws -> JSONValue
+    func dataSyncWrite(type: String, scope: String, data: [String: JSONValue], projectId: String?) async throws -> JSONValue
     func memoriesSearch(query: String, projectIds: [String]?, types: [String]?, limit: Int) async throws -> JSONValue
     func healthCheck() async throws -> Bool
 }
@@ -48,14 +48,18 @@ actor ShikiDBClient: ShikiDBClientProtocol {
         self.session = URLSession(configuration: config)
     }
 
-    func dataSyncWrite(type: String, scope: String, data: [String: JSONValue]) async throws -> JSONValue {
+    func dataSyncWrite(type: String, scope: String, data: [String: JSONValue], projectId: String? = nil) async throws -> JSONValue {
         let url = try buildURL("/api/data-sync")
 
-        let payload: JSONValue = .object([
+        var payloadDict: [String: JSONValue] = [
             "type": .string(type),
             "scope": .string(scope),
             "data": .object(data),
-        ])
+        ]
+        if let pid = projectId ?? Self.resolveProjectId(scope) {
+            payloadDict["projectId"] = .string(pid)
+        }
+        let payload: JSONValue = .object(payloadDict)
 
         let responseData = try await post(url: url, body: payload)
         return try decodeJSON(responseData)
@@ -97,6 +101,20 @@ actor ShikiDBClient: ShikiDBClientProtocol {
         } catch {
             return false
         }
+    }
+
+    // MARK: - Project ID Resolution
+
+    /// Resolve project name to UUID. Known projects are hardcoded for now.
+    /// Future: query the DB for project list and cache.
+    static func resolveProjectId(_ projectName: String) -> String? {
+        let knownProjects: [String: String] = [
+            "shiki": "80c27043-5282-4814-b79d-5e6d3903cbc9",
+            "shikki": "80c27043-5282-4814-b79d-5e6d3903cbc9",
+            "maya": "bb9e4385-f087-4f65-8251-470f14230c3c",
+            "research": "1b6da95d-6a93-4048-a975-f20e7885e669",
+        ]
+        return knownProjects[projectName.lowercased()]
     }
 
     // MARK: - Private
