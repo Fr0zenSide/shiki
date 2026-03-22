@@ -120,7 +120,7 @@ struct PRCommand: AsyncParsableCommand {
             return sha
         }
 
-        FileHandle.standardError.write(Data("\u{1B}[31mError: Cannot resolve PR #\(n) — gh auth failed and no matching commit found\u{1B}[0m\n".utf8))
+        FileHandle.standardError.write(Data("\u{1B}[33m⚠\u{1B}[0m \u{1B}[2mCannot resolve PR #\(n) — gh unavailable, no merge commit found\u{1B}[0m\n".utf8))
         return t
     }
 
