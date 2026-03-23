@@ -3,7 +3,11 @@ import Testing
 
 /// E2E tests that run the compiled shiki-ctl binary and assert on output/exit codes.
 /// These test real command behavior without requiring tmux or backend.
-@Suite("E2E Command Scenarios")
+@Suite(
+    "E2E Command Scenarios",
+    .tags(.e2e),
+    .enabled(if: ProcessInfo.processInfo.environment["SKIP_E2E"] == nil)
+)
 struct E2EScenarioTests {
 
     /// Path to the compiled binary (built by swift build before tests run).
