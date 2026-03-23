@@ -394,10 +394,11 @@ struct StartupCommand: AsyncParsableCommand {
             "display-message", "-t", "\(session):orchestrator", "-p", "#{pane_id}"
         )
 
-        // 6. Enable pane border titles
+        // 6. Enable pane border titles + prevent shell from overriding them
         try tmux("set-option", "-w", "-t", "\(session):orchestrator", "pane-border-status", "top")
         try tmux("set-option", "-w", "-t", "\(session):orchestrator", "pane-border-format",
                  " #{pane_title} ")
+        try tmux("set-option", "-w", "-t", "\(session):orchestrator", "allow-rename", "off")
 
         // 7. Label all panes
         try tmux("select-pane", "-t", mainPaneId, "-T", "ORCHESTRATOR")
