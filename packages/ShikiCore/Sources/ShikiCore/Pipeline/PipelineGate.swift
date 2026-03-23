@@ -10,7 +10,7 @@ public protocol PipelineGate: Sendable {
 
 // MARK: - Gate Result
 
-public enum PipelineGateResult: Sendable {
+public enum PipelineGateResult: Codable, Sendable {
     case pass(detail: String?)
     case warn(reason: String)
     case fail(reason: String)

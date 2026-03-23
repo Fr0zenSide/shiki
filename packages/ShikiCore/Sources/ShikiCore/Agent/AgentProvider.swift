@@ -2,9 +2,12 @@ import Foundation
 
 // MARK: - Protocol
 
+/// Agent dispatch protocol. Implementations wrap specific AI CLI tools (claude, openrouter, etc.).
+/// Types are prefixed with `AgentProvider` to avoid collisions when ShikiCore is composed
+/// with ShikiMCP or shiki-ctl in a single binary.
 public protocol AgentProvider: Sendable {
     var name: String { get }
-    func dispatch(prompt: String, workingDirectory: URL, options: AgentOptions) async throws -> AgentResult
+    func dispatch(prompt: String, workingDirectory: URL, options: AgentProviderOptions) async throws -> AgentProviderResult
     func cancel() async
 
     /// Current session spend in USD. Providers parse this from their
@@ -14,7 +17,7 @@ public protocol AgentProvider: Sendable {
 
 // MARK: - Options
 
-public struct AgentOptions: Sendable {
+public struct AgentProviderOptions: Sendable {
     public let model: String?
     public let maxTokens: Int?
     public let outputFormat: OutputFormat
@@ -40,7 +43,7 @@ public struct AgentOptions: Sendable {
 
 // MARK: - Result
 
-public struct AgentResult: Sendable {
+public struct AgentProviderResult: Sendable {
     public let output: String
     public let exitCode: Int32
     public let tokensUsed: Int?

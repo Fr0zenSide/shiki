@@ -21,18 +21,28 @@ actor MCPServer {
     func run() async {
         logger.info("ShikiMCP server starting")
 
+        let stdin = FileHandle.standardInput
         let stdout = FileHandle.standardOutput
 
-        while let line = readLine() {
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { continue }
+        do {
+            for try await line in stdin.bytes.lines {
+                // Check for task cancellation between messages for graceful shutdown
+                try Task.checkCancellation()
 
-            let responseJSON = await handleMessage(trimmed)
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { continue }
 
-            if let data = responseJSON.data(using: .utf8) {
-                stdout.write(data)
-                stdout.write(Data("\n".utf8))
+                let responseJSON = await handleMessage(trimmed)
+
+                if let data = responseJSON.data(using: .utf8) {
+                    stdout.write(data)
+                    stdout.write(Data("\n".utf8))
+                }
             }
+        } catch is CancellationError {
+            logger.info("ShikiMCP server cancelled — shutting down gracefully")
+        } catch {
+            logger.error("ShikiMCP server stdin error: \(error)")
         }
 
         logger.info("ShikiMCP server shutting down")
