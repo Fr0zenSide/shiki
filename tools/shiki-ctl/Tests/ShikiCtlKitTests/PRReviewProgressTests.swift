@@ -309,4 +309,50 @@ struct PRReviewProgressionTests {
         #expect(state.reviewedFiles.count == 2)
         #expect(state.reviewedFiles.allSatisfy { $0.status == .pending })
     }
+
+    // MARK: - JSON Output Format (PR #29 — shikki pr --json contract)
+
+    @Test("JSON output matches shikki pr --json contract: pr, files, reviewState keys")
+    func jsonOutputFormatContract() throws {
+        // Simulate the JSON structure built by PRCommand.run() in --json mode:
+        //   { "pr": N, "files": [...], "reviewState": { ... } }
+        var state = makeSampleState()
+        state.markFileReviewed("Sources/Services/StoreKitService.swift", at: Date(timeIntervalSince1970: 1_700_000_000), commit: "abc1234")
+        state.addComment(to: "Sources/Services/PricingEngine.swift", message: "needs guard", at: Date(timeIntervalSince1970: 1_700_000_001), commit: "abc1234")
+
+        // Encode reviewState the same way PRCommand does
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let stateData = try encoder.encode(state)
+        let stateDict = try JSONSerialization.jsonObject(with: stateData)
+
+        // Build the top-level JSON the same way PRCommand.run() does
+        let files: [[String: Any]] = [
+            ["path": "Sources/Services/StoreKitService.swift", "insertions": 10, "deletions": 2],
+            ["path": "Sources/Services/PricingEngine.swift", "insertions": 5, "deletions": 0],
+        ]
+        let result: [String: Any] = [
+            "pr": 23,
+            "files": files,
+            "reviewState": stateDict,
+        ]
+
+        let jsonData = try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
+        let parsed = try JSONSerialization.jsonObject(with: jsonData) as! [String: Any]
+
+        // Verify top-level keys
+        #expect(parsed["pr"] as? Int == 23)
+        #expect((parsed["files"] as? [[String: Any]])?.count == 2)
+        #expect(parsed["reviewState"] != nil)
+
+        // Verify reviewState sub-structure
+        let rs = parsed["reviewState"] as! [String: Any]
+        #expect(rs["prNumber"] as? Int == 23)
+        #expect((rs["reviewedFiles"] as? [[String: Any]])?.count == 5)
+        #expect(rs["lastReviewedCommit"] as? String == "abc1234")
+
+        // Verify the JSON is valid for piping (no trailing garbage)
+        let outputString = String(data: jsonData, encoding: .utf8)!
+        #expect(outputString.hasSuffix("\n}"))
+    }
 }
