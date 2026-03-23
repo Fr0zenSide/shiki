@@ -27,23 +27,164 @@ struct PRCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Show only files with comments")
     var comments: Bool = false
 
-    @Option(name: .long, help: "Base branch for diff (default: develop)")
-    var base: String = "develop"
+    @Option(name: .long, help: "Base ref: branch, prN, #N, SHA (default: develop). Example: --from pr24")
+    var from: String?
+
+    /// Resolve git root so commands work from any cwd.
+    /// Tries cwd first, then resolves from the binary's real path.
+    private var gitRoot: URL {
+        // Try cwd first
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        p.arguments = ["rev-parse", "--show-toplevel"]
+        let pipe = Pipe()
+        p.standardOutput = pipe
+        p.standardError = FileHandle.nullDevice
+        try? p.run()
+        let d = pipe.fileHandleForReading.readDataToEndOfFile()
+        p.waitUntilExit()
+        if p.terminationStatus == 0,
+           let out = String(data: d, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !out.isEmpty {
+            return URL(fileURLWithPath: out)
+        }
+        // Fallback: get the binary's real path via _NSGetExecutablePath
+        // then walk up to find .git
+        var pathBuf = [CChar](repeating: 0, count: Int(PATH_MAX))
+        var size = UInt32(PATH_MAX)
+        guard _NSGetExecutablePath(&pathBuf, &size) == 0 else {
+            return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        }
+        // Resolve all symlinks to get the real path
+        guard let realPath = realpath(pathBuf, nil) else {
+            return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        }
+        let resolved = URL(fileURLWithPath: String(cString: realPath))
+        free(realPath)
+        // Walk up from .build/arm64-apple-macosx/debug/shiki-ctl to find .git
+        var dir = resolved.deletingLastPathComponent()
+        for _ in 0..<10 {
+            if FileManager.default.fileExists(atPath: dir.appendingPathComponent(".git").path) {
+                return dir
+            }
+            dir = dir.deletingLastPathComponent()
+        }
+        return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    }
+
+    /// Create a Process pre-configured with the git root as working directory.
+    private func makeProcess(executable: String = "/usr/bin/env", arguments: [String]) -> Process {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: executable)
+        p.currentDirectoryURL = gitRoot
+        p.arguments = arguments
+        return p
+    }
+
+    /// Resolve a ref string to a git-usable ref.
+    /// Accepts: branch name, commit SHA, #N, prN, pr#N.
+    /// For PRs: resolves to headRefOid (SHA) — works even after branch deletion.
+    /// Falls back to git log if gh is unavailable (e.g. SSH without auth).
+    private func resolveRef(_ ref: String) -> String {
+        let t = ref.trimmingCharacters(in: .whitespaces)
+        let num: String?
+        if t.hasPrefix("pr#") { num = String(t.dropFirst(3)) }
+        else if t.hasPrefix("pr") { num = String(t.dropFirst(2)) }
+        else if t.hasPrefix("#") { num = String(t.dropFirst(1)) }
+        else { num = nil }
+        guard let n = num, Int(n) != nil else { return t }
+
+        // Try gh first (needs auth)
+        let p = makeProcess(arguments: ["gh", "pr", "view", n, "--json", "headRefOid", "-q", ".headRefOid"])
+        let pipe = Pipe()
+        p.standardOutput = pipe
+        p.standardError = FileHandle.nullDevice
+        try? p.run()
+        let d = pipe.fileHandleForReading.readDataToEndOfFile()
+        p.waitUntilExit()
+        if p.terminationStatus == 0, let sha = String(data: d, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !sha.isEmpty {
+            return sha
+        }
+
+        // Fallback: find PR merge commit via git log (works without gh auth)
+        let git = makeProcess(executable: "/usr/bin/git", arguments: [
+            "log", "--all", "--grep=PR #\(n)", "--grep=#\(n)", "--format=%H", "-1"
+        ])
+        let gitPipe = Pipe()
+        git.standardOutput = gitPipe
+        git.standardError = FileHandle.nullDevice
+        try? git.run()
+        let gitData = gitPipe.fileHandleForReading.readDataToEndOfFile()
+        git.waitUntilExit()
+        if git.terminationStatus == 0, let sha = String(data: gitData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !sha.isEmpty {
+            FileHandle.standardError.write(Data("  \u{1B}[2m(resolved PR #\(n) via git log — gh unavailable)\u{1B}[0m\n".utf8))
+            return sha
+        }
+
+        FileHandle.standardError.write(Data("\u{1B}[33m⚠\u{1B}[0m \u{1B}[2mCannot resolve PR #\(n) — gh unavailable, no merge commit found\u{1B}[0m\n".utf8))
+        return t
+    }
+
+    /// Resolve base and head refs once. Returns (base, head, diffSpec).
+    private func resolveDiffSpec() -> (base: String, head: String, spec: String) {
+        // Resolve base
+        let base: String
+        if let fromSpec = from {
+            if fromSpec.contains("..") {
+                let parts = fromSpec.split(separator: ".", maxSplits: 2, omittingEmptySubsequences: true)
+                base = resolveRef(String(parts.first ?? "develop"))
+            } else {
+                base = resolveRef(fromSpec)
+            }
+        } else {
+            base = resolveRef("develop")
+        }
+
+        // Resolve head
+        let head: String
+        if let fromSpec = from, fromSpec.contains("..") {
+            let parts = fromSpec.split(separator: ".", maxSplits: 2, omittingEmptySubsequences: true)
+            if parts.count >= 2 {
+                head = resolveRef(String(parts.last!))
+            } else {
+                head = "HEAD"
+            }
+        } else {
+            let resolved = resolveRef("pr\(number)")
+            head = (resolved.hasPrefix("pr") || resolved.hasPrefix("#")) ? "HEAD" : resolved
+        }
+
+        return (base, head, "\(base)...\(head)")
+    }
 
     func run() async throws {
-        let cacheDir = "docs/pr\(number)-cache"
+        let root = gitRoot
+        let (resolvedBase, _, diffSpec) = resolveDiffSpec()
+        let cacheDir = "\(root.path)/docs/pr\(number)-cache"
         let filesPath = "\(cacheDir)/files.json"
 
         // Force rebuild (does NOT destroy review-state.json per BR-11)
         if build {
-            try buildCache()
+            try buildCache(diffSpec: diffSpec)
             return
         }
 
-        // Auto-build cache if missing
+        // Auto-build cache if missing or if --from changed the diff spec
+        let needsRebuild: Bool
         if !FileManager.default.fileExists(atPath: filesPath) {
+            needsRebuild = true
+        } else if let cacheData = FileManager.default.contents(atPath: filesPath),
+                  let cache = try? JSONSerialization.jsonObject(with: cacheData) as? [String: Any],
+                  let cachedSpec = cache["_diffSpec"] as? String,
+                  cachedSpec != diffSpec {
+            needsRebuild = true
+            FileHandle.standardError.write(Data("Base changed (\(cachedSpec) → \(diffSpec)), rebuilding...\n".utf8))
+        } else {
+            needsRebuild = false
+        }
+        if needsRebuild {
             FileHandle.standardError.write(Data("Building cache for PR #\(number)...\n".utf8))
-            try buildCache()
+            try buildCache(diffSpec: diffSpec)
         }
 
         // Load cache
@@ -53,7 +194,13 @@ struct PRCommand: AsyncParsableCommand {
         }
 
         let filesData = try Data(contentsOf: URL(fileURLWithPath: filesPath))
-        guard let files = try JSONSerialization.jsonObject(with: filesData) as? [[String: Any]] else {
+        let files: [[String: Any]]
+        let parsed = try JSONSerialization.jsonObject(with: filesData)
+        if let wrapper = parsed as? [String: Any], let f = wrapper["files"] as? [[String: Any]] {
+            files = f
+        } else if let flat = parsed as? [[String: Any]] {
+            files = flat  // backward compat with old cache format
+        } else {
             throw ExitCode.failure
         }
 
@@ -120,9 +267,9 @@ struct PRCommand: AsyncParsableCommand {
                 // --delta --diff: only diff delta files
                 let deltaFiles = reviewState.deltaFiles.map(\.path)
                 let deltaFileEntries = files.filter { deltaFiles.contains($0["path"] as? String ?? "") }
-                renderOrderedDiff(files: deltaFileEntries)
+                renderOrderedDiff(files: deltaFileEntries, diffSpec: diffSpec)
             } else {
-                renderOrderedDiff(files: files)
+                renderOrderedDiff(files: files, diffSpec: diffSpec)
             }
             return
         }
@@ -131,9 +278,9 @@ struct PRCommand: AsyncParsableCommand {
         if delta {
             let deltaFiles = reviewState.deltaFiles.map(\.path)
             let deltaFileEntries = files.filter { deltaFiles.contains($0["path"] as? String ?? "") }
-            renderSmartSummary(files: deltaFileEntries, risk: risk, reviewState: reviewState, isDelta: true)
+            renderSmartSummary(files: deltaFileEntries, risk: risk, reviewState: reviewState, isDelta: true, resolvedBase: resolvedBase)
         } else {
-            renderSmartSummary(files: files, risk: risk, reviewState: reviewState, isDelta: false)
+            renderSmartSummary(files: files, risk: risk, reviewState: reviewState, isDelta: false, resolvedBase: resolvedBase)
         }
     }
 
@@ -163,7 +310,7 @@ struct PRCommand: AsyncParsableCommand {
 
     // MARK: - Ordered Diff (pipe to delta)
 
-    private func renderOrderedDiff(files: [[String: Any]]) {
+    private func renderOrderedDiff(files: [[String: Any]], diffSpec: String) {
         let sorted = files.sorted { a, b in
             let pa = layerPriority(path: a["path"] as? String ?? "")
             let pb = layerPriority(path: b["path"] as? String ?? "")
@@ -176,9 +323,12 @@ struct PRCommand: AsyncParsableCommand {
         let paths = sorted.compactMap { $0["path"] as? String }
         guard !paths.isEmpty else { return }
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        process.arguments = ["diff", "\(base)...HEAD", "--"] + paths
+        // Header comment with base info
+        let header = "// PR #\(number) diff: \(diffSpec) (\(paths.count) files, architecture-ordered)\n"
+        FileHandle.standardOutput.write(Data(header.utf8))
+
+        // Run git diff with files in architecture order
+        let process = makeProcess(executable: "/usr/bin/git", arguments: ["diff", diffSpec, "--"] + paths)
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
@@ -191,7 +341,7 @@ struct PRCommand: AsyncParsableCommand {
 
     // MARK: - Smart Summary (default output)
 
-    private func renderSmartSummary(files: [[String: Any]], risk: [[String: Any]]?, reviewState: PRReviewProgress, isDelta: Bool) {
+    private func renderSmartSummary(files: [[String: Any]], risk: [[String: Any]]?, reviewState: PRReviewProgress, isDelta: Bool, resolvedBase: String) {
         let totalIns = files.reduce(0) { $0 + ($1["insertions"] as? Int ?? 0) }
         let totalDel = files.reduce(0) { $0 + ($1["deletions"] as? Int ?? 0) }
 
@@ -205,8 +355,9 @@ struct PRCommand: AsyncParsableCommand {
             print("\(ANSI.bold)PR #\(number)\(ANSI.reset)")
         }
 
-        if let branch = prInfo["branch"], let baseBranch = prInfo["base"] {
-            print("\(ANSI.dim)\(branch) → \(baseBranch)\(ANSI.reset) │ \(files.count) files │ \(ANSI.green)+\(totalIns)\(ANSI.reset)/\(ANSI.red)-\(totalDel)\(ANSI.reset)")
+        if let branch = prInfo["branch"] {
+            let displayBase = from != nil ? resolvedBase : (prInfo["base"] ?? "develop")
+            print("\(ANSI.dim)\(branch) → \(displayBase)\(ANSI.reset) │ \(files.count) files │ \(ANSI.green)+\(totalIns)\(ANSI.reset)/\(ANSI.red)-\(totalDel)\(ANSI.reset)")
         } else {
             print("\(files.count) files │ \(ANSI.green)+\(totalIns)\(ANSI.reset)/\(ANSI.red)-\(totalDel)\(ANSI.reset)")
         }
@@ -321,13 +472,11 @@ struct PRCommand: AsyncParsableCommand {
     // MARK: - Fetch PR Metadata
 
     private func fetchPRInfo() -> [String: String] {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = [
+        let process = makeProcess(arguments: [
             "gh", "pr", "view", "\(number)",
             "--json", "title,headRefName,baseRefName,author,createdAt,body",
             "--jq", "[.title, .headRefName, .baseRefName, .author.login, .createdAt, .body] | @tsv",
-        ]
+        ])
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
@@ -365,9 +514,7 @@ struct PRCommand: AsyncParsableCommand {
 
     /// Fetch current PR HEAD commit SHA.
     private func fetchPRHead() -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["gh", "pr", "view", "\(number)", "--json", "headRefOid", "-q", ".headRefOid"]
+        let process = makeProcess(arguments: ["gh", "pr", "view", "\(number)", "--json", "headRefOid", "-q", ".headRefOid"])
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
@@ -385,9 +532,7 @@ struct PRCommand: AsyncParsableCommand {
 
     /// Get files changed between two commits.
     private func gitDiffFiles(from: String, to: String) -> [String] {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        process.arguments = ["diff", "--name-only", "\(from)..\(to)"]
+        let process = makeProcess(executable: "/usr/bin/git", arguments: ["diff", "--name-only", "\(from)..\(to)"])
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
@@ -448,13 +593,12 @@ struct PRCommand: AsyncParsableCommand {
 
     // MARK: - Build Cache
 
-    private func buildCache() throws {
-        let cacheDir = "docs/pr\(number)-cache"
+    private func buildCache(diffSpec: String) throws {
+        let root = gitRoot
+        let cacheDir = "\(root.path)/docs/pr\(number)-cache"
         try FileManager.default.createDirectory(atPath: cacheDir, withIntermediateDirectories: true)
 
-        let diffStat = Process()
-        diffStat.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        diffStat.arguments = ["diff", "--numstat", "\(base)...HEAD"]
+        let diffStat = makeProcess(executable: "/usr/bin/git", arguments: ["diff", "--numstat", diffSpec])
         let statPipe = Pipe()
         diffStat.standardOutput = statPipe
         try diffStat.run()
@@ -476,9 +620,16 @@ struct PRCommand: AsyncParsableCommand {
             ])
         }
 
+        // Save files + metadata in one file
+        let cacheData: [String: Any] = [
+            "_command": "shiki pr \(number) --from \(from ?? "develop") --diff",
+            "_diffSpec": diffSpec,
+            "_builtAt": ISO8601DateFormatter().string(from: Date()),
+            "files": files,
+        ]
         let encoder = JSONSerialization.self
-        let filesJSON = try encoder.data(withJSONObject: files, options: [.prettyPrinted, .sortedKeys])
-        try filesJSON.write(to: URL(fileURLWithPath: "\(cacheDir)/files.json"))
+        let cacheJSON = try encoder.data(withJSONObject: cacheData, options: [.prettyPrinted, .sortedKeys])
+        try cacheJSON.write(to: URL(fileURLWithPath: "\(cacheDir)/files.json"))
 
         let total = files.count
         let ins = files.reduce(0) { $0 + ($1["insertions"] as? Int ?? 0) }
