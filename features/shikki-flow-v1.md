@@ -337,7 +337,7 @@ These features are part of the ListReviewer shared component. All list commands 
 4. **Undo last action** — `Ctrl-Z` undoes the last approve/kill/defer. Irreversible actions (ship) still require confirmation.
 5. **Hybrid smart ordering** — Default: @shi team auto-sorts by composite score (age + priority + deps + blocking-impact). User can override by manually reordering items to the top (pinned items stay pinned across sessions). System proposes, user disposes. `--sort manual` disables auto-sort entirely.
 6. **Progress persistence** — Review 4 of 8, quit, next `shikki inbox` resumes from #5. Local JSON file at `~/.config/shiki/list-progress.json` (same pattern as review CLI progress tracking). No DB migration needed — just a file with `{listId, reviewedItemIds[], pinnedOrder[], lastIndex}`.
-7. **Color-coded urgency** — Red = blocking other work. Yellow = aging (>24h). Green = ready. Dim = deferred. The list is a heatmap.
+7. **Scoped color-coded urgency** — Colors are relative to each company/project scope, not global. Red = blocking within that scope. Yellow = aging within that scope's cadence. Green = ready. Dim = deferred. A maya P1 and a kintsugi P1 don't share the same urgency — `shikki inbox --company maya` shows maya's heatmap, `shikki inbox` groups by company with per-scope coloring.
 8. **Pipe-friendly** — `shikki inbox --json` for scripting. `shikki inbox --count` for just the number. Every list command is both TUI and pipe.
 9. **Context injection** — In `shikki review`, press `?` to see the event logger context (agent decisions during implementation) without leaving the review.
 10. **Completion signal** — Terminal bell + ntfy push when all inbox items validated. Inbox zero should be tangible.
