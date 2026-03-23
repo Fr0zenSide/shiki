@@ -313,7 +313,7 @@ struct StartupCommand: AsyncParsableCommand {
     // MARK: - Tmux
 
     private func createTmuxLayout(workspace: String, session: String) async throws {
-        let scriptPath = "\(workspace)/scripts/orchestrate-layout.sh"
+        let scriptPath = "\(workspace)/scripts/orchestrate.sh"
         // If the layout script exists, use it; otherwise create manually
         if FileManager.default.fileExists(atPath: scriptPath) {
             let process = Process()
@@ -460,7 +460,32 @@ struct StartupCommand: AsyncParsableCommand {
         if data.pendingDecisions > 0 {
             decideStep = " && echo '' && echo '\\e[33m⚠ \(data.pendingDecisions) T1 decisions blocking your companies — let\\'s unblock them first.\\e[0m' && echo '' && \(binaryPath) decide"
         }
-        let cmd = "clear && cat \(statusFile)\(decideStep) && echo '' && claude"
+        // Build orchestrator prompt for Claude
+        let orchestratorPrompt = """
+        You are the Shikki main orchestrator. You manage multiple AI agent sessions working in parallel on different projects.
+
+        YOUR ROLE:
+        - Monitor the heartbeat pane below for task dispatch status
+        - Use /board to see all running company sessions
+        - Use /decide to handle pending T1 decisions that block companies
+        - Use /dispatch to launch parallel feature work
+        - Use shiki status to see orchestrator overview
+
+        COMPANIES: maya, wabisabi, flsh, brainy, kintsugi, obyw-one
+        BACKEND: http://localhost:3900
+
+        The heartbeat in the pane below automatically dispatches tasks from the queue to new tmux panes. Your job is to:
+        1. Review the startup dashboard above
+        2. Handle any pending decisions (/decide)
+        3. Queue work for companies or work directly on the highest priority task
+        4. Monitor progress via /board
+
+        Start by reviewing what's pending.
+        """
+        let promptFile = "/tmp/shiki-orchestrator-prompt-\(session).txt"
+        FileManager.default.createFile(atPath: promptFile, contents: Data(orchestratorPrompt.utf8))
+
+        let cmd = "clear && cat \(statusFile)\(decideStep) && echo '' && claude -p \"$(cat \(promptFile))\""
         try tmux("send-keys", "-t", mainPaneId, cmd, "C-m")
     }
 
