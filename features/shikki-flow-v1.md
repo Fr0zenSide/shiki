@@ -239,7 +239,31 @@ This is the **ListReviewer** component — one TUI widget, reused across all lis
 
 **Not an LLM feature.** Pure data stream — zero token cost.
 
-**Implementation:** Unix domain socket at `/tmp/shikki-events.sock`. ShikiCore writes JSON lines, event logger reads and renders. Zero infra — no broker, no Docker, no network. v1.1 migrates to MQTT when iOS/multi-machine subscribers arrive.
+**Implementation:** NATS subscriber on `shikki.events.>`. The event logger is just one consumer of the Shikki Mesh Protocol (NATS-based distributed bus). Same protocol carries commands, discovery, task claims, decisions. See below.
+
+---
+
+## Distributed Protocol: Shikki Mesh (NATS)
+
+**The distributed node protocol is the root decision** — logger, mobile, report are all leaves that subscribe to it.
+
+**Protocol:** NATS (Core v1, JetStream v2 when `nats.swift` supports it)
+**Transport:** `nats-server` single binary (20MB Go), localhost:4222 for v1, TLS leaf nodes for v2
+**Persistence:** ShikiDB for replay/state, NATS for real-time transport only
+**Auth:** NKeys (Ed25519 keypairs per agent node)
+
+**Topic hierarchy:**
+```
+shikki.events.{company}.{type}     — pub/sub events (fire-and-forget)
+shikki.commands.{node_id}          — directed commands (request/reply)
+shikki.discovery.announce          — heartbeats (30s interval)
+shikki.discovery.query             — "who's alive?" (request/reply)
+shikki.tasks.{workspace}.available — task queue
+shikki.tasks.{workspace}.claimed   — task claims
+shikki.decisions.pending           — decisions needing input
+```
+
+**Why NATS:** Only protocol with native pub/sub AND request/reply. Single binary, zero config. NKeys auth. Topic hierarchy. Scale path: single server → cluster → leaf nodes → superclusters. Language agnostic (Swift, TS, Go, Rust clients).
 
 **Format:** `[HH:MM:SS] company:agent scope what`
 
