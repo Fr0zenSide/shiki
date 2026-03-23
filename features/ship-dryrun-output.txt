@@ -1,0 +1,173 @@
+shiki ship --dry-run Dogfood Test Report
+=========================================
+Date: 2026-03-23
+Target project: kintsugi-ds (DSKintsugi design system)
+Binary: tools/shiki-ctl/.build/debug/shikki (built from develop, 174 compilation units)
+Test branch: test/ship-dryrun (from main, 1 trivial commit in tokens/spacing.tokens.json)
+
+=== RUN 1: --target develop ===
+
+$ shikki ship --dry-run --why "dogfood test" --target develop
+
+--- Ship Preflight --- [DRY RUN]
+
+  Branch:   test/ship-dryrun
+  Target:   develop
+  Version:  detecting... -> auto
+  Commits:  0
+  Why:      dogfood test
+
+  8 gates will be evaluated
+
+  [1/8] CleanBranch... PASS — Working tree clean
+  [2/8] Test... PASS — All tests passed
+  [3/8] Coverage... PASS — Coverage data unavailable — skipped
+  [4/8] Risk... PASS — Risk: low — 0 files, +0/-0
+  [5/8] Changelog... WARN — No commits found since last tag
+  [6/8] VersionBump... PASS — No previous version found, starting at 0.1.0
+  [7/8] Commit... PASS — [dry-run] Would commit with mode: preserve history
+  [8/8] PR... PASS — [dry-run] Would create PR: test/ship-dryrun -> develop
+
+--- Ship Complete --- 0.0s
+  WARN Changelog: No commits found since last tag
+
+Result: SUCCESS (all 8 gates pass)
+Ship log entry written to ~/.shiki/ship-log.md
+
+
+=== RUN 2: --target main ===
+
+$ shikki ship --dry-run --why "dogfood test v2" --target main
+
+--- Ship Preflight --- [DRY RUN]
+
+  Branch:   test/ship-dryrun
+  Target:   main
+  Version:  detecting... -> auto
+  Commits:  0
+  Why:      dogfood test v2
+
+  8 gates will be evaluated
+
+  [1/8] CleanBranch... PASS — Working tree clean
+  [2/8] Test... PASS — All tests passed
+  [3/8] Coverage... PASS — Coverage data unavailable — skipped
+  [4/8] Risk... PASS — Risk: low — 0 files, +0/-0
+  [5/8] Changelog... WARN — No commits found since last tag
+  [6/8] VersionBump... PASS — No previous version found, starting at 0.1.0
+  [7/8] Commit... PASS — [dry-run] Would commit with mode: preserve history
+  [8/8] PR... FAIL — Cannot target 'main' directly. Use 'develop' or 'release/*' per git flow.
+
+--- Ship Aborted --- 0.0s
+  Failed at: PR
+  Reason: Cannot target 'main' directly. Use 'develop' or 'release/*' per git flow.
+
+Result: FAILURE (PR gate rejects main)
+
+
+=== BUGS FOUND ===
+
+BUG-1: DryRunShipContext returns empty stdout for ALL shell commands [CRITICAL]
+  Severity: Critical — makes dry-run output misleading
+  File: tools/shiki-ctl/Sources/ShikiCtlKit/Services/ShipContext.swift (line 142-145)
+  Code:
+    public func shell(_ command: String) async throws -> ShellResult {
+        _capturedCommands.append(command)
+        return ShellResult(stdout: "", stderr: "", exitCode: 0)
+    }
+  Impact: In dry-run mode, every gate that reads git state (diff, log, describe, status)
+    gets empty output. This means:
+    - RiskGate shows "0 files, +0/-0" even though the diff has real changes
+    - ChangelogGate shows "No commits found" even though commits exist
+    - VersionBumpGate can't detect current version from tags
+    - TestGate shows "All tests passed" but never ran tests
+    - CleanBranchGate shows "clean" but never checked
+  Fix: DryRunShipContext should use RealShipContext.shell() for read-only commands
+    (git status, git diff, git log, git describe, swift test) and only stub write
+    commands (git commit, git reset, gh pr create). Alternatively, always run shell
+    commands and only guard the write side-effects behind isDryRun checks in each gate.
+
+BUG-2: Preflight commit count is hardcoded to 0
+  Severity: Low — cosmetic only
+  File: tools/shiki-ctl/Sources/shikki/Commands/ShipCommand.swift (line 98)
+  Code: commitCount: 0,
+  Impact: Preflight banner always shows "Commits: 0" regardless of actual commit count.
+  Fix: Count commits with `git rev-list --count <target>..HEAD` before rendering preflight.
+
+BUG-3: PRGate hardcodes git flow — no override for non-git-flow repos [MEDIUM]
+  Severity: Medium — blocks shipping for any project that uses main-only or trunk-based flow
+  File: tools/shiki-ctl/Sources/ShikiCtlKit/Services/ShipGate.swift (lines 299-309)
+  Code:
+    if context.target == "main" || context.target == "master" {
+        return .fail(reason: "Cannot target 'main' directly...")
+    }
+    if context.target != "develop" && !context.target.hasPrefix("release/") ...
+  Impact: kintsugi-ds has no develop branch — it uses main-only flow. Ship cannot
+    target main, so the pipeline always fails for non-git-flow projects.
+  Fix: Add a --allow-main flag or detect the repo's branching model (presence of
+    develop branch). Or make the target whitelist configurable.
+
+BUG-4: RiskGate silently ignores git diff failure [LOW]
+  Severity: Low — fails open (shows 0 risk instead of erroring)
+  File: tools/shiki-ctl/Sources/ShikiCtlKit/Services/ShipGate.swift (line 121)
+  Code: let result = try await context.shell("git diff --stat \(target)...HEAD")
+  Impact: When target branch doesn't exist locally (e.g., `develop` in kintsugi-ds),
+    git diff fails with "unknown revision", but the gate still parses empty output
+    and reports "Risk: low — 0 files, +0/-0" instead of an error or warning.
+  Fix: Check result.exitCode != 0 and return .warn() or .fail() on git errors.
+
+BUG-5: VersionBumpGate empty-string check is wrong [LOW]
+  Severity: Low — logic gap
+  File: tools/shiki-ctl/Sources/ShikiCtlKit/Services/ShipGate.swift (lines 212-219)
+  Code:
+    let currentVersion = tagResult.stdout...replacingOccurrences(of: "v", with: "")
+    if currentVersion.isEmpty {
+        return .pass(detail: "No previous version found, starting at 0.1.0")
+    }
+  Impact: When git describe fails (no tags), the fallback `echo '0.0.0'` returns "0.0.0"
+    which is not empty, so the "No previous version found" path is never triggered via
+    normal shell execution. In dry-run (BUG-1), stdout is always empty so it always
+    triggers. The result message is correct by accident in dry-run but for the wrong reason.
+
+BUG-6: ntfy notification uses hardcoded public topic [LOW]
+  Severity: Low — security/privacy concern
+  File: tools/shiki-ctl/Sources/shikki/Commands/ShipCommand.swift (line 158)
+  Code: "https://ntfy.sh/shiki-notify"
+  Impact: Ship results are sent to a public ntfy topic. Anyone subscribed to
+    "shiki-notify" can see ship attempts. Should use the configured local ntfy
+    instance or at minimum a private topic.
+
+
+=== WHAT WORKS ===
+
+1. Build: shikki compiles cleanly (174 units, 12s)
+2. Gate pipeline: all 8 gates execute in order, abort-on-failure works correctly
+3. Preflight banner renders correctly with branch/target/version/why
+4. ANSI formatting: colors, checkmarks, warning/error symbols all render properly
+5. Ship log: entry appended to ~/.shiki/ship-log.md with correct metadata
+6. --why flag works without interactive prompt (no stdin hang)
+7. --dry-run skips the "Press Enter to proceed" prompt correctly
+8. CommitGate correctly refuses to squash on the target branch
+9. PRGate validates branch name characters (shell injection protection)
+10. Error rendering: failed gate shows red X and abort message with reason
+11. Event emission: ShipService emits correct ShikiEvent payloads at each step
+
+
+=== SHIP LOG ENTRY (from ~/.shiki/ship-log.md) ===
+
+## auto — 2026-03-23 17:32
+- **Project**: kintsugi-ds
+- **Branch**: test/ship-dryrun
+- **Why**: dogfood test
+- **Risk**: 0
+- **Gates**: 8/8 passed, 1 warnings
+
+
+=== RECOMMENDATIONS ===
+
+P0: Fix BUG-1 — dry-run must execute read-only commands to produce meaningful output
+P1: Fix BUG-3 — add --allow-main or auto-detect branching model
+P2: Fix BUG-4 — check git diff exit code in RiskGate
+P2: Fix BUG-2 — compute real commit count for preflight
+P3: Fix BUG-5 — handle the 0.0.0 fallback string explicitly
+P3: Fix BUG-6 — use configured ntfy endpoint instead of hardcoded public topic
