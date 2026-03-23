@@ -45,8 +45,30 @@ export interface SearchResult {
   fromAgent: string | null;
 }
 
-export async function searchMemories(query: string, projectId: string, limit = 10, threshold = 0.7): Promise<SearchResult[]> {
+export async function searchMemories(
+  query: string,
+  projectIds: string[] | null,
+  limit = 10,
+  threshold = 0.7,
+  types?: string[] | null,
+): Promise<SearchResult[]> {
   const queryEmbedding = await generateEmbedding(query);
+
+  // Build WHERE clauses dynamically
+  const conditions = [
+    sql`embedding IS NOT NULL`,
+    sql`1 - (embedding <=> ${JSON.stringify(queryEmbedding)}::vector) > ${threshold}`,
+  ];
+
+  if (projectIds && projectIds.length > 0) {
+    conditions.push(sql`project_id = ANY(${projectIds})`);
+  }
+
+  if (types && types.length > 0) {
+    conditions.push(sql`category = ANY(${types})`);
+  }
+
+  const whereClause = conditions.reduce((acc, cond, i) => i === 0 ? cond : sql`${acc} AND ${cond}`);
 
   const results = await sql`
     SELECT
@@ -57,9 +79,7 @@ export async function searchMemories(query: string, projectId: string, limit = 1
       created_at,
       (SELECT handle FROM agents WHERE id = agent_memories.agent_id) AS from_agent
     FROM agent_memories
-    WHERE project_id = ${projectId}
-      AND embedding IS NOT NULL
-      AND 1 - (embedding <=> ${JSON.stringify(queryEmbedding)}::vector) > ${threshold}
+    WHERE ${whereClause}
     ORDER BY embedding <=> ${JSON.stringify(queryEmbedding)}::vector
     LIMIT ${limit}
   `;

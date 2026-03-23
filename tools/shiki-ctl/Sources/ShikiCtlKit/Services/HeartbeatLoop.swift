@@ -94,7 +94,7 @@ public actor HeartbeatLoop {
     func checkAndDispatch() async throws {
         let readyTasks = try await client.getDispatcherQueue()
         let runningSessions = await launcher.listRunningSessions()
-        let maxConcurrent = 2
+        let maxConcurrent = 6
 
         guard runningSessions.count < maxConcurrent else {
             logger.debug("\(runningSessions.count)/\(maxConcurrent) slots full, skipping dispatch")

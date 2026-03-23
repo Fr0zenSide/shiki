@@ -123,11 +123,14 @@ struct StopCommand: AsyncParsableCommand {
 
 enum ShikiCommandError: Error, CustomStringConvertible {
     case processExitedWithCode(Int32)
+    case layoutFailed(String)
 
     var description: String {
         switch self {
         case .processExitedWithCode(let code):
             return "Process exited with code \(code)"
+        case .layoutFailed(let msg):
+            return "Layout failed: \(msg)"
         }
     }
 }

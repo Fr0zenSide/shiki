@@ -124,7 +124,7 @@ public actor SessionRegistry {
     private var sessions: [String: RegisteredSession] = [:]
 
     /// Windows that are infrastructure, never tracked as task sessions.
-    private static let reservedWindows: Set<String> = ["orchestrator", "board", "research"]
+    private static let reservedWindows: Set<String> = ["orchestrator"]
 
     /// States that are never reaped even if stale.
     private static let protectedStates: Set<SessionState> = [.awaitingApproval, .budgetPaused]

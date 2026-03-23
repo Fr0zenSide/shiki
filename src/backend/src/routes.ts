@@ -165,8 +165,13 @@ export async function handleRequest(req: Request): Promise<Response> {
     }
 
     if (path === "/api/memories/search" && method === "POST") {
-      const { query, projectId, limit, threshold } = await parseBody(req, MemorySearchSchema);
-      const results = await searchMemories(query, projectId, limit, threshold);
+      const { query, projectId, projectIds, types, limit, threshold } = await parseBody(req, MemorySearchSchema);
+      // Normalize: singular projectId → array, merge with projectIds
+      const resolvedIds = [
+        ...(projectIds ?? []),
+        ...(projectId ? [projectId] : []),
+      ];
+      const results = await searchMemories(query, resolvedIds.length > 0 ? resolvedIds : null, limit, threshold, types);
       return json(results);
     }
 
@@ -236,18 +241,20 @@ export async function handleRequest(req: Request): Promise<Response> {
     // ── Data Sync ─────────────────────────────────────────────────
     if (path === "/api/data-sync" && method === "POST") {
       const body = await parseBody(req, DataSyncSchema);
-      logDebug("Data sync received:", body.type, body.projectId);
+      logDebug("Data sync received:", body.type, body.projectId ?? "(no project)");
       // Store as an agent event with type "data_sync"
       await sql`
         INSERT INTO agent_events (occurred_at, agent_id, session_id, project_id, event_type, payload, message)
-        VALUES (NOW(), ${null}::uuid, ${body.sessionId ?? null}::uuid, ${body.projectId}, 'data_sync', ${JSON.stringify(body.data)}, ${body.type})
+        VALUES (NOW(), ${null}::uuid, ${body.sessionId ?? null}::uuid, ${body.projectId ?? null}::uuid, 'data_sync', ${JSON.stringify(body.data)}, ${body.type})
       `;
-      broadcastToProject(body.projectId, {
-        type: "data_sync",
-        syncType: body.type,
-        data: body.data,
-        timestamp: new Date().toISOString(),
-      });
+      if (body.projectId) {
+        broadcastToProject(body.projectId, {
+          type: "data_sync",
+          syncType: body.type,
+          data: body.data,
+          timestamp: new Date().toISOString(),
+        });
+      }
       return json({ ok: true });
     }
 
