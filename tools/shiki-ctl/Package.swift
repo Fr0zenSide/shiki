@@ -12,12 +12,14 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
+        .package(path: "../../packages/NetKit"),
     ],
     targets: [
         .target(
             name: "ShikiCtlKit",
             dependencies: [
                 .product(name: "Logging", package: "swift-log"),
+                "NetKit",
             ]
         ),
         .executableTarget(
@@ -30,7 +32,7 @@ let package = Package(
         ),
         .testTarget(
             name: "ShikiCtlKitTests",
-            dependencies: ["ShikiCtlKit"]
+            dependencies: ["ShikiCtlKit", "NetKit"]
         ),
         .testTarget(
             name: "ShikiCtlTests",

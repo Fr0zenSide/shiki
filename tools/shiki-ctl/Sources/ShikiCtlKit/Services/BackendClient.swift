@@ -1,187 +1,198 @@
 import Foundation
 import Logging
+import NetKit
 
 /// HTTP client for the Shiki orchestrator backend.
-/// Uses `curl` subprocess for reliability over long-running sessions
-/// (AsyncHTTPClient connection pools go stale with Docker networking).
+///
+/// Uses NetKit's `NetworkProtocol` for typed endpoints and proper HTTP error handling.
+/// Replaces the previous curl-subprocess approach with URLSession-based networking
+/// for connection reuse, HTTP status visibility, and testability via `MockNetworkService`.
 public actor BackendClient: BackendClientProtocol {
     private let baseURL: String
     private let logger: Logger
+    private let network: any NetworkProtocol
 
-    public init(baseURL: String = "http://localhost:3900", logger: Logger = Logger(label: "shiki-ctl.backend")) {
+    /// Parsed host/port/scheme from the base URL for endpoint construction.
+    let endpointHost: String
+    let endpointPort: Int
+    let endpointScheme: String
+
+    public init(
+        baseURL: String = "http://localhost:3900",
+        logger: Logger = Logger(label: "shiki-ctl.backend"),
+        network: any NetworkProtocol = NetworkService()
+    ) {
         self.baseURL = baseURL
         self.logger = logger
+        self.network = network
+
+        // Parse baseURL into components for endpoint construction
+        if let components = URLComponents(string: baseURL) {
+            self.endpointHost = components.host ?? "localhost"
+            self.endpointPort = components.port ?? 3900
+            self.endpointScheme = components.scheme ?? "http"
+        } else {
+            self.endpointHost = "localhost"
+            self.endpointPort = 3900
+            self.endpointScheme = "http"
+        }
     }
 
-    /// No-op for backward compatibility — curl processes don't need shutdown.
+    /// No-op for backward compatibility.
     public func shutdown() async throws {}
 
     // MARK: - Orchestrator
 
     public func getStatus() async throws -> OrchestratorStatus {
-        try await get("/api/orchestrator/status")
+        try await send(.orchestratorStatus)
     }
 
     public func getStaleCompanies(thresholdMinutes: Int = 5) async throws -> [Company] {
-        try await get("/api/orchestrator/stale?threshold_minutes=\(thresholdMinutes)")
+        try await send(.staleCompanies(thresholdMinutes: thresholdMinutes))
     }
 
     public func getReadyCompanies() async throws -> [Company] {
-        try await get("/api/orchestrator/ready")
+        try await send(.readyCompanies)
     }
 
     public func getDispatcherQueue() async throws -> [DispatcherTask] {
-        try await get("/api/orchestrator/dispatcher-queue")
+        try await send(.dispatcherQueue)
     }
 
     public func getDailyReport(date: String? = nil) async throws -> DailyReport {
-        let query = date.map { "?date=\($0)" } ?? ""
-        return try await get("/api/orchestrator/report\(query)")
+        try await send(.dailyReport(date: date))
     }
 
     public func sendHeartbeat(companyId: String, sessionId: String) async throws -> HeartbeatResponse {
-        try await post("/api/orchestrator/heartbeat", body: [
-            "companyId": companyId,
-            "sessionId": sessionId,
-        ])
+        try await send(.heartbeat(companyId: companyId, sessionId: sessionId))
     }
 
     // MARK: - Companies
 
     public func getCompanies(status: String? = nil) async throws -> [Company] {
-        let query = status.map { "?status=\($0)" } ?? ""
-        return try await get("/api/companies\(query)")
+        try await send(.companies(status: status))
     }
 
     public func patchCompany(id: String, updates: [String: Any]) async throws -> Company {
-        try await patch("/api/companies/\(id)", body: updates)
+        try await send(.patchCompany(id: id, updates: updates))
     }
 
     // MARK: - Decisions
 
     public func getPendingDecisions() async throws -> [Decision] {
-        try await get("/api/decision-queue/pending")
+        try await send(.pendingDecisions)
     }
 
     public func answerDecision(id: String, answer: String, answeredBy: String) async throws -> Decision {
-        try await patch("/api/decision-queue/\(id)", body: [
-            "answer": answer,
-            "answeredBy": answeredBy,
-        ])
+        try await send(.answerDecision(id: id, answer: answer, answeredBy: answeredBy))
     }
 
     // MARK: - Session Transcripts
 
     public func createSessionTranscript(_ input: SessionTranscriptInput) async throws -> SessionTranscript {
-        try await post("/api/session-transcripts", body: input.toDictionary())
+        try await send(.createTranscript(payload: input.toDictionary()))
     }
 
     public func getSessionTranscripts(companySlug: String? = nil, taskId: String? = nil, limit: Int = 20) async throws -> [SessionTranscript] {
-        var query = "?"
-        if let slug = companySlug { query += "company_slug=\(slug)&" }
-        if let tid = taskId { query += "task_id=\(tid)&" }
-        query += "limit=\(limit)"
-        return try await get("/api/session-transcripts\(query)")
+        try await send(.listTranscripts(companySlug: companySlug, taskId: taskId, limit: limit))
     }
 
     public func getSessionTranscript(id: String) async throws -> SessionTranscript {
-        try await get("/api/session-transcripts/\(id)")
+        try await send(.getTranscript(id: id))
     }
 
     // MARK: - Board
 
     public func getBoardOverview() async throws -> [BoardEntry] {
-        try await get("/api/orchestrator/board")
+        try await send(.boardOverview)
     }
 
     // MARK: - Health
 
     public func healthCheck() async throws -> Bool {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["curl", "-sf", "--max-time", "5", "\(baseURL)/health"]
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        try process.run()
-        process.waitUntilExit()
-        return process.terminationStatus == 0
+        let endpoint = ConfigurableEndpoint(
+            base: .health,
+            host: endpointHost,
+            port: endpointPort,
+            scheme: endpointScheme
+        )
+        let request = network.createRequest(endPoint: endpoint)
+        do {
+            let config = URLSessionConfiguration.ephemeral
+            config.timeoutIntervalForRequest = 5
+            let session = URLSession(configuration: config)
+            let (_, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse else { return false }
+            return (200..<400).contains(http.statusCode)
+        } catch {
+            return false
+        }
     }
 
-    // MARK: - HTTP Helpers (curl-based)
+    // MARK: - Internal
 
-    private func get<T: Decodable>(_ path: String) async throws -> T {
-        let data = try curlRequest(method: "GET", path: path)
-        return try JSONDecoder().decode(T.self, from: data)
+    /// Send a typed endpoint request and decode the response via `NetworkProtocol.sendRequest`.
+    ///
+    /// All backend models use `String` for date fields with explicit `CodingKeys`,
+    /// so NetKit's default decoder (which includes PocketBase date strategy) works fine —
+    /// the custom date decoder only activates on `Date` typed properties, which these models don't have.
+    private func send<T: Decodable & Sendable>(_ endpoint: ShikiBackendEndpoint) async throws -> T {
+        let configured = ConfigurableEndpoint(
+            base: endpoint,
+            host: endpointHost,
+            port: endpointPort,
+            scheme: endpointScheme
+        )
+        do {
+            return try await network.sendRequest(endpoint: configured)
+        } catch let error as NetworkError {
+            let mapped = mapNetworkError(error, path: endpoint.path, method: endpoint.method.rawValue)
+            throw mapped
+        } catch {
+            logger.error("\(endpoint.method.rawValue) \(endpoint.path) request failed: \(error)")
+            throw BackendError.httpError(statusCode: 0, body: error.localizedDescription)
+        }
     }
 
-    private func post<T: Decodable>(_ path: String, body payload: [String: Any]) async throws -> T {
-        let jsonData = try JSONSerialization.data(withJSONObject: payload)
-        let data = try curlRequest(method: "POST", path: path, body: jsonData)
-        return try JSONDecoder().decode(T.self, from: data)
-    }
-
-    private func patch<T: Decodable>(_ path: String, body payload: [String: Any]) async throws -> T {
-        let jsonData = try JSONSerialization.data(withJSONObject: payload)
-        let data = try curlRequest(method: "PATCH", path: path, body: jsonData)
-        return try JSONDecoder().decode(T.self, from: data)
-    }
-
-    /// Execute an HTTP request using curl subprocess.
-    /// Reliable across Docker restarts and network interruptions — no connection pool.
-    private func curlRequest(method: String, path: String, body: Data? = nil, timeoutSeconds: Int = 15) throws -> Data {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-
-        var args = [
-            "curl", "-s",
-            "--max-time", "\(timeoutSeconds)",
-            "-X", method,
-            "-H", "Accept: application/json",
-        ]
-
-        if body != nil {
-            args += ["-H", "Content-Type: application/json", "-d", "@-"]
+    /// Convert NetKit errors to BackendError for backward compatibility with callers.
+    private func mapNetworkError(_ error: NetworkError, path: String, method: String) -> BackendError {
+        switch error {
+        case .unexpectedStatusCode(let code, _):
+            logger.error("\(method) \(path) HTTP \(code)")
+            return .httpError(statusCode: code, body: error.description)
+        case .requestFailed(let description):
+            logger.error("\(method) \(path) failed: \(description)")
+            return .httpError(statusCode: 0, body: description)
+        case .jsonParsingFailed(let decoding):
+            logger.error("\(method) \(path) decode error: \(decoding)")
+            return .httpError(statusCode: 200, body: "JSON decode error: \(decoding)")
+        case .invalidData:
+            return .httpError(statusCode: 0, body: "Invalid data")
+        default:
+            return .httpError(statusCode: 0, body: error.description)
         }
-
-        args.append("\(baseURL)\(path)")
-        process.arguments = args
-
-        let stdout = Pipe()
-        let stderr = Pipe()
-        process.standardOutput = stdout
-        process.standardError = stderr
-
-        if let bodyData = body {
-            let stdin = Pipe()
-            process.standardInput = stdin
-            try process.run()
-            stdin.fileHandleForWriting.write(bodyData)
-            stdin.fileHandleForWriting.closeFile()
-        } else {
-            try process.run()
-        }
-
-        // Read pipes BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
-        let data = stdout.fileHandleForReading.readDataToEndOfFile()
-        let errData = stderr.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else {
-            let errString = String(data: errData, encoding: .utf8) ?? ""
-            logger.error("curl \(method) \(path) failed (exit \(process.terminationStatus)): \(errString)")
-            throw BackendError.httpError(statusCode: Int(process.terminationStatus), body: errString)
-        }
-
-        // Check for HTTP error in response body
-        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let error = json["error"] as? String {
-            let code = (json["statusCode"] as? Int) ?? 400
-            throw BackendError.httpError(statusCode: code, body: error)
-        }
-
-        return data
     }
 }
+
+// MARK: - ConfigurableEndpoint
+
+/// Wraps a `ShikiBackendEndpoint` to override host/port/scheme from BackendClient's baseURL.
+struct ConfigurableEndpoint: EndPoint, @unchecked Sendable {
+    let base: ShikiBackendEndpoint
+    let host: String
+    let port: Int?
+    let scheme: String
+
+    var apiPath: String { base.apiPath }
+    var apiFilePath: String { base.apiFilePath }
+    var path: String { base.path }
+    var method: RequestMethod { base.method }
+    var header: [String: String]? { base.header }
+    var body: [String: Any]? { base.body }
+    var queryParams: [String: Any]? { base.queryParams }
+}
+
+// MARK: - SessionTranscriptInput
 
 public struct SessionTranscriptInput: Sendable {
     public let companyId: String
