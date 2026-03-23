@@ -4,7 +4,7 @@ import Logging
 /// Main orchestrator loop — runs every `interval` seconds, dispatching tasks,
 /// checking decisions, cleaning up idle sessions, and relaunching stale ones.
 public actor HeartbeatLoop {
-    private let client: BackendClient
+    private let client: any BackendClientProtocol
     private let launcher: ProcessLauncher
     private let notifier: NotificationSender
     private let registry: SessionRegistry
@@ -15,7 +15,7 @@ public actor HeartbeatLoop {
     private var previousPendingDecisionIds: Set<String> = []
 
     public init(
-        client: BackendClient,
+        client: any BackendClientProtocol,
         launcher: ProcessLauncher,
         notifier: NotificationSender,
         registry: SessionRegistry? = nil,

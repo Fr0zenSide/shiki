@@ -4,7 +4,7 @@ import Logging
 /// HTTP client for the Shiki orchestrator backend.
 /// Uses `curl` subprocess for reliability over long-running sessions
 /// (AsyncHTTPClient connection pools go stale with Docker networking).
-public actor BackendClient {
+public actor BackendClient: BackendClientProtocol {
     private let baseURL: String
     private let logger: Logger
 
