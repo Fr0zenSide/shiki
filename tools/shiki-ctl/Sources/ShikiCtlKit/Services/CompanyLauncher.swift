@@ -11,15 +11,18 @@ import Logging
 public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
     let session: String
     let workspacePath: String
+    let registry: SessionRegistry?
     let logger: Logger
 
     public init(
         session: String = "shiki",
         workspacePath: String,
+        registry: SessionRegistry? = nil,
         logger: Logger = Logger(label: "shiki-ctl.launcher")
     ) {
         self.session = session
         self.workspacePath = workspacePath
+        self.registry = registry
         self.logger = logger
     }
 
@@ -57,7 +60,13 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
     }
 
     /// Check if a company's pane has an active Claude process (not idle shell).
+    /// Delegates to SessionRegistry when available; falls back to tmux parsing.
     public func isSessionRunning(slug: String) async -> Bool {
+        if let registry {
+            let found = await registry.isRunning(slug: slug)
+            if found { return true }
+            // Registry miss — fall through to tmux check in case of cold start
+        }
         // Extract company slug from "company:task-short" format
         let companySlug = slug.split(separator: ":", maxSplits: 1).first.map(String.init) ?? slug
         return await isCompanyPaneActive(slug: companySlug)
@@ -100,8 +109,20 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
     private static var reservedWindows: Set<String> { ProcessCleanup.reservedWindows }
 
     /// List active company sessions by checking which panes have Claude running.
-    /// Returns slugs in "company:active" format for compatibility with HeartbeatLoop.
+    /// Delegates to SessionRegistry when available; falls back to tmux parsing.
+    /// Returns slugs (window names) of all running task sessions.
     public func listRunningSessions() async -> [String] {
+        if let registry {
+            let slugs = await registry.runningSlugs()
+            if !slugs.isEmpty { return slugs }
+            // Registry empty — fall through to tmux check in case of cold start
+        }
+        return await listRunningSessionsFromTmux()
+    }
+
+    /// Tmux-based fallback for listing running sessions.
+    /// Returns slugs in "company:active" format for compatibility with HeartbeatLoop.
+    private func listRunningSessionsFromTmux() async -> [String] {
         // List all panes with their title and current command
         guard let output = try? runProcessCapture("tmux", arguments: [
             "list-panes", "-t", "\(session):orchestrator",

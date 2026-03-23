@@ -186,4 +186,56 @@ struct SessionRegistryTests {
         await registry.deregister(windowName: "test-sess")
         #expect(await registry.allSessions.count == 0)
     }
+
+    // MARK: - isRunning / runningSlugs
+
+    @Test("isRunning returns true for registered session")
+    func isRunningDirectMatch() async {
+        let (registry, _) = makeRegistry()
+        await registry.registerManual(
+            windowName: "maya:spm-wave3", paneId: "%5", pid: 12345,
+            state: .working
+        )
+        #expect(await registry.isRunning(slug: "maya:spm-wave3") == true)
+    }
+
+    @Test("isRunning returns false for unknown slug")
+    func isRunningUnknown() async {
+        let (registry, _) = makeRegistry()
+        #expect(await registry.isRunning(slug: "nonexistent") == false)
+    }
+
+    @Test("isRunning matches by company prefix")
+    func isRunningPrefixMatch() async {
+        let (registry, _) = makeRegistry()
+        await registry.registerManual(
+            windowName: "maya:spm-wave3", paneId: "%5", pid: 12345,
+            state: .working
+        )
+        // "maya" should match "maya:spm-wave3" via prefix
+        #expect(await registry.isRunning(slug: "maya") == true)
+        #expect(await registry.isRunning(slug: "flsh") == false)
+    }
+
+    @Test("runningSlugs returns all non-reserved window names")
+    func runningSlugsExcludesReserved() async {
+        let (registry, _) = makeRegistry(sessions: [
+            DiscoveredSession(windowName: "orchestrator", paneId: "%1", pid: 99999),
+            DiscoveredSession(windowName: "maya:task", paneId: "%5", pid: 12345),
+            DiscoveredSession(windowName: "flsh:deploy", paneId: "%6", pid: 12346),
+        ])
+        await registry.refresh()
+        let slugs = await registry.runningSlugs()
+        #expect(slugs.count == 2)
+        #expect(slugs.contains("maya:task"))
+        #expect(slugs.contains("flsh:deploy"))
+        #expect(!slugs.contains("orchestrator"))
+    }
+
+    @Test("runningSlugs returns empty when no sessions")
+    func runningSlugsEmpty() async {
+        let (registry, _) = makeRegistry()
+        let slugs = await registry.runningSlugs()
+        #expect(slugs.isEmpty)
+    }
 }
