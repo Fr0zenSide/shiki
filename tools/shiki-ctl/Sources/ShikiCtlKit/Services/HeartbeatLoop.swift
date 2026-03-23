@@ -93,7 +93,7 @@ public actor HeartbeatLoop {
     /// Rate-limited: max 2 concurrent sessions across all companies.
     func checkAndDispatch() async throws {
         let readyTasks = try await client.getDispatcherQueue()
-        let runningSessions = await launcher.listRunningSessions()
+        let runningSessions = await registry.runningSlugs()
         let maxConcurrent = 6
 
         guard runningSessions.count < maxConcurrent else {
@@ -117,13 +117,13 @@ public actor HeartbeatLoop {
 
             // Skip if this task already has a running session
             let sessionSlug = task.sessionSlug
-            guard !(await launcher.isSessionRunning(slug: sessionSlug)) else {
+            guard !(await registry.isRunning(slug: sessionSlug)) else {
                 continue
             }
 
             // Skip if this company already has a running session (one at a time per company)
-            let runningSessions = await launcher.listRunningSessions()
-            let companyHasSession = runningSessions.contains { $0.hasPrefix("\(task.companySlug):") }
+            let currentSessions = await registry.runningSlugs()
+            let companyHasSession = currentSessions.contains { $0.hasPrefix("\(task.companySlug):") }
             guard !companyHasSession else {
                 continue
             }
@@ -170,7 +170,7 @@ public actor HeartbeatLoop {
     /// Kill panes for sessions whose tasks are no longer active (completed/failed/cancelled).
     /// Captures session output as a transcript before killing.
     func cleanupIdleSessions() async throws {
-        let runningSessions = await launcher.listRunningSessions()
+        let runningSessions = await registry.runningSlugs()
         guard !runningSessions.isEmpty else { return }
 
         // Get all active tasks to check which sessions are still needed
@@ -310,7 +310,7 @@ public actor HeartbeatLoop {
             logger.info("\(answeredIds.count) decision(s) answered — checking if re-dispatch needed")
 
             // Check if any company that had a decision answered has a dead session
-            let runningSessions = await launcher.listRunningSessions()
+            let runningSessions = await registry.runningSlugs()
             let runningCompanySlugs = Set(runningSessions.compactMap { slug -> String? in
                 slug.split(separator: ":", maxSplits: 1).first.map(String.init)
             })
@@ -336,7 +336,7 @@ public actor HeartbeatLoop {
         let stale = try await client.getStaleCompanies()
         guard !stale.isEmpty else { return }
 
-        let runningSessions = await launcher.listRunningSessions()
+        let runningSessions = await registry.runningSlugs()
         let readyTasks = try await client.getDispatcherQueue()
         let companiesWithTasks = Set(readyTasks.map(\.companySlug))
 
