@@ -121,7 +121,7 @@ struct StartupCommand: AsyncParsableCommand {
         print("  \u{1B}[2mRunning from compiled binary\u{1B}[0m")
         print()
 
-        // ── Step 5: Gather status (before tmux so we can write it into the pane) ──
+        // ── Step 5: Gather status (before tmux so we can inject into Claude prompt) ──
         print("\u{1B}[33m[5/6] Status\u{1B}[0m")
         print()
 
@@ -129,7 +129,6 @@ struct StartupCommand: AsyncParsableCommand {
             backendURL: url, workspacePath: workspacePath,
             stats: stats, env: env
         )
-        StartupRenderer.render(displayData)
 
         // Record this session start
         try? stats.recordSessionEnd()
@@ -137,20 +136,29 @@ struct StartupCommand: AsyncParsableCommand {
         // ── Step 6: Tmux layout + heartbeat ──
         print()
         print("\u{1B}[33m[6/6] Tmux session\u{1B}[0m")
+        var tmuxCreated = false
         if noTmux {
             print("  \u{1B}[2mSkipped (--no-tmux)\u{1B}[0m")
         } else if await env.isTmuxSessionRunning(name: sessionName) {
             print("  \u{1B}[2mSession '\(sessionName)' already running\u{1B}[0m")
         } else {
-            print("  Creating board layout...")
-            try await createTmuxLayout(workspace: workspacePath, session: sessionName)
+            print("  Creating layout...")
+            try await createTmuxLayout(
+                workspace: workspacePath, session: sessionName,
+                companies: displayData.companySlugs
+            )
 
-            // Write status into orchestrator pane, then launch heartbeat in same command
-            print("  Starting heartbeat...")
-            try await launchHeartbeatWithStatus(
+            print("  Starting orchestrator + heartbeat...")
+            try await launchOrchestratorAndHeartbeat(
                 data: displayData, workspace: workspacePath, session: sessionName
             )
-            print("  \u{1B}[32mBoard ready\u{1B}[0m")
+            tmuxCreated = true
+            print("  \u{1B}[32mReady\u{1B}[0m")
+        }
+
+        // Dashboard: only print to terminal if tmux failed or was skipped
+        if !tmuxCreated {
+            StartupRenderer.render(displayData)
         }
 
         if !noTmux {
@@ -161,6 +169,8 @@ struct StartupCommand: AsyncParsableCommand {
                 let args = ["env", "tmux", "attach-session", "-t", sessionName]
                 let cArgs = args.map { strdup($0) } + [nil]
                 execv(path, cArgs)
+                // Only reached if execv fails
+                StartupRenderer.render(displayData)
                 print("\u{1B}[31mFailed to attach. Run: shiki attach\u{1B}[0m")
             } else if noAttach {
                 print()
@@ -312,20 +322,15 @@ struct StartupCommand: AsyncParsableCommand {
 
     // MARK: - Tmux
 
-    private func createTmuxLayout(workspace: String, session: String) async throws {
-        let scriptPath = "\(workspace)/scripts/orchestrate.sh"
-        // If the layout script exists, use it; otherwise create manually
-        if FileManager.default.fileExists(atPath: scriptPath) {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/bash")
-            process.arguments = [scriptPath]
-            process.currentDirectoryURL = URL(fileURLWithPath: workspace)
-            try process.run()
-            process.waitUntilExit()
-            return
-        }
+    /// Single-window layout: 80% orchestrator (left) + 20% sidebar (right).
+    /// Sidebar: one pane per company (equal height) + tiny heartbeat at bottom.
+    private func createTmuxLayout(
+        workspace: String, session: String, companies: [String]
+    ) async throws {
+        let companySlugs = companies.isEmpty
+            ? ["maya", "wabisabi", "brainy", "flsh", "kintsugi", "obyw-one"]
+            : companies
 
-        // Manual layout creation (same as orchestrate.sh)
         func tmux(_ args: String...) throws {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
@@ -344,55 +349,86 @@ struct StartupCommand: AsyncParsableCommand {
             process.standardOutput = pipe
             process.standardError = FileHandle.nullDevice
             try process.run()
-            // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
-            return String(data: data, encoding: .utf8) ?? ""
+            return String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }
 
-        // Tab 1: orchestrator
+        // 1. Single window
         try tmux("new-session", "-d", "-s", session, "-n", "orchestrator", "-c", workspace)
 
-        // Tab 2: board (empty, filled dynamically by heartbeat)
-        try tmux("new-window", "-t", session, "-n", "board", "-c", workspace)
-        // Enable pane border titles on board tab
-        try tmux("set-option", "-w", "-t", "\(session):board", "pane-border-status", "top")
-        try tmux("set-option", "-w", "-t", "\(session):board", "pane-border-format", " #{pane_title} ")
-        // Set initial title on the board pane
-        let boardPanes = try tmuxCapture("list-panes", "-t", "\(session):board", "-F", "#{pane_id}")
-        if let firstBoardPane = boardPanes.split(separator: "\n").first {
-            try tmux("select-pane", "-t", String(firstBoardPane), "-T", "DISPATCHER (waiting for tasks...)")
+        // 2. Get the main pane (will become orchestrator — left 80%)
+        let mainPaneId = try tmuxCapture(
+            "display-message", "-t", "\(session):orchestrator", "-p", "#{pane_id}"
+        )
+
+        // 3. Split right sidebar (20%)
+        try tmux("split-window", "-h", "-t", mainPaneId, "-l", "20%", "-c", workspace)
+        var sidebarPaneId = try tmuxCapture(
+            "display-message", "-t", "\(session):orchestrator", "-p", "#{pane_id}"
+        )
+
+        // 4. Split sidebar into company panes
+        // First company occupies the initial sidebar pane
+        var companyPanes: [(slug: String, paneId: String)] = []
+        companyPanes.append((companySlugs[0], sidebarPaneId))
+
+        // Split remaining companies from the bottom of the sidebar
+        for i in 1..<companySlugs.count {
+            // Each split: percentage = remaining panes / total remaining * 100
+            // e.g., for 6 companies: split 1 leaves 5/6=83%, split 2 leaves 4/5=80%, etc.
+            let remaining = companySlugs.count - i
+            let pct = Int((Double(remaining) / Double(remaining + 1)) * 100)
+            try tmux("split-window", "-v", "-t", sidebarPaneId, "-l", "\(pct)%", "-c", workspace)
+            sidebarPaneId = try tmuxCapture(
+                "display-message", "-t", "\(session):orchestrator", "-p", "#{pane_id}"
+            )
+            companyPanes.append((companySlugs[i], sidebarPaneId))
         }
 
-        // Tab 3: research (4 panes)
-        let researchDir = "\(workspace)/projects/research"
-        let researchPath = FileManager.default.fileExists(atPath: researchDir) ? researchDir : workspace
-        try tmux("new-window", "-t", session, "-n", "research", "-c", researchPath)
-        try tmux("split-window", "-v", "-t", "\(session):research", "-c", researchPath)
-        try tmux("split-window", "-v", "-t", "\(session):research", "-c", researchPath)
-        try tmux("split-window", "-v", "-t", "\(session):research", "-c", researchPath)
-        try tmux("select-layout", "-t", "\(session):research", "tiled")
+        // 5. Split heartbeat from the last company pane (tiny — 3 lines)
+        let lastCompanyPaneId = companyPanes.last!.paneId
+        try tmux("split-window", "-v", "-t", lastCompanyPaneId, "-l", "3", "-c", workspace)
+        let heartbeatPaneId = try tmuxCapture(
+            "display-message", "-t", "\(session):orchestrator", "-p", "#{pane_id}"
+        )
 
-        // Set pane border titles on research tab
-        try tmux("set-option", "-w", "-t", "\(session):research", "pane-border-status", "top")
-        try tmux("set-option", "-w", "-t", "\(session):research", "pane-border-format", " #{pane_title} ")
-        let researchPanes = try tmuxCapture("list-panes", "-t", "\(session):research", "-F", "#{pane_id}")
-        let paneIds = researchPanes.split(separator: "\n").map(String.init)
-        let paneLabels = ["INGEST", "RADAR", "EXPLORE", "SCRATCH"]
-        for (pane, label) in zip(paneIds, paneLabels) {
-            try tmux("select-pane", "-t", pane, "-T", label)
+        // 6. Enable pane border titles + prevent shell from overriding them
+        try tmux("set-option", "-w", "-t", "\(session):orchestrator", "pane-border-status", "top")
+        try tmux("set-option", "-w", "-t", "\(session):orchestrator", "pane-border-format",
+                 " #{pane_title} ")
+        try tmux("set-option", "-w", "-t", "\(session):orchestrator", "allow-rename", "off")
+
+        // 7. Label all panes
+        try tmux("select-pane", "-t", mainPaneId, "-T", "ORCHESTRATOR")
+        for (slug, paneId) in companyPanes {
+            try tmux("select-pane", "-t", paneId, "-T", slug.uppercased())
         }
+        try tmux("select-pane", "-t", heartbeatPaneId, "-T", "HEARTBEAT")
 
-        // Select orchestrator tab
-        try tmux("select-window", "-t", "\(session):orchestrator")
+        // 8. Focus the orchestrator pane
+        try tmux("select-pane", "-t", mainPaneId)
+
+        // 9. Save pane mapping for the launcher (/tmp/shiki-panes-{session}.json)
+        var mapping: [String: String] = [
+            "orchestrator": mainPaneId,
+            "heartbeat": heartbeatPaneId,
+        ]
+        for (slug, paneId) in companyPanes {
+            mapping[slug] = paneId
+        }
+        let mappingFile = "/tmp/shiki-panes-\(session).json"
+        let jsonData = try JSONSerialization.data(withJSONObject: mapping)
+        FileManager.default.createFile(atPath: mappingFile, contents: jsonData)
     }
 
-    /// Split orchestrator pane: top = Claude (main), bottom = heartbeat (small).
-    /// Show dashboard + decide in the main pane before launching Claude.
-    private func launchHeartbeatWithStatus(
+    /// Launch interactive Claude in the orchestrator pane + heartbeat in the tiny pane.
+    /// Dashboard is included in the Claude prompt (not printed to terminal).
+    private func launchOrchestratorAndHeartbeat(
         data: StartupDisplayData, workspace: String, session: String
     ) async throws {
-        // 1. Write rendered status to temp file
+        // 1. Render dashboard to temp file (for Claude to see on startup)
         let statusFile = "/tmp/shiki-startup-status-\(session).txt"
         let pipe = Pipe()
         let originalStdout = dup(STDOUT_FILENO)
@@ -405,9 +441,9 @@ struct StartupCommand: AsyncParsableCommand {
         let rendered = pipe.fileHandleForReading.readDataToEndOfFile()
         FileManager.default.createFile(atPath: statusFile, contents: rendered)
 
-        let binaryPath = ProcessInfo.processInfo.arguments.first ?? "\(workspace)/tools/shiki-ctl/.build/debug/shiki-ctl"
+        let binaryPath = ProcessInfo.processInfo.arguments.first
+            ?? "\(workspace)/tools/shiki-ctl/.build/debug/shiki-ctl"
 
-        // 2. Split orchestrator pane: bottom 20% = heartbeat
         func tmux(_ args: String...) throws {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
@@ -418,74 +454,60 @@ struct StartupCommand: AsyncParsableCommand {
             process.waitUntilExit()
         }
 
-        // Get the main pane ID BEFORE splitting (this will be the Claude pane)
-        func tmuxCapture2(_ args: String...) throws -> String {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-            process.arguments = ["tmux"] + args
-            let capPipe = Pipe()
-            process.standardOutput = capPipe
-            process.standardError = FileHandle.nullDevice
-            try process.run()
-            // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
-            let capData = capPipe.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-            return String(data: capData, encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        // 2. Read pane mapping
+        let mappingFile = "/tmp/shiki-panes-\(session).json"
+        guard let mappingData = FileManager.default.contents(atPath: mappingFile),
+              let mapping = try? JSONSerialization.jsonObject(with: mappingData) as? [String: String],
+              let mainPaneId = mapping["orchestrator"],
+              let heartbeatPaneId = mapping["heartbeat"]
+        else {
+            throw ShikiCommandError.layoutFailed("Could not read pane mapping from \(mappingFile)")
         }
 
-        let mainPaneId = try tmuxCapture2("display-message", "-t", "\(session):orchestrator", "-p", "#{pane_id}")
+        // 3. Launch heartbeat in the tiny bottom-right pane
+        let heartbeatCmd = "\(binaryPath) heartbeat --workspace \(workspace) --session \(session); read"
+        try tmux("send-keys", "-t", heartbeatPaneId, heartbeatCmd, "C-m")
 
-        // Create a small bottom pane for the heartbeat (80/20 split)
-        try tmux("split-window", "-v", "-t", mainPaneId, "-l", "20%",
-                 "-c", workspace, "bash", "-c",
-                 "\(binaryPath) heartbeat --workspace \(workspace) --session \(session); read")
+        // 4. Build orchestrator prompt with dashboard data baked in
+        let companySlugs = data.companySlugs.isEmpty
+            ? ["maya", "wabisabi", "brainy", "flsh", "kintsugi", "obyw-one"]
+            : data.companySlugs
 
-        // The new pane (heartbeat) is now selected — get its ID
-        let heartbeatPaneId = try tmuxCapture2("display-message", "-t", "\(session):orchestrator", "-p", "#{pane_id}")
-
-        // Enable pane border titles
-        try tmux("set-option", "-w", "-t", "\(session):orchestrator", "pane-border-status", "top")
-        try tmux("set-option", "-w", "-t", "\(session):orchestrator", "pane-border-format", " #{pane_title} ")
-
-        // Label panes by explicit ID
-        try tmux("select-pane", "-t", mainPaneId, "-T", "ORCHESTRATOR")
-        try tmux("select-pane", "-t", heartbeatPaneId, "-T", "HEARTBEAT")
-
-        // Select the main pane (Claude)
-        try tmux("select-pane", "-t", mainPaneId)
-
-        // 3. In the main pane: show dashboard → decide if needed → then Claude
         var decideStep = ""
         if data.pendingDecisions > 0 {
             decideStep = " && echo '' && echo '\\e[33m⚠ \(data.pendingDecisions) T1 decisions blocking your companies — let\\'s unblock them first.\\e[0m' && echo '' && \(binaryPath) decide"
         }
-        // Build orchestrator prompt for Claude
+
         let orchestratorPrompt = """
-        You are the Shikki main orchestrator. You manage multiple AI agent sessions working in parallel on different projects.
+        You are the Shikki main orchestrator — the conductor of a multi-agent system.
+
+        STARTUP DASHBOARD:
+        - Version: \(data.version) | Health: \(data.isHealthy ? "OK" : "DEGRADED")
+        - Pending T1 decisions: \(data.pendingDecisions)
+        - Stale companies: \(data.staleCompanies)
+        - Spent today: $\(String(format: "%.2f", data.spentToday))
+        - Weekly delta: +\(data.weeklyInsertions) / -\(data.weeklyDeletions) lines across \(data.weeklyProjectCount) projects
+
+        LAYOUT: You are in the left 80% pane. The right 20% sidebar has one pane per company + a heartbeat pane at the bottom.
+        COMPANIES (sidebar panes, top to bottom): \(companySlugs.joined(separator: ", "))
+        BACKEND: http://localhost:3900
+
+        The heartbeat automatically dispatches tasks from the queue into company panes.
 
         YOUR ROLE:
-        - Monitor the heartbeat pane below for task dispatch status
         - Use /board to see all running company sessions
         - Use /decide to handle pending T1 decisions that block companies
         - Use /dispatch to launch parallel feature work
-        - Use shiki status to see orchestrator overview
+        - Use shiki status for overview
+        - Work directly on the highest priority task when companies are busy
 
-        COMPANIES: maya, wabisabi, flsh, brainy, kintsugi, obyw-one
-        BACKEND: http://localhost:3900
-
-        The heartbeat in the pane below automatically dispatches tasks from the queue to new tmux panes. Your job is to:
-        1. Review the startup dashboard above
-        2. Handle any pending decisions (/decide)
-        3. Queue work for companies or work directly on the highest priority task
-        4. Monitor progress via /board
-
-        Start by reviewing what's pending.
+        Start by reviewing what's pending and act.
         """
         let promptFile = "/tmp/shiki-orchestrator-prompt-\(session).txt"
         FileManager.default.createFile(atPath: promptFile, contents: Data(orchestratorPrompt.utf8))
 
-        let cmd = "clear && cat \(statusFile)\(decideStep) && echo '' && claude -p \"$(cat \(promptFile))\""
+        // 5. In main pane: show dashboard → decide if needed → launch interactive Claude
+        let cmd = "clear && cat \(statusFile)\(decideStep) && echo '' && claude \"$(cat \(promptFile))\""
         try tmux("send-keys", "-t", mainPaneId, cmd, "C-m")
     }
 
@@ -504,9 +526,11 @@ struct StartupCommand: AsyncParsableCommand {
         var pendingDecisions = 0
         var staleCompanies = 0
         var spentToday: Double = 0
+        var companySlugs: [String] = []
 
         // Fetch companies for task counts
         if let companies = try? await client.getCompanies() {
+            companySlugs = companies.sorted { $0.priority < $1.priority }.map(\.slug)
             for c in companies {
                 let completed = c.completedTasks ?? 0
                 let pending = c.pendingTasks ?? 0
@@ -550,7 +574,8 @@ struct StartupCommand: AsyncParsableCommand {
             weeklyProjectCount: weeklyProjects,
             pendingDecisions: pendingDecisions,
             staleCompanies: staleCompanies,
-            spentToday: spentToday
+            spentToday: spentToday,
+            companySlugs: companySlugs
         )
     }
 }

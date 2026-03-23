@@ -19,6 +19,7 @@ public struct StartupDisplayData: Sendable {
     public let pendingDecisions: Int
     public let staleCompanies: Int
     public let spentToday: Double
+    public let companySlugs: [String]
 
     public init(
         version: String,
@@ -31,7 +32,8 @@ public struct StartupDisplayData: Sendable {
         weeklyProjectCount: Int,
         pendingDecisions: Int,
         staleCompanies: Int,
-        spentToday: Double
+        spentToday: Double,
+        companySlugs: [String] = []
     ) {
         self.version = version
         self.isHealthy = isHealthy
@@ -44,6 +46,7 @@ public struct StartupDisplayData: Sendable {
         self.pendingDecisions = pendingDecisions
         self.staleCompanies = staleCompanies
         self.spentToday = spentToday
+        self.companySlugs = companySlugs
     }
 }
 

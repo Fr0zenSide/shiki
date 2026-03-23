@@ -37,8 +37,9 @@ struct ProcessCleanupTests {
     func reservedWindowsPreserved() throws {
         let reserved = ProcessCleanup.reservedWindows
         #expect(reserved.contains("orchestrator"))
-        #expect(reserved.contains("board"))
-        #expect(reserved.contains("research"))
+        // Single-window layout: no board/research windows
+        #expect(!reserved.contains("board"))
+        #expect(!reserved.contains("research"))
     }
 
     @Test("findOrphanedClaudeProcesses finds claude processes not in tmux")

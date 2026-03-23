@@ -13,7 +13,7 @@ import Foundation
 public struct ProcessCleanup: Sendable {
 
     /// Windows that are never killed during cleanup — they are infrastructure, not tasks.
-    public static let reservedWindows: Set<String> = ["orchestrator", "board", "research"]
+    public static let reservedWindows: Set<String> = ["orchestrator"]
 
     public init() {}
 
