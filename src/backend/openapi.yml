@@ -1,0 +1,3815 @@
+openapi: 3.1.0
+info:
+  title: Shiki API
+  version: 3.1.0
+  description: >
+    Shiki backend API — agent orchestration, knowledge management, pipelines,
+    radar, and multi-company task queue. This spec is the migration contract
+    for the Deno-to-Swift transition.
+  contact:
+    name: OBYW.one
+  license:
+    identifier: AGPL-3.0-only
+
+servers:
+  - url: http://localhost:3900
+    description: Local development
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Paths — 67 endpoints grouped by domain
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── Health ──────────────────────────────────────────────────────────────────
+
+  /health:
+    get:
+      operationId: getHealth
+      summary: Basic health check
+      tags: [Health]
+      responses:
+        "200":
+          description: All services healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Database unreachable (degraded)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /health/full:
+    get:
+      operationId: getHealthFull
+      summary: Extended health with memory, pipeline, orchestrator stats and agent roster
+      tags: [Health]
+      responses:
+        "200":
+          description: Full health report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthFullResponse"
+        "503":
+          description: Degraded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthFullResponse"
+
+  # ── Projects ────────────────────────────────────────────────────────────────
+
+  /api/projects:
+    get:
+      operationId: listProjects
+      summary: List all projects
+      tags: [Projects]
+      responses:
+        "200":
+          description: Array of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+
+  # ── Sessions ────────────────────────────────────────────────────────────────
+
+  /api/sessions:
+    get:
+      operationId: listSessions
+      summary: List sessions (optionally filtered by project)
+      tags: [Sessions]
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Array of sessions (max 50)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Session"
+
+  /api/sessions/active:
+    get:
+      operationId: listActiveSessions
+      summary: List active sessions ordered by hours active
+      tags: [Sessions]
+      responses:
+        "200":
+          description: Active sessions view
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActiveSession"
+
+  # ── Agents ──────────────────────────────────────────────────────────────────
+
+  /api/agents:
+    get:
+      operationId: listAgents
+      summary: List agents (optionally filtered by session)
+      tags: [Agents]
+      parameters:
+        - name: session_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Array of agents (max 100)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Agent"
+
+  # ── Agent Events ────────────────────────────────────────────────────────────
+
+  /api/agent-update:
+    post:
+      operationId: createAgentEvent
+      summary: Write an agent event and broadcast via WebSocket
+      tags: [Agent Events]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentEventInput"
+      responses:
+        "200":
+          description: Event recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/agent-events:
+    get:
+      operationId: listAgentEvents
+      summary: List agent events (optionally filtered by session)
+      tags: [Agent Events]
+      parameters:
+        - name: session_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 50
+      responses:
+        "200":
+          description: Array of agent events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgentEvent"
+
+  # ── Performance ─────────────────────────────────────────────────────────────
+
+  /api/stats-update:
+    post:
+      operationId: createPerformanceMetric
+      summary: Write a performance metric and broadcast via WebSocket
+      tags: [Performance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PerformanceMetricInput"
+      responses:
+        "200":
+          description: Metric recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Memories ────────────────────────────────────────────────────────────────
+
+  /api/memories:
+    post:
+      operationId: createMemory
+      summary: Store a new memory (with optional embedding)
+      tags: [Memories]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryInput"
+      responses:
+        "200":
+          description: Memory stored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                required: [id]
+        "400":
+          $ref: "#/components/responses/ValidationError"
+    get:
+      operationId: listMemories
+      summary: List memories (optionally filtered by project)
+      tags: [Memories]
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 50
+      responses:
+        "200":
+          description: Array of memories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Memory"
+
+  /api/memories/search:
+    post:
+      operationId: searchMemories
+      summary: Semantic search across memories (vector + BM25)
+      tags: [Memories]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemorySearchInput"
+      responses:
+        "200":
+          description: Search results with similarity scores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MemorySearchResult"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/memories/sources:
+    get:
+      operationId: listMemorySources
+      summary: List file-backed memory sources with chunk counts
+      tags: [Memories]
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Array of memory source aggregates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MemorySource"
+
+  # ── Chat Messages ──────────────────────────────────────────────────────────
+
+  /api/chat-message:
+    post:
+      operationId: createChatMessage
+      summary: Store a chat message and broadcast via WebSocket
+      tags: [Chat]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatMessageInput"
+      responses:
+        "200":
+          description: Message stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/chat-messages:
+    get:
+      operationId: listChatMessages
+      summary: List chat messages for a session
+      tags: [Chat]
+      parameters:
+        - name: session_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+      responses:
+        "200":
+          description: Array of chat messages ordered by time ASC
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatMessage"
+        "400":
+          description: Missing session_id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ── Data Sync ───────────────────────────────────────────────────────────────
+
+  /api/data-sync:
+    post:
+      operationId: createDataSync
+      summary: Generic data sync endpoint (stored as agent_event with type data_sync)
+      tags: [Data Sync]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DataSyncInput"
+      responses:
+        "200":
+          description: Sync event recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── PR / Git Events ────────────────────────────────────────────────────────
+
+  /api/pr-created:
+    post:
+      operationId: createPrEvent
+      summary: Record a PR creation event
+      tags: [Git Events]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrCreatedInput"
+      responses:
+        "200":
+          description: PR event recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/git-events:
+    get:
+      operationId: listGitEvents
+      summary: List git events (filter by project and/or event type)
+      tags: [Git Events]
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: event_type
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 50
+      responses:
+        "200":
+          description: Array of git events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GitEvent"
+
+  # ── Dashboard ───────────────────────────────────────────────────────────────
+
+  /api/dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      summary: Aggregate counts for the dashboard
+      tags: [Dashboard]
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Dashboard summary counters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /api/dashboard/performance:
+    get:
+      operationId: getDashboardPerformance
+      summary: Daily performance buckets (tokens, cost, duration)
+      tags: [Dashboard]
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: days
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 7
+      responses:
+        "200":
+          description: Time-series performance data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PerformanceBucket"
+
+  /api/dashboard/activity:
+    get:
+      operationId: getDashboardActivity
+      summary: Hourly agent activity buckets
+      tags: [Dashboard]
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: hours
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 720
+            default: 24
+      responses:
+        "200":
+          description: Hourly activity data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityBucket"
+
+  /api/dashboard/costs:
+    get:
+      operationId: getDashboardCosts
+      summary: Agent cost leaderboard
+      tags: [Dashboard]
+      responses:
+        "200":
+          description: Top 50 agents by cost
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CostLeaderboardEntry"
+
+  /api/dashboard/git:
+    get:
+      operationId: getDashboardGit
+      summary: Daily git activity (additions, deletions, files changed)
+      tags: [Dashboard]
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: days
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 7
+      responses:
+        "200":
+          description: Daily git activity buckets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GitActivityBucket"
+
+  # ── Ingestion ───────────────────────────────────────────────────────────────
+
+  /api/ingest:
+    post:
+      operationId: ingestChunks
+      summary: Ingest content chunks into the knowledge base
+      tags: [Ingestion]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IngestRequestInput"
+      responses:
+        "200":
+          description: Ingestion result with counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestResult"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/ingest/sources:
+    get:
+      operationId: listIngestSources
+      summary: List ingestion sources for a project
+      tags: [Ingestion]
+      parameters:
+        - name: project_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Array of ingestion sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IngestSource"
+        "400":
+          description: Missing project_id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/ingest/sources/{id}:
+    get:
+      operationId: getIngestSource
+      summary: Get a single ingestion source
+      tags: [Ingestion]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Source details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestSource"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteIngestSource
+      summary: Delete an ingestion source and its chunks
+      tags: [Ingestion]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Source deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/ingest/reingest/{id}:
+    post:
+      operationId: reingestSource
+      summary: Trigger re-ingestion of a source (client must re-send chunks)
+      tags: [Ingestion]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Re-ingestion instructions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sourceId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  message:
+                    type: string
+                required: [sourceId, status, message]
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Radar ───────────────────────────────────────────────────────────────────
+
+  /api/radar/watchlist:
+    get:
+      operationId: listRadarWatchlist
+      summary: List radar watchlist items (filter by kind or tag)
+      tags: [Radar]
+      parameters:
+        - name: kind
+          in: query
+          schema:
+            type: string
+            enum: [repo, dependency, technology]
+        - name: tag
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Array of watchlist items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RadarWatchItem"
+    post:
+      operationId: createRadarWatchItem
+      summary: Add an item to the radar watchlist
+      tags: [Radar]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RadarWatchItemInput"
+      responses:
+        "201":
+          description: Item created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarWatchItem"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/radar/watchlist/{id}:
+    put:
+      operationId: updateRadarWatchItem
+      summary: Update a watchlist item
+      tags: [Radar]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RadarWatchItemInput"
+      responses:
+        "200":
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarWatchItem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteRadarWatchItem
+      summary: Delete a watchlist item
+      tags: [Radar]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Item deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/radar/scan:
+    post:
+      operationId: triggerRadarScan
+      summary: Trigger a radar scan for watchlist items
+      tags: [Radar]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RadarScanTriggerInput"
+      responses:
+        "200":
+          description: Scan started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scanRunId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [started]
+                required: [scanRunId, status]
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/radar/scans:
+    get:
+      operationId: listRadarScans
+      summary: List recent scan history
+      tags: [Radar]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        "200":
+          description: Array of scan runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RadarScanRun"
+
+  /api/radar/scans/{runId}:
+    get:
+      operationId: getRadarScanResults
+      summary: Get results for a specific scan run
+      tags: [Radar]
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Scan results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarScanResults"
+
+  /api/radar/digest/latest:
+    get:
+      operationId: getLatestRadarDigest
+      summary: Get the latest radar digest
+      tags: [Radar]
+      responses:
+        "200":
+          description: Latest digest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarDigest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/radar/digest/{runId}:
+    get:
+      operationId: getRadarDigest
+      summary: Get radar digest for a specific scan run
+      tags: [Radar]
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Digest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RadarDigest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/radar/ingest:
+    post:
+      operationId: ingestRadarDigest
+      summary: Ingest radar scan digest into memory as knowledge
+      tags: [Radar]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RadarIngestInput"
+      responses:
+        "200":
+          description: Ingestion result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  memoriesCreated:
+                    type: integer
+                required: [ok, memoriesCreated]
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Pipelines ───────────────────────────────────────────────────────────────
+
+  /api/pipelines:
+    post:
+      operationId: createPipelineRun
+      summary: Create a new pipeline run
+      tags: [Pipelines]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineRunCreateInput"
+      responses:
+        "201":
+          description: Pipeline run created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineRun"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+    get:
+      operationId: listPipelineRuns
+      summary: List pipeline runs (filter by type, status, project)
+      tags: [Pipelines]
+      parameters:
+        - name: pipeline_type
+          in: query
+          schema:
+            type: string
+            enum: [quick, md-feature, dispatch, pre-pr, review]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [running, completed, failed, cancelled, resuming]
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: Array of pipeline runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PipelineRun"
+
+  /api/pipelines/latest:
+    get:
+      operationId: getLatestPipelineRun
+      summary: Get the most recent pipeline run (optionally by type)
+      tags: [Pipelines]
+      parameters:
+        - name: pipeline_type
+          in: query
+          schema:
+            type: string
+            enum: [quick, md-feature, dispatch, pre-pr, review]
+      responses:
+        "200":
+          description: Latest pipeline run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineRun"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/pipelines/{runId}:
+    get:
+      operationId: getPipelineRun
+      summary: Get a pipeline run with summary
+      tags: [Pipelines]
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Pipeline run with summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineRunSummary"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updatePipelineRun
+      summary: Update pipeline run status/phase/state
+      tags: [Pipelines]
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineRunUpdateInput"
+      responses:
+        "200":
+          description: Updated pipeline run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineRun"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/pipelines/{runId}/checkpoints:
+    post:
+      operationId: addPipelineCheckpoint
+      summary: Add a checkpoint to a pipeline run
+      tags: [Pipelines]
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineCheckpointInput"
+      responses:
+        "201":
+          description: Checkpoint created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineCheckpoint"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+    get:
+      operationId: listPipelineCheckpoints
+      summary: List all checkpoints for a pipeline run
+      tags: [Pipelines]
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Array of checkpoints
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PipelineCheckpoint"
+
+  /api/pipelines/{runId}/checkpoints/{phase}:
+    get:
+      operationId: getPipelineCheckpoint
+      summary: Get a specific checkpoint by phase name
+      tags: [Pipelines]
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: phase
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Checkpoint details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineCheckpoint"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/pipelines/{runId}/resume:
+    post:
+      operationId: resumePipelineRun
+      summary: Resume a failed or cancelled pipeline run
+      tags: [Pipelines]
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineResumeInput"
+      responses:
+        "200":
+          description: Pipeline resumed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineRun"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/pipelines/{runId}/route:
+    post:
+      operationId: evaluatePipelineRouting
+      summary: Evaluate routing rules for a failed phase
+      tags: [Pipelines]
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineRouteEvalInput"
+      responses:
+        "200":
+          description: Routing result (action or null if no rule matched)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineRouteResult"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Pipeline Routing Rules ──────────────────────────────────────────────────
+
+  /api/pipeline-rules:
+    get:
+      operationId: listPipelineRoutingRules
+      summary: List pipeline routing rules (optionally by type)
+      tags: [Pipeline Rules]
+      parameters:
+        - name: pipeline_type
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Array of routing rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PipelineRoutingRule"
+    post:
+      operationId: createPipelineRoutingRule
+      summary: Create a pipeline routing rule
+      tags: [Pipeline Rules]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineRoutingRuleInput"
+      responses:
+        "201":
+          description: Rule created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineRoutingRule"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/pipeline-rules/{id}:
+    put:
+      operationId: updatePipelineRoutingRule
+      summary: Update a pipeline routing rule
+      tags: [Pipeline Rules]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineRoutingRuleInput"
+      responses:
+        "200":
+          description: Rule updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineRoutingRule"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deletePipelineRoutingRule
+      summary: Delete a pipeline routing rule
+      tags: [Pipeline Rules]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Rule deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Companies ───────────────────────────────────────────────────────────────
+
+  /api/companies:
+    get:
+      operationId: listCompanies
+      summary: List companies (optionally filter by status)
+      tags: [Companies]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, paused, archived]
+      responses:
+        "200":
+          description: Array of companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Company"
+    post:
+      operationId: createCompany
+      summary: Create a new company
+      tags: [Companies]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyCreateInput"
+      responses:
+        "201":
+          description: Company created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/companies/{companyId}:
+    get:
+      operationId: getCompanyStatus
+      summary: Get company with status and enriched data
+      tags: [Companies]
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Company with status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyStatus"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateCompany
+      summary: Update company fields (status, priority, budget, etc.)
+      tags: [Companies]
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyUpdateInput"
+      responses:
+        "200":
+          description: Company updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/companies/{companyId}/tasks:
+    get:
+      operationId: listCompanyTasks
+      summary: List tasks for a company (optionally by status)
+      tags: [Companies]
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, claimed, running, blocked, completed, failed, cancelled]
+      responses:
+        "200":
+          description: Array of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+
+  # ── Task Queue ──────────────────────────────────────────────────────────────
+
+  /api/task-queue:
+    post:
+      operationId: createTask
+      summary: Create a new task in the queue
+      tags: [Task Queue]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskCreateInput"
+      responses:
+        "201":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/task-queue/claim:
+    post:
+      operationId: claimTask
+      summary: Atomically claim the next pending task for a company
+      tags: [Task Queue]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskClaimInput"
+      responses:
+        "200":
+          description: Task claimed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "409":
+          description: No pending tasks available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/task-queue/{taskId}:
+    get:
+      operationId: getTask
+      summary: Get a single task by ID
+      tags: [Task Queue]
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateTask
+      summary: Update task status, result, or metadata
+      tags: [Task Queue]
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskUpdateInput"
+      responses:
+        "200":
+          description: Task updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Decision Queue ──────────────────────────────────────────────────────────
+
+  /api/decision-queue:
+    get:
+      operationId: listDecisions
+      summary: List decisions (filter by company, answered status, tier)
+      tags: [Decision Queue]
+      parameters:
+        - name: company_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: answered
+          in: query
+          schema:
+            type: boolean
+        - name: tier
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 3
+      responses:
+        "200":
+          description: Array of decisions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Decision"
+    post:
+      operationId: createDecision
+      summary: Submit a decision question to the queue
+      tags: [Decision Queue]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionCreateInput"
+      responses:
+        "201":
+          description: Decision created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Decision"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/decision-queue/pending:
+    get:
+      operationId: getPendingDecisions
+      summary: List all unanswered decisions
+      tags: [Decision Queue]
+      responses:
+        "200":
+          description: Array of pending decisions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Decision"
+
+  /api/decision-queue/{decisionId}:
+    patch:
+      operationId: answerDecision
+      summary: Answer a pending decision
+      tags: [Decision Queue]
+      parameters:
+        - name: decisionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionAnswerInput"
+      responses:
+        "200":
+          description: Decision answered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Decision"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Orchestrator ────────────────────────────────────────────────────────────
+
+  /api/orchestrator/status:
+    get:
+      operationId: getOrchestratorStatus
+      summary: Full orchestrator status (companies, decisions, locks, stale)
+      tags: [Orchestrator]
+      responses:
+        "200":
+          description: Orchestrator overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrchestratorStatus"
+
+  /api/orchestrator/stale:
+    get:
+      operationId: getStaleCompanies
+      summary: Companies with expired heartbeats
+      tags: [Orchestrator]
+      parameters:
+        - name: threshold_minutes
+          in: query
+          schema:
+            type: integer
+            default: 5
+      responses:
+        "200":
+          description: Array of stale companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StaleCompany"
+
+  /api/orchestrator/ready:
+    get:
+      operationId: getReadyCompanies
+      summary: Companies with pending tasks and no active session
+      tags: [Orchestrator]
+      responses:
+        "200":
+          description: Array of ready companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReadyCompany"
+
+  /api/orchestrator/report:
+    get:
+      operationId: getDailyReport
+      summary: Daily cross-company digest report
+      tags: [Orchestrator]
+      parameters:
+        - name: date
+          in: query
+          description: "Date in YYYY-MM-DD format (defaults to today)"
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Daily report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyReport"
+
+  /api/orchestrator/heartbeat:
+    post:
+      operationId: processHeartbeat
+      summary: Process company session heartbeat (may pause if over budget)
+      tags: [Orchestrator]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyHeartbeatInput"
+      responses:
+        "200":
+          description: Heartbeat result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HeartbeatResult"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/orchestrator/board:
+    get:
+      operationId: getBoardOverview
+      summary: Rich board overview for all companies (Kanban-style)
+      tags: [Orchestrator]
+      responses:
+        "200":
+          description: Board overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoardOverview"
+
+  /api/orchestrator/dispatcher-queue:
+    get:
+      operationId: getDispatcherQueue
+      summary: Tasks ready for autonomous dispatch
+      tags: [Orchestrator]
+      responses:
+        "200":
+          description: Dispatcher queue
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DispatcherQueueItem"
+
+  # ── Package Locks ───────────────────────────────────────────────────────────
+
+  /api/orchestrator/locks:
+    get:
+      operationId: listPackageLocks
+      summary: List active package locks
+      tags: [Package Locks]
+      responses:
+        "200":
+          description: Array of active locks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PackageLock"
+    post:
+      operationId: acquirePackageLock
+      summary: Acquire a package lock for a company session
+      tags: [Package Locks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PackageLockInput"
+      responses:
+        "201":
+          description: Lock acquired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PackageLock"
+        "409":
+          description: Package already locked by another company
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/orchestrator/locks/release:
+    post:
+      operationId: releasePackageLock
+      summary: Release a package lock
+      tags: [Package Locks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PackageUnlockInput"
+      responses:
+        "200":
+          description: Lock released
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Audit Log ───────────────────────────────────────────────────────────────
+
+  /api/orchestrator/audit:
+    get:
+      operationId: listAuditLog
+      summary: List recent audit log entries
+      tags: [Audit]
+      parameters:
+        - name: company_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Array of audit log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLogEntry"
+
+  # ── Session Transcripts ─────────────────────────────────────────────────────
+
+  /api/session-transcripts:
+    get:
+      operationId: listSessionTranscripts
+      summary: List session transcripts (filter by company, task, phase)
+      tags: [Session Transcripts]
+      parameters:
+        - name: company_slug
+          in: query
+          schema:
+            type: string
+        - name: company_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: task_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: phase
+          in: query
+          schema:
+            type: string
+            enum: [plan, implement, review, blocked, completed, failed]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: include_raw_log
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Array of session transcripts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SessionTranscript"
+    post:
+      operationId: createSessionTranscript
+      summary: Create a session transcript
+      tags: [Session Transcripts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionTranscriptCreateInput"
+      responses:
+        "201":
+          description: Transcript created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTranscript"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/session-transcripts/{id}:
+    get:
+      operationId: getSessionTranscript
+      summary: Get a single session transcript
+      tags: [Session Transcripts]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Transcript details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTranscript"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Admin ───────────────────────────────────────────────────────────────────
+
+  /api/admin/backup-status:
+    get:
+      operationId: getBackupStatus
+      summary: Database row counts and backup configuration
+      tags: [Admin]
+      responses:
+        "200":
+          description: Backup status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackupStatus"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Components
+# ─────────────────────────────────────────────────────────────────────────────
+components:
+
+  responses:
+    ValidationError:
+      description: Request body failed Zod validation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+
+    # ── Common ────────────────────────────────────────────────────────────────
+
+    OkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+      required: [ok]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    # ── Health ────────────────────────────────────────────────────────────────
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        version:
+          type: string
+        uptime:
+          type: object
+          properties:
+            ms:
+              type: integer
+            human:
+              type: string
+          required: [ms, human]
+        services:
+          type: object
+          properties:
+            database:
+              type: object
+              properties:
+                connected:
+                  type: boolean
+                pool:
+                  type: object
+                  additionalProperties: true
+              required: [connected]
+            ollama:
+              type: object
+              properties:
+                connected:
+                  type: boolean
+              required: [connected]
+            websocket:
+              type: object
+              additionalProperties: true
+          required: [database, ollama, websocket]
+        timestamp:
+          type: string
+          format: date-time
+      required: [status, version, uptime, services, timestamp]
+
+    HealthFullResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        version:
+          type: string
+        uptime:
+          type: object
+          properties:
+            ms:
+              type: integer
+            human:
+              type: string
+          required: [ms, human]
+        services:
+          type: object
+          properties:
+            database:
+              type: boolean
+            embeddings:
+              type: boolean
+          required: [database, embeddings]
+        memory:
+          type: object
+          properties:
+            total:
+              type: integer
+            withEmbedding:
+              type: integer
+            categories:
+              type: object
+              additionalProperties:
+                type: integer
+            sources:
+              type: integer
+          required: [total, withEmbedding, categories, sources]
+        pipelines:
+          type: object
+          properties:
+            total:
+              type: integer
+            running:
+              type: integer
+            completed:
+              type: integer
+            failed:
+              type: integer
+          required: [total, running, completed, failed]
+        projects:
+          type: integer
+        radar:
+          type: object
+          properties:
+            watchedRepos:
+              type: integer
+          required: [watchedRepos]
+        orchestrator:
+          type: object
+          properties:
+            companies:
+              type: integer
+            pendingTasks:
+              type: integer
+            pendingDecisions:
+              type: integer
+          required: [companies, pendingTasks, pendingDecisions]
+        agents:
+          type: array
+          items:
+            type: object
+            properties:
+              handle:
+                type: string
+              alias:
+                type: string
+              role:
+                type: string
+            required: [handle, alias, role]
+        commands:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              desc:
+                type: string
+            required: [name, desc]
+        timestamp:
+          type: string
+          format: date-time
+      required: [status, version, uptime, services, memory, pipelines, projects, radar, orchestrator, agents, commands, timestamp]
+
+    # ── Domain Entities ───────────────────────────────────────────────────────
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required: [id]
+
+    Session:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+      required: [id]
+
+    ActiveSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        hours_active:
+          type: number
+      required: [id]
+
+    Agent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        spawned_at:
+          type: string
+          format: date-time
+      required: [id]
+
+    # ── Agent Events (input / stored) ─────────────────────────────────────────
+
+    AgentEventInput:
+      type: object
+      properties:
+        agentId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+          minLength: 1
+          maxLength: 100
+        payload:
+          type: object
+          additionalProperties: true
+          default: {}
+        progressPct:
+          type: integer
+          minimum: 0
+          maximum: 100
+        message:
+          type: string
+          maxLength: 10000
+      required: [agentId, sessionId, projectId, eventType]
+
+    AgentEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+        payload:
+          type: object
+          additionalProperties: true
+        progress_pct:
+          type: integer
+        message:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+      required: [id, event_type, occurred_at]
+
+    # ── Performance Metrics ───────────────────────────────────────────────────
+
+    PerformanceMetricInput:
+      type: object
+      properties:
+        agentId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        metricType:
+          type: string
+          minLength: 1
+          maxLength: 100
+        tokensInput:
+          type: integer
+          minimum: 0
+        tokensOutput:
+          type: integer
+          minimum: 0
+        durationMs:
+          type: integer
+          minimum: 0
+        costUsd:
+          type: number
+          minimum: 0
+        model:
+          type: string
+          maxLength: 200
+      required: [agentId, sessionId, projectId, metricType]
+
+    # ── Memories ──────────────────────────────────────────────────────────────
+
+    MemoryInput:
+      type: object
+      properties:
+        projectId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        agentId:
+          type: string
+          format: uuid
+        content:
+          type: string
+          minLength: 1
+          maxLength: 50000
+        category:
+          type: string
+          minLength: 1
+          maxLength: 100
+          default: general
+        importance:
+          type: number
+          minimum: 0
+          maximum: 10
+          default: 1.0
+      required: [projectId, content]
+
+    Memory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+          format: uuid
+        content:
+          type: string
+        category:
+          type: string
+        importance:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+      required: [id, content, created_at]
+
+    MemorySearchInput:
+      type: object
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 5000
+        projectId:
+          type: string
+          format: uuid
+        projectIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        types:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+        threshold:
+          type: number
+          minimum: 0
+          maximum: 1
+          default: 0.7
+      required: [query]
+
+    MemorySearchResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        content:
+          type: string
+        category:
+          type: string
+        importance:
+          type: number
+        similarity:
+          type: number
+        project_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+      required: [id, content, similarity]
+
+    MemorySource:
+      type: object
+      properties:
+        source_file:
+          type: string
+        file_modified_at:
+          type: string
+        last_backed_up:
+          type: string
+          format: date-time
+        chunk_count:
+          type: integer
+        avg_importance:
+          type: number
+      required: [source_file, chunk_count]
+
+    # ── Chat Messages ─────────────────────────────────────────────────────────
+
+    ChatMessageInput:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        agentId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [user, assistant, system, orchestrator]
+          default: assistant
+        content:
+          type: string
+          minLength: 1
+          maxLength: 100000
+        tokenCount:
+          type: integer
+          minimum: 0
+        metadata:
+          type: object
+          additionalProperties: true
+          default: {}
+      required: [sessionId, projectId, content]
+
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+        content:
+          type: string
+        token_count:
+          type: integer
+        metadata:
+          type: object
+          additionalProperties: true
+        occurred_at:
+          type: string
+          format: date-time
+      required: [id, session_id, project_id, role, content, occurred_at]
+
+    # ── Data Sync ─────────────────────────────────────────────────────────────
+
+    DataSyncInput:
+      type: object
+      properties:
+        projectId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          minLength: 1
+          maxLength: 100
+        data:
+          type: object
+          additionalProperties: true
+      required: [type, data]
+
+    # ── PR / Git Events ───────────────────────────────────────────────────────
+
+    PrCreatedInput:
+      type: object
+      properties:
+        projectId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        agentId:
+          type: string
+          format: uuid
+        prUrl:
+          type: string
+          format: uri
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        branch:
+          type: string
+          minLength: 1
+          maxLength: 200
+        baseBranch:
+          type: string
+          minLength: 1
+          maxLength: 200
+          default: main
+        metadata:
+          type: object
+          additionalProperties: true
+          default: {}
+      required: [projectId, prUrl, title, branch]
+
+    GitEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+        agent_id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+        ref:
+          type: string
+        commit_msg:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        occurred_at:
+          type: string
+          format: date-time
+      required: [id, event_type, occurred_at]
+
+    # ── Dashboard ─────────────────────────────────────────────────────────────
+
+    DashboardSummary:
+      type: object
+      properties:
+        activeSessions:
+          type: integer
+        activeAgents:
+          type: integer
+        totalAgents:
+          type: integer
+        prsCreated:
+          type: integer
+        decisionsCount:
+          type: integer
+        messagesCount:
+          type: integer
+        recentEvents24h:
+          type: integer
+      required: [activeSessions, activeAgents, totalAgents, prsCreated, decisionsCount, messagesCount, recentEvents24h]
+
+    PerformanceBucket:
+      type: object
+      properties:
+        bucket:
+          type: string
+          format: date-time
+        model:
+          type: string
+        api_calls:
+          type: integer
+        total_tokens:
+          type: integer
+        total_cost_usd:
+          type: number
+        avg_duration_ms:
+          type: number
+      required: [bucket]
+
+    ActivityBucket:
+      type: object
+      properties:
+        bucket:
+          type: string
+          format: date-time
+        event_type:
+          type: string
+        count:
+          type: integer
+      required: [bucket, event_type, count]
+
+    CostLeaderboardEntry:
+      type: object
+      properties:
+        agent_id:
+          type: string
+          format: uuid
+        total_cost_usd:
+          type: number
+        total_tokens:
+          type: integer
+        api_calls:
+          type: integer
+      required: [agent_id, total_cost_usd]
+
+    GitActivityBucket:
+      type: object
+      properties:
+        bucket:
+          type: string
+          format: date-time
+        event_type:
+          type: string
+        event_count:
+          type: integer
+        total_additions:
+          type: integer
+        total_deletions:
+          type: integer
+        total_files_changed:
+          type: integer
+      required: [bucket]
+
+    # ── Ingestion ─────────────────────────────────────────────────────────────
+
+    IngestChunk:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 50000
+        category:
+          type: string
+          minLength: 1
+          maxLength: 100
+        importance:
+          type: number
+          minimum: 0
+          maximum: 10
+        filePath:
+          type: string
+        chunkIndex:
+          type: integer
+          minimum: 0
+      required: [content]
+
+    IngestRequestInput:
+      type: object
+      properties:
+        projectId:
+          type: string
+          format: uuid
+        sourceType:
+          type: string
+          enum: [github_repo, local_path, url, raw_text]
+        sourceUri:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        displayName:
+          type: string
+          maxLength: 200
+        contentHash:
+          type: string
+          maxLength: 128
+        chunks:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/IngestChunk"
+        totalChunks:
+          type: integer
+          minimum: 1
+        config:
+          type: object
+          properties:
+            dedupThreshold:
+              type: number
+              minimum: 0
+              maximum: 1
+              default: 0.92
+            autoCategory:
+              type: boolean
+              default: true
+      required: [projectId, sourceType, sourceUri, chunks]
+
+    IngestResult:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          format: uuid
+        stored:
+          type: integer
+        duplicates:
+          type: integer
+        status:
+          type: string
+      required: [sourceId, stored]
+
+    IngestSource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        source_type:
+          type: string
+        source_uri:
+          type: string
+        display_name:
+          type: string
+        status:
+          type: string
+        chunk_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+      required: [id, project_id, source_type, source_uri]
+
+    # ── Radar ─────────────────────────────────────────────────────────────────
+
+    RadarWatchItemInput:
+      type: object
+      properties:
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 200
+        kind:
+          type: string
+          enum: [repo, dependency, technology]
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        sourceUrl:
+          type: string
+          format: uri
+        relevance:
+          type: string
+          maxLength: 500
+        tags:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          default: []
+        metadata:
+          type: object
+          additionalProperties: true
+          default: {}
+      required: [slug, kind, name]
+
+    RadarWatchItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        kind:
+          type: string
+        name:
+          type: string
+        source_url:
+          type: string
+        relevance:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required: [id, slug, kind, name]
+
+    RadarScanTriggerInput:
+      type: object
+      properties:
+        itemIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        sinceDays:
+          type: integer
+          minimum: 1
+          maximum: 365
+          default: 30
+
+    RadarIngestInput:
+      type: object
+      properties:
+        scanRunId:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+      required: [scanRunId, projectId]
+
+    RadarScanRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        items_scanned:
+          type: integer
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+      required: [id, status]
+
+    RadarScanResults:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        results:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      required: [id, status]
+
+    RadarDigest:
+      type: object
+      properties:
+        scan_run_id:
+          type: string
+          format: uuid
+        digest:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required: [scan_run_id, digest]
+
+    # ── Pipelines ─────────────────────────────────────────────────────────────
+
+    PipelineRunCreateInput:
+      type: object
+      properties:
+        pipelineType:
+          type: string
+          enum: [quick, md-feature, dispatch, pre-pr, review]
+        projectId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        config:
+          type: object
+          additionalProperties: true
+          default: {}
+        initialState:
+          type: object
+          additionalProperties: true
+          default: {}
+        metadata:
+          type: object
+          additionalProperties: true
+          default: {}
+      required: [pipelineType]
+
+    PipelineRunUpdateInput:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [running, completed, failed, cancelled, resuming]
+        currentPhase:
+          type: string
+          maxLength: 100
+        state:
+          type: object
+          additionalProperties: true
+        error:
+          type: string
+          maxLength: 10000
+
+    PipelineCheckpointInput:
+      type: object
+      properties:
+        phase:
+          type: string
+          minLength: 1
+          maxLength: 100
+        phaseIndex:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [completed, failed, skipped]
+          default: completed
+        stateBefore:
+          type: object
+          additionalProperties: true
+          default: {}
+        stateAfter:
+          type: object
+          additionalProperties: true
+          default: {}
+        output:
+          type: object
+          additionalProperties: true
+          default: {}
+        error:
+          type: string
+          maxLength: 10000
+        durationMs:
+          type: integer
+          minimum: 0
+        metadata:
+          type: object
+          additionalProperties: true
+          default: {}
+      required: [phase, phaseIndex]
+
+    PipelineResumeInput:
+      type: object
+      properties:
+        fromPhase:
+          type: string
+          maxLength: 100
+        stateOverrides:
+          type: object
+          additionalProperties: true
+          default: {}
+
+    PipelineRoutingRuleInput:
+      type: object
+      properties:
+        pipelineType:
+          type: string
+          minLength: 1
+          maxLength: 50
+        sourcePhase:
+          type: string
+          minLength: 1
+          maxLength: 100
+        condition:
+          type: string
+          enum: [on_failure, on_success, on_skip, always]
+        targetAction:
+          type: string
+          minLength: 1
+          maxLength: 100
+        config:
+          type: object
+          additionalProperties: true
+          default: {}
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 100
+          default: 0
+        enabled:
+          type: boolean
+          default: true
+      required: [pipelineType, sourcePhase, condition, targetAction]
+
+    PipelineRouteEvalInput:
+      type: object
+      properties:
+        failedPhase:
+          type: string
+          minLength: 1
+          maxLength: 100
+      required: [failedPhase]
+
+    PipelineRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        pipeline_type:
+          type: string
+        status:
+          type: string
+        current_phase:
+          type: string
+        project_id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+          format: uuid
+        config:
+          type: object
+          additionalProperties: true
+        state:
+          type: object
+          additionalProperties: true
+        initial_state:
+          type: object
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+        error:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, pipeline_type, status, created_at]
+
+    PipelineRunSummary:
+      type: object
+      description: Pipeline run with embedded checkpoint count and latest phase info
+      allOf:
+        - $ref: "#/components/schemas/PipelineRun"
+        - type: object
+          properties:
+            checkpoint_count:
+              type: integer
+            latest_checkpoint_phase:
+              type: string
+
+    PipelineCheckpoint:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        phase:
+          type: string
+        phase_index:
+          type: integer
+        status:
+          type: string
+        state_before:
+          type: object
+          additionalProperties: true
+        state_after:
+          type: object
+          additionalProperties: true
+        output:
+          type: object
+          additionalProperties: true
+        error:
+          type: string
+        duration_ms:
+          type: integer
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+      required: [id, run_id, phase, phase_index, status, created_at]
+
+    PipelineRoutingRule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        pipeline_type:
+          type: string
+        source_phase:
+          type: string
+        condition:
+          type: string
+        target_action:
+          type: string
+        config:
+          type: object
+          additionalProperties: true
+        priority:
+          type: integer
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required: [id, pipeline_type, source_phase, condition, target_action]
+
+    PipelineRouteResult:
+      type: object
+      properties:
+        action:
+          type: string
+        message:
+          type: string
+        config:
+          type: object
+          additionalProperties: true
+
+    # ── Companies ─────────────────────────────────────────────────────────────
+
+    CompanyCreateInput:
+      type: object
+      properties:
+        projectId:
+          type: string
+          format: uuid
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: "^[a-z0-9-]+$"
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 99
+          default: 5
+        budget:
+          type: object
+          properties:
+            daily_usd:
+              type: number
+              minimum: 0
+              default: 5
+            monthly_usd:
+              type: number
+              minimum: 0
+              default: 150
+            spent_today_usd:
+              type: number
+              minimum: 0
+              default: 0
+        schedule:
+          type: object
+          properties:
+            active_hours:
+              type: array
+              items:
+                type: integer
+                minimum: 0
+                maximum: 23
+              minItems: 2
+              maxItems: 2
+              default: [8, 22]
+            timezone:
+              type: string
+              maxLength: 50
+              default: Europe/Paris
+            days:
+              type: array
+              items:
+                type: integer
+                minimum: 1
+                maximum: 7
+              default: [1, 2, 3, 4, 5, 6, 7]
+        config:
+          type: object
+          additionalProperties: true
+          default: {}
+      required: [projectId, slug, displayName]
+
+    CompanyUpdateInput:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [active, paused, archived]
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 99
+        budget:
+          type: object
+          additionalProperties: true
+        schedule:
+          type: object
+          additionalProperties: true
+        config:
+          type: object
+          additionalProperties: true
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 200
+
+    Company:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        display_name:
+          type: string
+        status:
+          type: string
+          enum: [active, paused, archived]
+        priority:
+          type: integer
+        budget:
+          type: object
+          additionalProperties: true
+        schedule:
+          type: object
+          additionalProperties: true
+        config:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, project_id, slug, display_name, status]
+
+    CompanyStatus:
+      type: object
+      description: Company with enriched status data (heartbeat, task counts)
+      allOf:
+        - $ref: "#/components/schemas/Company"
+        - type: object
+          properties:
+            last_heartbeat:
+              type: string
+              format: date-time
+            pending_tasks:
+              type: integer
+            running_tasks:
+              type: integer
+
+    # ── Task Queue ────────────────────────────────────────────────────────────
+
+    TaskCreateInput:
+      type: object
+      properties:
+        companyId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        description:
+          type: string
+          maxLength: 10000
+        source:
+          type: string
+          enum: [backlog, autopilot, manual, cross_company]
+          default: manual
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 99
+          default: 5
+        parentId:
+          type: string
+          format: uuid
+        metadata:
+          type: object
+          additionalProperties: true
+          default: {}
+      required: [companyId, title]
+
+    TaskUpdateInput:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, claimed, running, blocked, completed, failed, cancelled]
+        result:
+          type: object
+          additionalProperties: true
+        blockingQuestionIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        pipelineRunId:
+          type: string
+          format: uuid
+        metadata:
+          type: object
+          additionalProperties: true
+
+    TaskClaimInput:
+      type: object
+      properties:
+        companyId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+      required: [companyId, sessionId]
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [pending, claimed, running, blocked, completed, failed, cancelled]
+        source:
+          type: string
+        priority:
+          type: integer
+        parent_id:
+          type: string
+          format: uuid
+        pipeline_run_id:
+          type: string
+          format: uuid
+        result:
+          type: object
+          additionalProperties: true
+        blocking_question_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [id, company_id, title, status, created_at]
+
+    # ── Decision Queue ────────────────────────────────────────────────────────
+
+    DecisionCreateInput:
+      type: object
+      properties:
+        companyId:
+          type: string
+          format: uuid
+        taskId:
+          type: string
+          format: uuid
+        pipelineRunId:
+          type: string
+          format: uuid
+        tier:
+          type: integer
+          minimum: 1
+          maximum: 3
+        question:
+          type: string
+          minLength: 1
+          maxLength: 5000
+        options:
+          type: object
+          additionalProperties: true
+        context:
+          type: string
+          maxLength: 10000
+        metadata:
+          type: object
+          additionalProperties: true
+          default: {}
+      required: [companyId, tier, question]
+
+    DecisionAnswerInput:
+      type: object
+      properties:
+        answer:
+          type: string
+          minLength: 1
+          maxLength: 10000
+        answeredBy:
+          type: string
+          minLength: 1
+          maxLength: 200
+      required: [answer, answeredBy]
+
+    Decision:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        task_id:
+          type: string
+          format: uuid
+        pipeline_run_id:
+          type: string
+          format: uuid
+        tier:
+          type: integer
+        question:
+          type: string
+        options:
+          type: object
+          additionalProperties: true
+        context:
+          type: string
+        answer:
+          type: string
+        answered_by:
+          type: string
+        answered_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+      required: [id, company_id, tier, question, created_at]
+
+    # ── Orchestrator ──────────────────────────────────────────────────────────
+
+    OrchestratorStatus:
+      type: object
+      properties:
+        overview:
+          type: object
+          additionalProperties: true
+        activeCompanies:
+          type: array
+          items:
+            $ref: "#/components/schemas/Company"
+        pendingDecisions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Decision"
+        staleCompanies:
+          type: array
+          items:
+            $ref: "#/components/schemas/StaleCompany"
+        packageLocks:
+          type: array
+          items:
+            $ref: "#/components/schemas/PackageLock"
+        timestamp:
+          type: string
+          format: date-time
+      required: [overview, activeCompanies, pendingDecisions, staleCompanies, packageLocks, timestamp]
+
+    StaleCompany:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        display_name:
+          type: string
+        last_heartbeat:
+          type: string
+          format: date-time
+        minutes_stale:
+          type: number
+      required: [id, slug]
+
+    ReadyCompany:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        display_name:
+          type: string
+        pending_task_count:
+          type: integer
+      required: [id, slug, pending_task_count]
+
+    HeartbeatResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        budgetExceeded:
+          type: boolean
+        spentToday:
+          type: number
+        dailyBudget:
+          type: number
+      required: [ok]
+
+    DailyReport:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        companies:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        summary:
+          type: object
+          additionalProperties: true
+      required: [date]
+
+    BoardOverview:
+      type: object
+      properties:
+        companies:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+
+    DispatcherQueueItem:
+      type: object
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        company_slug:
+          type: string
+        task_id:
+          type: string
+          format: uuid
+        task_title:
+          type: string
+        priority:
+          type: integer
+      required: [company_id, task_id, task_title]
+
+    # ── Package Locks ─────────────────────────────────────────────────────────
+
+    PackageLockInput:
+      type: object
+      properties:
+        companyId:
+          type: string
+          format: uuid
+        packageName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        sessionId:
+          type: string
+          format: uuid
+      required: [companyId, packageName, sessionId]
+
+    PackageUnlockInput:
+      type: object
+      properties:
+        companyId:
+          type: string
+          format: uuid
+        packageName:
+          type: string
+          minLength: 1
+          maxLength: 100
+      required: [companyId, packageName]
+
+    PackageLock:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        package_name:
+          type: string
+        session_id:
+          type: string
+          format: uuid
+        acquired_at:
+          type: string
+          format: date-time
+      required: [id, company_id, package_name, session_id]
+
+    # ── Audit Log ─────────────────────────────────────────────────────────────
+
+    AuditLogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        actor:
+          type: string
+        action:
+          type: string
+        target_type:
+          type: string
+        target_id:
+          type: string
+        before_state:
+          type: object
+          additionalProperties: true
+        after_state:
+          type: object
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+      required: [id, actor, action, created_at]
+
+    # ── Session Transcripts ───────────────────────────────────────────────────
+
+    SessionTranscriptCreateInput:
+      type: object
+      properties:
+        companyId:
+          type: string
+          format: uuid
+        taskId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          minLength: 1
+          maxLength: 200
+        companySlug:
+          type: string
+          minLength: 1
+          maxLength: 50
+        taskTitle:
+          type: string
+          minLength: 1
+          maxLength: 500
+        projectPath:
+          type: string
+          maxLength: 500
+        summary:
+          type: string
+          maxLength: 50000
+        planOutput:
+          type: string
+          maxLength: 100000
+        filesChanged:
+          type: array
+          items:
+            type: string
+            maxLength: 500
+          default: []
+        testResults:
+          type: string
+          maxLength: 50000
+        prsCreated:
+          type: array
+          items:
+            type: string
+            maxLength: 500
+          default: []
+        decisions:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+          default: []
+        errors:
+          type: array
+          items:
+            type: string
+            maxLength: 5000
+          default: []
+        phase:
+          type: string
+          enum: [plan, implement, review, blocked, completed, failed]
+          default: completed
+        durationMinutes:
+          type: integer
+          minimum: 0
+        contextPct:
+          type: integer
+          minimum: 0
+          maximum: 100
+        compactionCount:
+          type: integer
+          minimum: 0
+        rawLog:
+          type: string
+          maxLength: 500000
+      required: [companyId, sessionId, companySlug, taskTitle]
+
+    SessionTranscript:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        task_id:
+          type: string
+          format: uuid
+        session_id:
+          type: string
+        company_slug:
+          type: string
+        task_title:
+          type: string
+        project_path:
+          type: string
+        summary:
+          type: string
+        plan_output:
+          type: string
+        files_changed:
+          type: array
+          items:
+            type: string
+        test_results:
+          type: string
+        prs_created:
+          type: array
+          items:
+            type: string
+        decisions:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        errors:
+          type: array
+          items:
+            type: string
+        phase:
+          type: string
+        duration_minutes:
+          type: integer
+        context_pct:
+          type: integer
+        compaction_count:
+          type: integer
+        raw_log:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required: [id, company_id, session_id, company_slug, task_title, created_at]
+
+    # ── Company Heartbeat (input) ─────────────────────────────────────────────
+
+    CompanyHeartbeatInput:
+      type: object
+      properties:
+        companyId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        data:
+          type: object
+          additionalProperties: true
+          default: {}
+      required: [companyId, sessionId]
+
+    # ── Admin ─────────────────────────────────────────────────────────────────
+
+    BackupStatus:
+      type: object
+      properties:
+        database:
+          type: object
+          properties:
+            memories:
+              type: integer
+            events:
+              type: integer
+            chats:
+              type: integer
+            agents:
+              type: integer
+            sessions:
+              type: integer
+            decisions:
+              type: integer
+            git_events:
+              type: integer
+            metrics:
+              type: integer
+          required: [memories, events, chats, agents, sessions, decisions, git_events, metrics]
+        backupScript:
+          type: string
+        restoreScript:
+          type: string
+        backupDir:
+          type: string
+        retentionDays:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+      required: [database, timestamp]
