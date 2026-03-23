@@ -336,7 +336,7 @@ These features are part of the ListReviewer shared component. All list commands 
 3. **Batch actions** — Select multiple items with `Space`, apply action to all. "Approve 3, 5, 7" in one gesture.
 4. **Undo last action** — `Ctrl-Z` undoes the last approve/kill/defer. Irreversible actions (ship) still require confirmation.
 5. **Hybrid smart ordering** — Default: @shi team auto-sorts by composite score (age + priority + deps + blocking-impact). User can override by manually reordering items to the top (pinned items stay pinned across sessions). System proposes, user disposes. `--sort manual` disables auto-sort entirely.
-6. **Progress persistence** — Review 4 of 8, quit, next `shikki inbox` resumes from #5. No lost progress across sessions.
+6. **Progress persistence** — Review 4 of 8, quit, next `shikki inbox` resumes from #5. Local JSON file at `~/.config/shiki/list-progress.json` (same pattern as review CLI progress tracking). No DB migration needed — just a file with `{listId, reviewedItemIds[], pinnedOrder[], lastIndex}`.
 7. **Color-coded urgency** — Red = blocking other work. Yellow = aging (>24h). Green = ready. Dim = deferred. The list is a heatmap.
 8. **Pipe-friendly** — `shikki inbox --json` for scripting. `shikki inbox --count` for just the number. Every list command is both TUI and pipe.
 9. **Context injection** — In `shikki review`, press `?` to see the event logger context (agent decisions during implementation) without leaving the review.
