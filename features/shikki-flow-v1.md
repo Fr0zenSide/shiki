@@ -335,7 +335,7 @@ These features are part of the ListReviewer shared component. All list commands 
 2. **Inline preview** — Press `Enter` to expand a 3-line preview without leaving the list. Like `less` for structured data.
 3. **Batch actions** — Select multiple items with `Space`, apply action to all. "Approve 3, 5, 7" in one gesture.
 4. **Undo last action** — `Ctrl-Z` undoes the last approve/kill/defer. Irreversible actions (ship) still require confirmation.
-5. **Smart ordering** — Auto-sort by composite score: age + priority + dependencies. Item #1 is always what you should handle first. Override with `--sort`.
+5. **Hybrid smart ordering** — Default: @shi team auto-sorts by composite score (age + priority + deps + blocking-impact). User can override by manually reordering items to the top (pinned items stay pinned across sessions). System proposes, user disposes. `--sort manual` disables auto-sort entirely.
 6. **Progress persistence** — Review 4 of 8, quit, next `shikki inbox` resumes from #5. No lost progress across sessions.
 7. **Color-coded urgency** — Red = blocking other work. Yellow = aging (>24h). Green = ready. Dim = deferred. The list is a heatmap.
 8. **Pipe-friendly** — `shikki inbox --json` for scripting. `shikki inbox --count` for just the number. Every list command is both TUI and pipe.
