@@ -285,8 +285,11 @@ This is the **ListReviewer** component — one TUI widget, reused across all lis
 **Design principles:**
 - Never ask more than 3 questions per screen
 - Auto-detect everything possible (git, docker, API keys from env)
-- Show, don't tell — the tour does a real task, not a dry demo
-- Idempotent — run `shikki wizard` again to reconfigure without losing data
+- **The wizard is a GAME, not a form** — inspired by Kinetype (type-to-play rogue-lite). Each step IS a real Shikki command that produces tangible output. The user learns by DOING, not reading.
+- **Progressive disclosure** — start simple (backlog add), unlock tools as you progress (decide, spec, run). Like levels.
+- **Tangible reward per step** — every wizard step produces something real (a backlog item, a decision, a spec, a PR). Not "configuration complete" — "you just shipped your first feature."
+- **Replayable** — `shikki wizard` re-run teaches new features added since last run. New levels unlocked.
+- Idempotent — run again without losing data
 
 **Already exists partially:** `StartupCommand` does environment detection + Docker bootstrap. Needs: interactive project scanning, guided tour, company creation from discovered repos.
 
