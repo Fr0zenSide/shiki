@@ -139,8 +139,24 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
 
     // MARK: - Pane Discovery
 
-    /// Find a company pane by its title (set during layout creation).
+    /// Find a company pane by slug.
+    /// Primary: reads the pane mapping JSON saved during layout creation.
+    /// Fallback: scans pane titles (unreliable — zsh precmd can override them).
     private func findCompanyPane(slug: String) -> String? {
+        // Primary: JSON mapping file (stable across shell title overrides)
+        let mappingFile = "/tmp/shiki-panes-\(session).json"
+        if let data = FileManager.default.contents(atPath: mappingFile),
+           let mapping = try? JSONSerialization.jsonObject(with: data) as? [String: String],
+           let paneId = mapping[slug] {
+            // Verify the pane still exists
+            if let check = try? runProcessCapture("tmux", arguments: [
+                "display-message", "-t", paneId, "-p", "#{pane_id}",
+            ]), !check.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return paneId
+            }
+        }
+
+        // Fallback: scan pane titles
         let titleToFind = slug.uppercased()
         guard let output = try? runProcessCapture("tmux", arguments: [
             "list-panes", "-t", "\(session):orchestrator",
