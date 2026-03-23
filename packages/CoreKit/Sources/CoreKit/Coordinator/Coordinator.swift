@@ -67,7 +67,7 @@
 //     appCoordinator.userAction.send(.loginCompleted)
 //     ```
 //
-//  The signal goes through `bindUserInteraction()` (Combine, main queue)
+//  The signal goes through `bindUserInteraction()` (Combine, @MainActor)
 //  → `handleUser(action:)` → private method → `@Published` state change
 //  → SwiftUI re-renders.
 //

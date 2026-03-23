@@ -5,7 +5,7 @@
 
 import Foundation
 import Testing
-@testable import NetworkKit
+@testable import NetKit
 
 @Suite("NetworkService Tests")
 struct NetworkServiceTests {
