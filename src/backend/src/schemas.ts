@@ -52,7 +52,9 @@ export type MemoryInput = z.infer<typeof MemorySchema>;
 // --- Memory Search ---
 export const MemorySearchSchema = z.object({
   query: z.string().min(1).max(5000),
-  projectId: z.string().uuid(),
+  projectId: z.string().uuid().optional(),
+  projectIds: z.array(z.string().uuid()).optional(),
+  types: z.array(z.string().min(1).max(100)).optional(),
   limit: z.number().int().min(1).max(100).optional().default(10),
   threshold: z.number().min(0).max(1).optional().default(0.7),
 });
@@ -60,7 +62,7 @@ export type MemorySearchInput = z.infer<typeof MemorySearchSchema>;
 
 // --- Data Sync ---
 export const DataSyncSchema = z.object({
-  projectId: z.string().uuid(),
+  projectId: z.string().uuid().optional(),
   sessionId: z.string().uuid().optional(),
   type: z.string().min(1).max(100),
   data: z.record(z.unknown()),
