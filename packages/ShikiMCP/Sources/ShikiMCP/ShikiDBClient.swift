@@ -86,7 +86,7 @@ actor ShikiDBClient: ShikiDBClientProtocol {
     }
 
     func healthCheck() async throws -> Bool {
-        let url = try buildURL("/api/health")
+        let url = try buildURL("/health")
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
