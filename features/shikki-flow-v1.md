@@ -324,3 +324,43 @@ This is the **ListReviewer** component — one TUI widget, reused across all lis
 10. **`shikki spec`** CLI entry point (wraps existing skill into ShikiCore)
 11. Polish `shikki decide` (adopt ListReviewer)
 12. Polish `shikki review` (rename + inbox integration)
+
+---
+
+## ListReviewer — Enhanced UX Features (validated by @Hanami)
+
+These features are part of the ListReviewer shared component. All list commands inherit them.
+
+1. **Fuzzy search** — Type `/` in any list to filter by keyword. Fast scan over large lists.
+2. **Inline preview** — Press `Enter` to expand a 3-line preview without leaving the list. Like `less` for structured data.
+3. **Batch actions** — Select multiple items with `Space`, apply action to all. "Approve 3, 5, 7" in one gesture.
+4. **Undo last action** — `Ctrl-Z` undoes the last approve/kill/defer. Irreversible actions (ship) still require confirmation.
+5. **Smart ordering** — Auto-sort by composite score: age + priority + dependencies. Item #1 is always what you should handle first. Override with `--sort`.
+6. **Progress persistence** — Review 4 of 8, quit, next `shikki inbox` resumes from #5. No lost progress across sessions.
+7. **Color-coded urgency** — Red = blocking other work. Yellow = aging (>24h). Green = ready. Dim = deferred. The list is a heatmap.
+8. **Pipe-friendly** — `shikki inbox --json` for scripting. `shikki inbox --count` for just the number. Every list command is both TUI and pipe.
+9. **Context injection** — In `shikki review`, press `?` to see the event logger context (agent decisions during implementation) without leaving the review.
+10. **Completion signal** — Terminal bell + ntfy push when all inbox items validated. Inbox zero should be tangible.
+
+**Implementation priority — v1:** Features 3 (batch actions), 5 (smart ordering), 6 (progress persistence), 7 (color urgency), 8 (pipe-friendly). **v1.1:** Features 1 (fuzzy search), 2 (inline preview), 4 (undo), 9 (context injection), 10 (completion signal).
+
+---
+
+## Constraint: Swift Build Isolation
+
+**Problem:** Multiple Swift agents running `swift build/test` cause SPM `.build/.lock` contention (exit 144).
+
+**Solution: `--scratch-path` per agent (FULL parallelism)**
+
+```bash
+AGENT_ID="$(basename $(git rev-parse --show-toplevel))"
+swift build --scratch-path "/tmp/shiki-builds/${AGENT_ID}/.build"
+swift test  --scratch-path "/tmp/shiki-builds/${AGENT_ID}/.build"
+```
+
+Each agent gets its own `.build/.lock`, `build.db`, compiled artifacts. Shared dependency cache reused. First build cold (~30s), subsequent incremental. No serialization needed.
+
+**DispatchManager rules:**
+- All Swift agents use `--scratch-path /tmp/shiki-builds/$AGENT_ID/.build`
+- Always `SKIP_E2E=1` for non-interactive agents
+- If dependency resolution contends: add `--cache-path /tmp/shiki-builds/$AGENT_ID/cache`
