@@ -239,7 +239,7 @@ This is the **ListReviewer** component — one TUI widget, reused across all lis
 
 **Not an LLM feature.** Pure data stream — zero token cost.
 
-**Implementation:** A heartbeat-like loop that subscribes to ShikiDB's WebSocket channel (`/ws`) and renders events in a tmux pane.
+**Implementation:** Unix domain socket at `/tmp/shikki-events.sock`. ShikiCore writes JSON lines, event logger reads and renders. Zero infra — no broker, no Docker, no network. v1.1 migrates to MQTT when iOS/multi-machine subscribers arrive.
 
 **Format:** `[HH:MM:SS] company:agent scope what`
 
