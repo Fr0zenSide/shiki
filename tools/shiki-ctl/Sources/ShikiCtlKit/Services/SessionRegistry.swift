@@ -218,6 +218,21 @@ public actor SessionRegistry {
         Array(sessions.values)
     }
 
+    /// Check if a session with the given slug is registered and alive.
+    /// Matches against windowName directly, or the company prefix of "company:task" format.
+    public func isRunning(slug: String) -> Bool {
+        // Direct match
+        if sessions[slug] != nil { return true }
+        // Prefix match: slug might be "company" and window is "company:task-short"
+        let prefix = slug.contains(":") ? slug : "\(slug):"
+        return sessions.keys.contains { $0 == slug || $0.hasPrefix(prefix) }
+    }
+
+    /// Return all registered session window names (excludes reserved windows).
+    public func runningSlugs() -> [String] {
+        sessions.keys.filter { !Self.reservedWindows.contains($0) }
+    }
+
     // MARK: - Testing Helpers
 
     /// Register a session with explicit state (for tests).
