@@ -1039,4 +1039,46 @@ Sources/BrainyCore/
 
 ---
 
+---
+
+## Private Vault — Personal Space
+
+**Not documented. Not advertised. Not in any README or marketing.**
+
+A separate, fully encrypted compartment within Brainy for content the user wants to keep absolutely private. Everyone has a personal space they don't share. Brainy respects that without judgment.
+
+### Access
+
+- **Discovery:** Hidden by default. Activated via a specific sequence in the settings menu (obscured under "Anonymous browsing preferences")
+- **Konami code:** Once set up, a specific input sequence in the main app reveals the private tab
+- **Biometric lock:** Opening the private tab requires Face ID / Touch ID / passphrase every time
+- **Auto-hide:** App goes to background → private tab instantly hidden. Return to app → shows normal view. No trace visible in app switcher.
+
+### Architecture
+
+- **Separate libSQL database** — not a table in the main vault. Completely isolated file. `~/.brainy/private.db`
+- **Full database encryption** — not just row-level. The entire `.db` file is encrypted at rest with a key derived from biometrics + user passphrase
+- **No sync** — this database never leaves the device. No P2P, no cloud, no backup service. Local only.
+- **No cross-reference** — the main vault has zero knowledge of the private vault's existence. No foreign keys, no shared IDs, no logs that reference it.
+- **No AI access** — the AI agent layer cannot query this database. It's invisible to all MCP tools and sources.
+
+### Nuclear wipe
+
+One button in the private settings. Requires manual retyping of a security phrase (no paste, no autofill). Executes:
+1. Overwrite database file with random bytes (3 passes)
+2. Delete the file
+3. Remove the private vault configuration
+4. No backup exists → data is gone permanently
+5. App returns to normal state as if the feature never existed
+
+### What it is NOT
+
+- Not a feature we market
+- Not a feature we document in public docs
+- Not a feature that appears in any analytics, telemetry, or crash report
+- Not a feature that any external MCP client can detect or query
+- It exists because privacy is a right, not a privilege
+
+---
+
 *This spec is the product bible for Brainy. Every implementation decision flows from here. Update this document as decisions are made on the open questions above.*
