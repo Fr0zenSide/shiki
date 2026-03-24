@@ -425,6 +425,70 @@ Third-party marketplace for Shikki, Brainy, and future OBYW products. Like an Ap
 
 ---
 
+## Zero Downtime — Provider Failover & Auto-Mount Orchestrator
+
+**Problem:** Claude Code hits rate limit → main orchestrator dies → all work stops. Token budget consumed in minutes. No fallback. Dead time = wasted money.
+
+**Solution: Cascading node failover with provider quality tracking.**
+
+### Failover Chain
+
+```
+Claude Code (primary, Opus/Sonnet)
+  │ rate-limited or dead
+  ▼
+Local LLM (opencode + LM Studio, 127.0.0.1:1234)
+  │ machine off or overloaded
+  ▼
+VPS node (92.134.242.73, opencode + remote LLM)
+  │ VPS down
+  ▼
+Degraded mode: queue tasks, wait for any node to come back
+```
+
+### How it works
+
+1. **Heartbeat probe** — every 30s, check main orchestrator health
+2. **Rate limit detection** — when Claude returns 429 / "rate limit" / session ends unexpectedly → trigger failover
+3. **Auto-mount new main node** — the highest-priority alive node becomes the new orchestrator
+4. **NATS handles routing** — all nodes are NATS peers. When main dies, another node publishes on `shikki.discovery.announce` with `role: orchestrator`
+5. **Task continuity** — pending tasks in ShikkiDB survive node death. New orchestrator picks up where the old one stopped.
+
+### Provider Quality Tracking
+
+Every dispatch records: provider, model, task type, success/fail, duration, token cost, output quality (gate pass rate).
+
+```
+shikki.providers.quality table:
+  provider | model | task_type | success_rate | avg_duration | avg_cost | gate_pass_rate
+  claude   | opus  | spec      | 0.95         | 180s         | $0.12    | 0.90
+  local    | qwen  | quick-fix | 0.80         | 45s          | $0.00    | 0.70
+  opencode | deep  | review    | 0.85         | 120s         | $0.03    | 0.75
+```
+
+**Smart dispatch** — DispatchManager routes tasks to the best provider for that task type:
+- Spec generation → Claude (highest quality)
+- Quick fixes → Local LLM (free, fast enough)
+- Bulk file changes → OpenRouter (cheap, good enough)
+- Review → any available (quality less critical)
+
+**Budget dashboard** — `shikki report --budget` shows:
+- Today's spend per provider
+- Remaining budget per provider
+- Projected exhaustion time
+- Recommendation: "Switch to local LLM for quick tasks to extend Claude budget by 3h"
+
+### Setup
+
+```bash
+shikki config providers add claude --api-key $ANTHROPIC_API_KEY --priority 1
+shikki config providers add local --url http://127.0.0.1:1234 --priority 2
+shikki config providers add opencode --url ssh://vps --priority 3
+shikki config failover --enable --probe-interval 30s
+```
+
+---
+
 ## Constraint: Swift Build Isolation
 
 **Problem:** Multiple Swift agents running `swift build/test` cause SPM `.build/.lock` contention (exit 144).
@@ -518,7 +582,7 @@ Each agent gets its own `.build/.lock`, `build.db`, compiled artifacts. Shared d
 |----|------|-----------|----------|
 | BR-D-01 | Swift agents use `--scratch-path` per agent. Full parallelism, no serialization. | DispatchManager | P0 |
 | BR-D-02 | `SKIP_E2E=1` enforced for all non-interactive agents. | DispatchManager | P0 |
-| BR-D-03 | Max 6 agents per machine, max 2 per company. Budget enforced. | ConcurrencyGate | P0 |
+| BR-D-03 | Max 6 agents per machine, max 6 per company (eager MVP delivery). Budget enforced. | ConcurrencyGate | P0 |
 | BR-D-04 | Agent crash: 1 retry with fresh worktree. Second crash → escalate to inbox. | DispatchManager | P0 |
 | BR-D-05 | Agent timeout (>30min for quick, >2h for spec): no retry, escalate as scope problem. | DispatchManager | P1 |
 | BR-D-06 | Worktree cleanup: merged worktrees deleted automatically. Orphans reaped after 4h TTL. | WorktreeManager | P1 |
@@ -528,7 +592,7 @@ Each agent gets its own `.build/.lock`, `build.db`, compiled artifacts. Shared d
 | BR | Rule | Component | Priority |
 |----|------|-----------|----------|
 | BR-SP-01 | `shikki spec` is the #1 priority component. The first stone of Shikki. | SpecPipeline | P0 |
-| BR-SP-02 | Spec output: `features/*.md` file + ShikkiDB plan record + inbox item for review. | SpecPipeline | P0 |
+| BR-SP-02 | Spec output: ShikkiDB FIRST (source of truth) + `features/*.md` as human-readable backup. If local .md is modified without going through Shikki, auto-challenge with /🌟 before saving to DB. Specs also saved to `~/.shikki/specs/` (running system) and `projects/{name}/specs/` (per-project scope). | SpecPipeline | P0 |
 | BR-SP-03 | Spec accepts backlog item ID, `#N` shorthand, or free text. | SpecCommand | P0 |
 | BR-SP-04 | Spec completion triggers inbox item automatically. No manual step. | SpecPipeline + InboxManager | P0 |
 | BR-SP-05 | Multi-project: spec can target any company/project via `--company` flag. | SpecPipeline | P1 |
