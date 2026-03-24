@@ -22,6 +22,7 @@ struct ShikkiCommand: AsyncParsableCommand {
             MenuCommand.self,
             PauseCommand.self,
             PRCommand.self,
+            ReviewCommand.self,
             ReportCommand.self,
             RestartCommand.self,
             SearchCommand.self,
