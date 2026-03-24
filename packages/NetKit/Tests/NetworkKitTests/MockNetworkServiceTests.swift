@@ -6,7 +6,7 @@
 import Combine
 import Foundation
 import Testing
-@testable import NetworkKit
+@testable import NetKit
 
 // MARK: - Test Model
 
