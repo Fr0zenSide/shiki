@@ -18,6 +18,9 @@ let package = Package(
             name: "ShikiCtlKit",
             dependencies: [
                 .product(name: "Logging", package: "swift-log"),
+            ],
+            resources: [
+                .process("Resources"),
             ]
         ),
         .executableTarget(
