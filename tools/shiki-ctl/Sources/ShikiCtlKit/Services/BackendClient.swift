@@ -94,6 +94,100 @@ public actor BackendClient: BackendClientProtocol {
         try await get("/api/orchestrator/board")
     }
 
+    // MARK: - Backlog
+
+    public func listBacklogItems(
+        status: BacklogItem.Status? = nil,
+        companyId: String? = nil,
+        tags: [String]? = nil,
+        sort: BacklogSort? = nil
+    ) async throws -> [BacklogItem] {
+        var query = "?"
+        if let status { query += "status=\(status.rawValue)&" }
+        if let companyId { query += "company_id=\(companyId)&" }
+        if let tags, !tags.isEmpty { query += "tags=\(tags.joined(separator: ","))&" }
+        if let sort { query += "sort=\(sort.rawValue)&" }
+        if query == "?" { query = "" }
+        else { query = String(query.dropLast()) } // remove trailing &
+        return try await get("/api/backlog\(query)")
+    }
+
+    public func getBacklogItem(id: String) async throws -> BacklogItem {
+        try await get("/api/backlog/\(id)")
+    }
+
+    public func createBacklogItem(
+        title: String,
+        description: String? = nil,
+        companyId: String? = nil,
+        sourceType: BacklogItem.SourceType = .manual,
+        sourceRef: String? = nil,
+        priority: Int? = nil,
+        tags: [String] = []
+    ) async throws -> BacklogItem {
+        var body: [String: Any] = ["title": title, "sourceType": sourceType.rawValue, "tags": tags]
+        if let description { body["description"] = description }
+        if let companyId { body["companyId"] = companyId }
+        if let sourceRef { body["sourceRef"] = sourceRef }
+        if let priority { body["priority"] = priority }
+        return try await post("/api/backlog", body: body)
+    }
+
+    public func updateBacklogItem(
+        id: String,
+        status: BacklogItem.Status? = nil,
+        priority: Int? = nil,
+        sortOrder: Int? = nil,
+        tags: [String]? = nil,
+        description: String? = nil
+    ) async throws -> BacklogItem {
+        var body: [String: Any] = [:]
+        if let status { body["status"] = status.rawValue }
+        if let priority { body["priority"] = priority }
+        if let sortOrder { body["sortOrder"] = sortOrder }
+        if let tags { body["tags"] = tags }
+        if let description { body["description"] = description }
+        return try await patch("/api/backlog/\(id)", body: body)
+    }
+
+    public func enrichBacklogItem(
+        id: String,
+        notes: String,
+        tags: [String]? = nil,
+        description: String? = nil
+    ) async throws -> BacklogItem {
+        var body: [String: Any] = ["enrichmentNotes": notes]
+        if let tags { body["tags"] = tags }
+        if let description { body["description"] = description }
+        return try await post("/api/backlog/\(id)/enrich", body: body)
+    }
+
+    public func killBacklogItem(id: String, reason: String) async throws -> BacklogItem {
+        try await post("/api/backlog/\(id)/kill", body: ["killReason": reason])
+    }
+
+    public func reorderBacklogItems(_ items: [(id: String, sortOrder: Int)]) async throws {
+        let payload: [[String: Any]] = items.map { ["id": $0.id, "sortOrder": $0.sortOrder] }
+        let _: [String: AnyCodable] = try await post("/api/backlog/reorder", body: ["items": payload])
+    }
+
+    public func getBacklogCount(status: BacklogItem.Status? = nil, companyId: String? = nil) async throws -> Int {
+        var query = "?"
+        if let status { query += "status=\(status.rawValue)&" }
+        if let companyId { query += "company_id=\(companyId)&" }
+        if query == "?" { query = "" }
+        else { query = String(query.dropLast()) }
+        let result: [String: AnyCodable] = try await get("/api/backlog/count\(query)")
+        if case .int(let count) = result["count"] {
+            return count
+        }
+        // Backend may return string count (Postgres quirk)
+        if case .string(let str) = result["count"], let count = Int(str) {
+            return count
+        }
+        return 0
+    }
+
     // MARK: - Health
 
     public func healthCheck() async throws -> Bool {

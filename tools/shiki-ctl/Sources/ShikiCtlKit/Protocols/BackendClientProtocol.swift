@@ -20,6 +20,49 @@ public protocol BackendClientProtocol: Sendable {
     func getSessionTranscript(id: String) async throws -> SessionTranscript
     func getBoardOverview() async throws -> [BoardEntry]
     func shutdown() async throws
+
+    // MARK: - Backlog
+
+    func listBacklogItems(
+        status: BacklogItem.Status?,
+        companyId: String?,
+        tags: [String]?,
+        sort: BacklogSort?
+    ) async throws -> [BacklogItem]
+
+    func getBacklogItem(id: String) async throws -> BacklogItem
+
+    func createBacklogItem(
+        title: String,
+        description: String?,
+        companyId: String?,
+        sourceType: BacklogItem.SourceType,
+        sourceRef: String?,
+        priority: Int?,
+        tags: [String]
+    ) async throws -> BacklogItem
+
+    func updateBacklogItem(
+        id: String,
+        status: BacklogItem.Status?,
+        priority: Int?,
+        sortOrder: Int?,
+        tags: [String]?,
+        description: String?
+    ) async throws -> BacklogItem
+
+    func enrichBacklogItem(
+        id: String,
+        notes: String,
+        tags: [String]?,
+        description: String?
+    ) async throws -> BacklogItem
+
+    func killBacklogItem(id: String, reason: String) async throws -> BacklogItem
+
+    func reorderBacklogItems(_ items: [(id: String, sortOrder: Int)]) async throws
+
+    func getBacklogCount(status: BacklogItem.Status?, companyId: String?) async throws -> Int
 }
 
 // Default parameter values for protocol methods
@@ -38,5 +81,13 @@ public extension BackendClientProtocol {
 
     func getSessionTranscripts(companySlug: String? = nil, taskId: String? = nil) async throws -> [SessionTranscript] {
         try await getSessionTranscripts(companySlug: companySlug, taskId: taskId, limit: 20)
+    }
+
+    func listBacklogItems() async throws -> [BacklogItem] {
+        try await listBacklogItems(status: nil, companyId: nil, tags: nil, sort: nil)
+    }
+
+    func getBacklogCount() async throws -> Int {
+        try await getBacklogCount(status: nil, companyId: nil)
     }
 }
