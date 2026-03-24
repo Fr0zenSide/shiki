@@ -434,25 +434,48 @@ Third-party marketplace for Shikki, Brainy, and future OBYW products. Like an Ap
 ### Failover Chain
 
 ```
-Claude Code (primary, Opus/Sonnet)
+Claude Code (primary, Opus/Sonnet) — Mac
   │ rate-limited or dead
   ▼
-Local LLM (opencode + LM Studio, 127.0.0.1:1234)
+Local LLM (opencode + LM Studio, 127.0.0.1:1234) — Mac
   │ machine off or overloaded
   ▼
-VPS node (92.134.242.73, opencode + remote LLM)
+VPS node (92.134.242.73, Shikki node + remote LLM) — VPS
   │ VPS down
+  ▼
+Cloud auto-provision (French/EU cloud provider, pop fresh node) — v2
+  │ all clouds down
   ▼
 Degraded mode: queue tasks, wait for any node to come back
 ```
 
+### Redundant Heartbeat
+
+Two heartbeat nodes running at all times — one on Mac, one on VPS. If Mac heartbeat dies, VPS heartbeat takes over orchestration. If VPS heartbeat dies, Mac continues alone. Both must die for actual downtime.
+
+```
+Mac ──heartbeat──→ NATS ←──heartbeat── VPS
+        │                      │
+    primary HB              backup HB
+    (orchestrator)          (standby, promotes if primary dead)
+```
+
+### LM Studio Dynamic Node
+
+LM Studio on Mac can download, mount, and unmount any open-source LLM on demand. Shikki can:
+- `shikki node lmstudio mount qwen3-32b` — download + load model for a specific task type
+- `shikki node lmstudio unmount qwen3-32b` — release GPU memory after task completes
+- Optimization: mount heavy models only when needed, unmount when idle
+- Part of the DispatchManager: before dispatching to local, check if the right model is mounted
+
 ### How it works
 
-1. **Heartbeat probe** — every 30s, check main orchestrator health
-2. **Rate limit detection** — when Claude returns 429 / "rate limit" / session ends unexpectedly → trigger failover
-3. **Auto-mount new main node** — the highest-priority alive node becomes the new orchestrator
-4. **NATS handles routing** — all nodes are NATS peers. When main dies, another node publishes on `shikki.discovery.announce` with `role: orchestrator`
+1. **Dual heartbeat** — Mac + VPS probe each other every 30s via NATS
+2. **Rate limit detection** — Claude returns 429 → trigger failover to next provider in chain
+3. **Auto-mount new orchestrator** — highest-priority alive node with sufficient capabilities becomes orchestrator. Node capabilities (RAM, GPU, models) are part of the heartbeat announcement.
+4. **NATS handles routing** — encrypted communication between all nodes (TLS + NKeys auth). No network sniffing by competitors.
 5. **Task continuity** — pending tasks in ShikkiDB survive node death. New orchestrator picks up where the old one stopped.
+6. **Cloud auto-provision (v2)** — if both Mac and VPS are dead, Shikki auto-provisions a fresh node on a French/EU cloud provider via API. No American providers by default — sovereignty first.
 
 ### Provider Quality Tracking
 
@@ -582,7 +605,7 @@ Each agent gets its own `.build/.lock`, `build.db`, compiled artifacts. Shared d
 |----|------|-----------|----------|
 | BR-D-01 | Swift agents use `--scratch-path` per agent. Full parallelism, no serialization. | DispatchManager | P0 |
 | BR-D-02 | `SKIP_E2E=1` enforced for all non-interactive agents. | DispatchManager | P0 |
-| BR-D-03 | Max 6 agents per machine, max 6 per company (eager MVP delivery). Budget enforced. | ConcurrencyGate | P0 |
+| BR-D-03 | Default: 3 agents/company, 4 for personal workspace. Power users override in local config (e.g., 6/company for eager MVP delivery). Each usage tier has its own defaults. Budget enforced at all tiers. | ConcurrencyGate | P0 |
 | BR-D-04 | Agent crash: 1 retry with fresh worktree. Second crash → escalate to inbox. | DispatchManager | P0 |
 | BR-D-05 | Agent timeout (>30min for quick, >2h for spec): no retry, escalate as scope problem. | DispatchManager | P1 |
 | BR-D-06 | Worktree cleanup: merged worktrees deleted automatically. Orphans reaped after 4h TTL. | WorktreeManager | P1 |
