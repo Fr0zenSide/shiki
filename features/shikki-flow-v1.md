@@ -443,3 +443,198 @@ Each agent gets its own `.build/.lock`, `build.db`, compiled artifacts. Shared d
 - All Swift agents use `--scratch-path /tmp/shiki-builds/$AGENT_ID/.build`
 - Always `SKIP_E2E=1` for non-interactive agents
 - If dependency resolution contends: add `--cache-path /tmp/shiki-builds/$AGENT_ID/cache`
+
+---
+
+## Business Rules
+
+### Flow Lifecycle (BR-F-*)
+
+| BR | Rule | Component | Priority |
+|----|------|-----------|----------|
+| BR-F-01 | Every flow item starts in `raw` state. No item can skip `raw`. | FlowStateMachine | P0 |
+| BR-F-02 | `raw` → `enriched` requires at least one context addition (tag, note, or link). | BacklogManager | P0 |
+| BR-F-03 | `enriched` → `ready` requires all linked decisions to be answered. | BacklogManager + DecisionQueue | P0 |
+| BR-F-04 | `ready` → `specced` requires a spec file produced by `shikki spec`. | SpecPipeline | P0 |
+| BR-F-05 | `specced` → `approved` requires @Daimyo validation via ListReviewer. | ListReviewer | P0 |
+| BR-F-06 | `approved` → `running` triggers DispatchManager. No manual agent launch. | DispatchManager | P0 |
+| BR-F-07 | `running` → `inbox` happens automatically when agent completes (PR created). | DispatchManager + InboxManager | P0 |
+| BR-F-08 | `inbox` → `reviewed` requires at least one `shikki review` session with progress > 0. | ReviewPipeline | P0 |
+| BR-F-09 | `reviewed` → `shipped` requires all 8 ship gates to pass. | ShipService | P0 |
+| BR-F-10 | `shipped` → `reported` happens automatically — report data is computed, not manually entered. | ReportAggregator | P1 |
+| BR-F-11 | Quick flow: `raw` → `running` is allowed ONLY for items touching ≤3 files. Auto-escalation to spec if >3 files or >30min elapsed. | QuickPipeline | P0 |
+| BR-F-12 | A flow item can be `killed` from any state. Killed items are archived, never deleted. | FlowStateMachine | P0 |
+| BR-F-13 | A flow item can be `deferred` from any state except `running` and `shipped`. | FlowStateMachine | P1 |
+| BR-F-14 | No flow item can transition backwards (e.g., `approved` → `enriched`). Only forward or kill/defer. | FlowStateMachine | P0 |
+
+### ListReviewer (BR-L-*)
+
+| BR | Rule | Component | Priority |
+|----|------|-----------|----------|
+| BR-L-01 | Batch selection with `Space` key. Visual checkbox indicator `[x]`. | ListReviewer | P0 |
+| BR-L-02 | Batch action applies sequentially to all selected items. If one fails, continue with next. | ListReviewer | P0 |
+| BR-L-03 | Progress persists to ShikkiDB (worker scope). Resume from last index on relaunch. | ListReviewer + ShikkiDB | P0 |
+| BR-L-04 | Hybrid ordering: system proposes composite score, user pins override. Pins persist across sessions. | ListReviewer | P0 |
+| BR-L-05 | Urgency colors are scoped per company. A maya P1 and a kintsugi P1 have independent urgency. | ListReviewer | P1 |
+| BR-L-06 | Pipe mode: detect non-TTY (isatty). Output `--json` or `--count` instead of interactive TUI. | ListReviewer | P0 |
+| BR-L-07 | Context popup: `?` key toggles tmux popup pane with event context. `Esc` or `?` to close. | ListReviewer | P1 |
+| BR-L-08 | Action callback is async. Consumer handles the result. ListReviewer never blocks on action. | ListReviewer | P0 |
+
+### Data Privacy (BR-P-*)
+
+| BR | Rule | Component | Priority |
+|----|------|-----------|----------|
+| BR-P-01 | ShikkiDB has 3 scopes: worker (private), company (shared), global (system). | ShikkiDB Schema | P0 |
+| BR-P-02 | Worker scope data is NEVER readable by company queries. Enforced at DB level (separate tables or row-level security). | ShikkiDB Schema | P0 |
+| BR-P-03 | Reports auto-scope to recipient's company. `shikki report --company maya` shows only maya work. | ReportAggregator | P0 |
+| BR-P-04 | Worker struggles (low output, high churn) visible ONLY to direct manager, never CODIR. | ReportAggregator | P0 |
+| BR-P-05 | Personal Shikki data outside work hours is invisible to any company scope. | ShikkiDB Schema | P0 |
+| BR-P-06 | Cross-company data leak is a P0 bug. A worker for Company A sees zero data from Company B. | ShikkiDB Schema | P0 |
+| BR-P-07 | Event bus UUID: every event line includes 8-char UUID. Copy UUID to orchestrator retrieves full context. | EventLogger | P1 |
+
+### Inbox & Review (BR-I-*)
+
+| BR | Rule | Component | Priority |
+|----|------|-----------|----------|
+| BR-I-01 | `shikki review inbox` pipes all PRs from inbox to review pipeline. | InboxManager + ReviewPipeline | P0 |
+| BR-I-02 | `shikki review 14..18` processes PRs 14, 15, 16, 17, 18 sequentially. | ReviewPipeline | P0 |
+| BR-I-03 | `shikki review <N> \| bat` pipes PR diff to external tool. Stdout is the diff, not TUI. | ReviewPipeline | P0 |
+| BR-I-04 | Review progress saves per-file state (reviewed/pending) to ShikkiDB. | ReviewPipeline | P0 |
+| BR-I-05 | Validating a PR in review = validates the inbox item. Single action, two state changes. | InboxManager + ReviewPipeline | P0 |
+
+### Ship (BR-S-*)
+
+| BR | Rule | Component | Priority |
+|----|------|-----------|----------|
+| BR-S-01 | All 8 gates must pass for ship to succeed. No gate can be skipped (except `--dry-run`). | ShipService | P0 |
+| BR-S-02 | VersionBump creates a git tag (`vX.Y.Z`) on the release commit. | ShipGate | P0 |
+| BR-S-03 | `--dry-run` executes read-only commands but stubs writes. NOT all-stub (Bug from dogfood PR #37). | ShipService | P0 |
+| BR-S-04 | Ship log requires mandatory `--why` field. No ship without a reason. | ShipCommand | P0 |
+| BR-S-05 | ntfy notification on ship success or failure. | ShipService | P1 |
+
+### Dispatch (BR-D-*)
+
+| BR | Rule | Component | Priority |
+|----|------|-----------|----------|
+| BR-D-01 | Swift agents use `--scratch-path` per agent. Full parallelism, no serialization. | DispatchManager | P0 |
+| BR-D-02 | `SKIP_E2E=1` enforced for all non-interactive agents. | DispatchManager | P0 |
+| BR-D-03 | Max 6 agents per machine, max 2 per company. Budget enforced. | ConcurrencyGate | P0 |
+| BR-D-04 | Agent crash: 1 retry with fresh worktree. Second crash → escalate to inbox. | DispatchManager | P0 |
+| BR-D-05 | Agent timeout (>30min for quick, >2h for spec): no retry, escalate as scope problem. | DispatchManager | P1 |
+| BR-D-06 | Worktree cleanup: merged worktrees deleted automatically. Orphans reaped after 4h TTL. | WorktreeManager | P1 |
+
+### Spec (BR-SP-*)
+
+| BR | Rule | Component | Priority |
+|----|------|-----------|----------|
+| BR-SP-01 | `shikki spec` is the #1 priority component. The first stone of Shikki. | SpecPipeline | P0 |
+| BR-SP-02 | Spec output: `features/*.md` file + ShikkiDB plan record + inbox item for review. | SpecPipeline | P0 |
+| BR-SP-03 | Spec accepts backlog item ID, `#N` shorthand, or free text. | SpecCommand | P0 |
+| BR-SP-04 | Spec completion triggers inbox item automatically. No manual step. | SpecPipeline + InboxManager | P0 |
+| BR-SP-05 | Multi-project: spec can target any company/project via `--company` flag. | SpecPipeline | P1 |
+
+### Report (BR-R-*)
+
+| BR | Rule | Component | Priority |
+|----|------|-----------|----------|
+| BR-R-01 | `shikki report --daily` and `--weekly` for personal auto-reports. | ReportAggregator | P0 |
+| BR-R-02 | Reports include: LOC added/deleted (net), PRs merged, tasks completed, budget spent. | ReportAggregator | P0 |
+| BR-R-03 | Historical reconstruction from ShikkiDB agent_events — reports available from day one. | ReportAggregator | P1 |
+| BR-R-04 | CODIR mode: `shikki codir` shows project/team aggregates. No individual worker metrics. | ReportAggregator | P1 |
+| BR-R-05 | Output formats: TUI table (default), markdown (`--md`), JSON (`--json`). | ReportCommand | P0 |
+
+### Wizard (BR-W-*)
+
+| BR | Rule | Component | Priority |
+|----|------|-----------|----------|
+| BR-W-01 | First-run detection: auto-launch wizard on bare `shikki` if no config exists. | WizardFlow | P0 |
+| BR-W-02 | Every wizard level executes a REAL shikki command, not a simulation. | WizardFlow | P0 |
+| BR-W-03 | Wizard saves progress. Resume from last level on relaunch. | WizardFlow | P0 |
+| BR-W-04 | Environment setup (Docker, LLM, workspace) happens DURING the game, not before. | WizardFlow | P0 |
+| BR-W-05 | `shikki wizard` is replayable — new features unlock new levels. | WizardFlow | P1 |
+
+---
+
+## Test-Driven Development Plan (TDDP)
+
+### Testing Strategy
+
+Every BR above is a test case. Implementation follows strict TDD:
+1. Write failing test from BR
+2. Implement minimum code to pass
+3. Refactor
+4. Run full suite
+
+### Test Organization
+
+```
+Tests/ShikiCtlKitTests/
+├── Flow/
+│   ├── FlowStateMachineTests.swift          — BR-F-01 through BR-F-14 (14 tests)
+│   ├── QuickFlowEscalationTests.swift       — BR-F-11 (3 tests: ≤3 files ok, >3 escalates, >30min escalates)
+│   └── FlowTransitionIntegrationTests.swift — Full pipeline: raw→shipped (1 integration test)
+├── ListReviewer/
+│   ├── ListReviewerBatchTests.swift         — BR-L-01, BR-L-02 (5 tests)
+│   ├── ListReviewerPersistenceTests.swift   — BR-L-03 (3 tests: save, resume, cross-session)
+│   ├── ListReviewerOrderingTests.swift      — BR-L-04 (4 tests: composite score, pin override, manual mode)
+│   ├── ListReviewerUrgencyTests.swift       — BR-L-05 (3 tests: per-company scoping)
+│   ├── ListReviewerPipeModeTests.swift      — BR-L-06 (3 tests: json, count, non-tty detection)
+│   └── ListReviewerContextPopupTests.swift  — BR-L-07 (2 tests: toggle open, toggle close)
+├── Privacy/
+│   ├── ScopeIsolationTests.swift            — BR-P-01 through BR-P-06 (6 tests)
+│   └── ReportScopingTests.swift             — BR-P-03, BR-P-04 (4 tests: company filter, manager-only, no cross-company)
+├── Inbox/
+│   ├── InboxReviewPipingTests.swift         — BR-I-01 through BR-I-03 (5 tests)
+│   ├── ReviewProgressTests.swift            — BR-I-04 (3 tests: per-file state, resume, completion)
+│   └── InboxValidationTests.swift           — BR-I-05 (2 tests: review validates inbox item)
+├── Ship/
+│   ├── ShipGateTests.swift                  — BR-S-01 (8 tests: one per gate)
+│   ├── ShipDryRunTests.swift                — BR-S-03 (3 tests: read-only executes, writes stub, not all-stub)
+│   ├── ShipTagTests.swift                   — BR-S-02 (2 tests: tag created, tag format)
+│   └── ShipLogTests.swift                   — BR-S-04 (2 tests: --why required, log persisted)
+├── Dispatch/
+│   ├── DispatchIsolationTests.swift         — BR-D-01, BR-D-02 (3 tests: scratch-path, skip-e2e, cache-path)
+│   ├── DispatchConcurrencyTests.swift       — BR-D-03 (4 tests: max agents, max per-company, budget)
+│   ├── DispatchFailureTests.swift           — BR-D-04, BR-D-05 (4 tests: retry, escalate, timeout)
+│   └── WorktreeLifecycleTests.swift         — BR-D-06 (3 tests: cleanup merged, reap orphans, preserve active)
+├── Spec/
+│   ├── SpecPipelineTests.swift              — BR-SP-01 through BR-SP-05 (5 tests)
+│   └── SpecOutputTests.swift                — BR-SP-02 (3 tests: file created, DB record, inbox item)
+├── Report/
+│   ├── ReportAggregationTests.swift         — BR-R-01, BR-R-02 (5 tests: daily, weekly, LOC, PRs, budget)
+│   ├── ReportHistoryTests.swift             — BR-R-03 (2 tests: historical reconstruction, day-one data)
+│   ├── CODIRReportTests.swift               — BR-R-04 (3 tests: aggregates only, no individual, project-level)
+│   └── ReportFormatTests.swift              — BR-R-05 (3 tests: tui, markdown, json)
+└── Wizard/
+    ├── WizardFirstRunTests.swift            — BR-W-01 (2 tests: auto-detect, skip if configured)
+    ├── WizardRealCommandTests.swift         — BR-W-02 (3 tests: backlog add executes, spec produces file)
+    ├── WizardProgressTests.swift            — BR-W-03 (2 tests: save progress, resume)
+    └── WizardEnvSetupTests.swift            — BR-W-04 (2 tests: docker during game, llm during game)
+```
+
+### Test Count Summary
+
+| Category | BRs | Tests | Priority |
+|----------|-----|-------|----------|
+| Flow Lifecycle | 14 | 18 | P0 |
+| ListReviewer | 8 | 20 | P0 |
+| Privacy | 7 | 10 | P0 |
+| Inbox & Review | 5 | 10 | P0 |
+| Ship | 5 | 15 | P0 |
+| Dispatch | 6 | 14 | P0 |
+| Spec | 5 | 8 | P0 |
+| Report | 5 | 13 | P0/P1 |
+| Wizard | 5 | 9 | P0/P1 |
+| **Total** | **60** | **117** | |
+
+### Verification Checklist
+
+Before claiming any component is "done":
+
+- [ ] All BRs for the component have corresponding test files
+- [ ] All tests are failing BEFORE implementation (TDD red phase)
+- [ ] All tests pass AFTER implementation (TDD green phase)
+- [ ] `SKIP_E2E=1 swift test` passes full suite with 0 regressions
+- [ ] No `print()` in test files (feedback: kills parallel test speed)
+- [ ] BR coverage report: every BR-* has at least one `@Test` with the BR ID in the test name
+- [ ] ShikkiDB privacy: no worker-scope data exposed in company-scope queries (run scope isolation tests)
