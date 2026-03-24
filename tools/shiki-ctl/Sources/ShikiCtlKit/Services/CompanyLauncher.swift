@@ -12,6 +12,7 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
     let session: String
     let workspacePath: String
     let logger: Logger
+    let templateLoader: PromptTemplateLoader
 
     public init(
         session: String = "shiki",
@@ -21,6 +22,7 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
         self.session = session
         self.workspacePath = workspacePath
         self.logger = logger
+        self.templateLoader = PromptTemplateLoader(workspacePath: workspacePath, logger: logger)
     }
 
     public func launchTaskSession(
@@ -43,7 +45,8 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
         // Build the autopilot prompt for this task session
         let prompt = Self.buildAutopilotPrompt(
             companyId: companyId, companySlug: companySlug,
-            taskId: taskId, title: title
+            taskId: taskId, title: title,
+            templateLoader: templateLoader
         )
 
         // cd into project dir, then launch Claude with the prompt
@@ -186,9 +189,14 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
 
     // MARK: - Autopilot Prompt
 
-    private static func buildAutopilotPrompt(
+    /// Build the autopilot prompt using the template loader fallback chain.
+    /// Computes the `claimInstruction` block (conditional on taskId presence),
+    /// then renders the template with all variables.
+    static func buildAutopilotPrompt(
         companyId: String, companySlug: String,
-        taskId: String, title: String
+        taskId: String, title: String,
+        apiBaseURL: String = "http://localhost:3900",
+        templateLoader: PromptTemplateLoader
     ) -> String {
         let claimInstruction: String
         if taskId.isEmpty {
@@ -202,36 +210,20 @@ public struct TmuxProcessLauncher: ProcessLauncher, Sendable {
             """
         }
 
-        return """
-        You are an autonomous agent for the "\(companySlug)" company in the Shiki orchestrator.
+        let (template, source) = templateLoader.loadTemplate()
+        let variables: [String: String] = [
+            "companyId": companyId,
+            "companySlug": companySlug,
+            "taskId": taskId,
+            "taskTitle": title,
+            "claimInstruction": claimInstruction,
+            "apiBaseURL": apiBaseURL,
+        ]
 
-        ORCHESTRATOR API: http://localhost:3900
+        let logger = Logger(label: "shiki-ctl.launcher")
+        logger.debug("Using prompt template from: \(source)")
 
-        YOUR WORKFLOW:
-        \(claimInstruction)
-        2. Work on the claimed task in this project directory
-        3. If you need a human decision, create one: POST /api/decision-queue with {"companyId":"\(companyId)","taskId":"<task-id>","tier":1,"question":"<your question>"}
-        4. When done, update the task: PATCH /api/task-queue/<task-id> with {"status":"completed","result":{"summary":"what you did"}}
-        5. Claim the next task and repeat
-
-        HEARTBEAT (every 60s):
-        POST /api/orchestrator/heartbeat with:
-        {"companyId":"\(companyId)","sessionId":"<your-session-id>","data":{
-          "contextPct": <your current context usage %>,
-          "compactionCount": <times you have been compacted this session>,
-          "taskInProgress": "<current task title>"
-        }}
-
-        RULES:
-        - Follow TDD: write failing test first, then implement
-        - Run the full test suite after every change
-        - Use /pre-pr before any PR
-        - Send heartbeats every 60s with context data
-        - If you hit a blocker that needs human input, create a T1 decision and move to the next task
-        - Never push to main directly — use feature branches and PRs to develop
-
-        START NOW: claim your first task and begin working.
-        """
+        return templateLoader.render(template: template, variables: variables)
     }
 
     private static func shellEscape(_ string: String) -> String {
