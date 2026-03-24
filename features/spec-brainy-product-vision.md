@@ -10,9 +10,18 @@
 
 ## 1. What Is Brainy?
 
-A **private encrypted vault for all digital media consumption**. One app that replaces Pocket, Raindrop, Infuse, browser bookmarks, YouTube playlists, manga readers, and podcast apps. Everything you consume, track, and remember — in one local-first, AI-augmented system.
+Brainy is a **personal data sovereignty server**. Not a reader app — a protocol inversion.
 
-**Core principle**: My data, my knowledge, my media, my reading list. One encrypted vault. No GAFAM hands on my culture.
+**Today:** Companies own your data. You are the client. They are the server.
+**Brainy:** You own your data. You are the server. Companies are the client.
+
+Brainy is a local MCP server that holds YOUR consumption data (preferences, reading/watching/listening stats, browsing history) in an encrypted vault. Companies (Spotify, Netflix, YouTube, any platform) connect as MCP clients to personalize their service — but only with your permission, only the data you choose to share, revocable in one click.
+
+"C'est donnant donnant" — companies share the stats they've built on you back INTO your vault. You get richer data. They get better personalization. Fair exchange. Break the deal? `brainy revoke spotify --delete-remote` sends an automated GDPR deletion request.
+
+It also replaces Pocket, Raindrop, Infuse, browser bookmarks, YouTube playlists, manga readers, and podcast apps. Everything you consume, track, and remember — in one local-first, AI-augmented system.
+
+**Core principle**: My data, my knowledge, my media, my reading list. My culture is not your marketing. One encrypted vault. Privacy first. No GAFAM.
 
 ### Replaces
 
@@ -47,6 +56,7 @@ brainy/
 │   ├── Brainy/               ← CLI executable (RSS reader, vault management)
 │   ├── BrainyTube/           ← macOS GUI — video player (exists today)
 │   ├── BrainyReader/         ← macOS GUI — manga/book reader (v0.2)
+│   ├── BrainyMCP/            ← MCP server — data sovereignty protocol (v0.1 CORE)
 │   ├── BrainyApp/            ← macOS GUI — unified shell (v0.3+)
 │   └── BrainyDaemon/         ← Background sync/ingest daemon (v0.2)
 │
@@ -70,6 +80,7 @@ BrainyCore is the single SPM library that ALL executables depend on. It owns:
 - **Progress engine** — multi-dimensional tracking (content + person + session)
 - **Cache manager** — offline file storage for media assets
 - **AI interface** — protocol for local LLM queries (search, filter, recommend)
+- **MCP server** — data sovereignty protocol. Exposes preferences, stats, history to authorized clients. Permission-scoped, audit-logged, one-click revocable. GDPR automation built-in.
 
 **Why libSQL, not CoreData**: Portable across all targets (macOS, iOS, tvOS, Linux CLI). No Apple lock-in. Raw SQL with parameterized queries — same philosophy as the rest of the Shiki stack. Encrypted at rest via libSQL encryption extension.
 
@@ -571,9 +582,33 @@ Install → Configure → Enable → Fetch (periodic) → Update → Disable/Rem
 
 ## 6. Features by Priority
 
+### v0.0 — Data Sovereignty Core (Phase 0 — SHIPS FIRST)
+
+**Goal**: The MCP server that owns your data. Everything else is a feature ON TOP of this.
+
+**Deliverables:**
+- **BrainyMCP** — MCP server (stdio transport, same pattern as ShikiMCP)
+  - `preferences/` — taste graph (genres, topics, authors, channels you follow)
+  - `stats/reading` — books, manga, articles (title, progress, time spent, rating)
+  - `stats/watching` — movies, series, anime, videos
+  - `stats/listening` — music, podcasts, audio
+  - `stats/browsing` — web history, saved links, tab vault
+  - `permissions/` — per-company ACL (who can read what, audit log)
+- **Permission model** — `brainy grant spotify --scope stats/listening --expires 30d`
+- **Revocation** — `brainy revoke spotify --delete-remote` (GDPR deletion request)
+- **Audit log** — every data access logged in vault (who, when, what, how much)
+- **Import pipeline** — `brainy import youtube-history`, `brainy import spotify-playlists`, `brainy import browser-tabs`
+- **Encrypted vault** — libSQL with encryption, locked by passphrase or biometrics
+
+**Why Phase 0**: Without the data sovereignty layer, Brainy is just another reader app. With it, it's a paradigm shift. The MCP server IS the product. Readers and players are features.
+
+**Estimated LOC**: ~800 (MCP server + permission model + import CLI)
+
+---
+
 ### v0.1 — MVP (Foundation)
 
-**Goal**: Replace browser tabs + YouTube playlists. Daily-usable link vault and video player.
+**Goal**: Replace browser tabs + YouTube playlists. Daily-usable link vault and video player. Built ON TOP of the v0.0 MCP vault.
 
 | Feature | Description | Target |
 |---------|-------------|--------|
@@ -741,7 +776,16 @@ Per-platform:
 
 ## 9. Build Order — Full Roadmap
 
-### Phase 1: v0.1 MVP (~3,200 LOC + tests)
+### Phase 0: v0.0 Data Sovereignty Core (~800 LOC + tests)
+
+```
+Wave 0.1: BrainyMCP server (stdio transport, tool definitions)     (~300 LOC)
+Wave 0.2: Permission model (grant/revoke/audit, libSQL schema)     (~200 LOC)
+Wave 0.3: Import pipeline (YouTube, Spotify, browser tabs CLI)     (~200 LOC)
+Wave 0.4: Encrypted vault (libSQL encryption + passphrase lock)    (~100 LOC)
+```
+
+### Phase 1: v0.1 MVP (~3,200 LOC + tests, builds on Phase 0 vault)
 
 ```
 Wave 1: BrainyCore v2 — Unified models + storage migration
@@ -881,9 +925,10 @@ Ship criterion: Encrypted, syncs across devices, works on all platforms.
 
 | Phase | New LOC | Test LOC | Cumulative |
 |-------|---------|----------|-----------|
-| v0.1 MVP | ~2,800 | ~660 | ~3,460 |
-| v0.2 Reader + Progress | ~3,900 | ~600 | ~7,960 |
-| v0.3 Audio + Screen + AI | ~4,150 | ~450 | ~12,560 |
+| v0.0 Data Sovereignty | ~700 | ~100 | ~800 |
+| v0.1 MVP | ~2,800 | ~660 | ~4,260 |
+| v0.2 Reader + Progress | ~3,900 | ~600 | ~8,760 |
+| v0.3 Audio + Screen + AI | ~4,150 | ~450 | ~13,360 |
 | v1.0 Vault + Sync + Ecosystem | ~5,050 | ~700 | ~18,310 |
 | **Total** | **~15,900** | **~2,410** | **~18,310** |
 
