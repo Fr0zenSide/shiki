@@ -9,9 +9,9 @@ public enum TypoCorrector {
 
     /// All known shikki subcommands.
     public static let knownCommands: [String] = [
-        "stop", "pr", "board", "dashboard", "doctor", "report",
+        "stop", "pr", "review", "board", "dashboard", "doctor", "report",
         "search", "ship", "menu", "decide", "heartbeat", "history",
-        "wake", "pause", "restart", "status",
+        "wake", "pause", "restart", "status", "spec", "inbox",
     ]
 
     /// A typo correction suggestion.

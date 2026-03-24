@@ -15,6 +15,7 @@ struct ShikkiCommand: AsyncParsableCommand {
             BoardCommand.self,
             DashboardCommand.self,
             DecideCommand.self,
+            InboxCommand.self,
             DoctorCommand.self,
             HeartbeatCommand.self,
             HistoryCommand.self,
