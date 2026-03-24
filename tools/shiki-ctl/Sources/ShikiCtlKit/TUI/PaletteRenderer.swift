@@ -106,7 +106,7 @@ public enum PaletteRenderer {
     // MARK: - Box Drawing
 
     private static func printBoxTop(width: Int) {
-        let title = " SHIKI "
+        let title = " SHIKKI "
         let remaining = width - 2 - title.count
         let line = "\u{250C}\u{2500}\(ANSI.bold)\(title)\(ANSI.reset)\(String(repeating: "\u{2500}", count: max(0, remaining)))\u{2510}"
         print(line)

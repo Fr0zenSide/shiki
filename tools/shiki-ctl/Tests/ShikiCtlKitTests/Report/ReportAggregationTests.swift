@@ -57,6 +57,16 @@ final class MockReportBackendClient: BackendClientProtocol, @unchecked Sendable 
 
     func getBoardOverview() async throws -> [BoardEntry] { [] }
     func shutdown() async throws {}
+
+    // MARK: - Backlog (stubs)
+    func listBacklogItems(status: BacklogItem.Status?, companyId: String?, tags: [String]?, sort: BacklogSort?) async throws -> [BacklogItem] { [] }
+    func getBacklogItem(id: String) async throws -> BacklogItem { fatalError("Not used in report tests") }
+    func createBacklogItem(title: String, description: String?, companyId: String?, sourceType: BacklogItem.SourceType, sourceRef: String?, priority: Int?, tags: [String]) async throws -> BacklogItem { fatalError("Not used in report tests") }
+    func updateBacklogItem(id: String, status: BacklogItem.Status?, priority: Int?, sortOrder: Int?, tags: [String]?, description: String?) async throws -> BacklogItem { fatalError("Not used in report tests") }
+    func enrichBacklogItem(id: String, notes: String, tags: [String]?, description: String?) async throws -> BacklogItem { fatalError("Not used in report tests") }
+    func killBacklogItem(id: String, reason: String) async throws -> BacklogItem { fatalError("Not used in report tests") }
+    func reorderBacklogItems(_ items: [(id: String, sortOrder: Int)]) async throws {}
+    func getBacklogCount(status: BacklogItem.Status?, companyId: String?) async throws -> Int { 0 }
 }
 
 // MARK: - Test Helpers

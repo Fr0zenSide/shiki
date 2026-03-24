@@ -64,35 +64,7 @@ struct ReviewCommandTests {
     }
 
     // MARK: - Progress Save Structure (BR-I-04)
-
-    @Test("review progress payload contains required fields for DB sync")
-    func progressPayloadStructure() throws {
-        let state = PRReviewProgress(
-            prNumber: 14,
-            reviewedFiles: [
-                .init(path: "Sources/A.swift", status: .reviewed),
-                .init(path: "Sources/B.swift", status: .pending),
-                .init(path: "Tests/ATests.swift", status: .commented, comment: "needs fix"),
-            ]
-        )
-
-        // Verify the payload structure matches what saveProgressToDB would send
-        let payload: [String: Any] = [
-            "type": "review_progress",
-            "pr_number": state.prNumber,
-            "reviewed_count": state.reviewedCount,
-            "total_count": state.totalCount,
-            "progress_percent": state.progressPercent,
-            "is_complete": state.isComplete,
-            "timestamp": ISO8601DateFormatter().string(from: Date()),
-        ]
-
-        #expect(payload["type"] as? String == "review_progress")
-        #expect(payload["pr_number"] as? Int == 14)
-        #expect(payload["reviewed_count"] as? Int == 2) // reviewed + commented
-        #expect(payload["total_count"] as? Int == 3)
-        #expect(payload["progress_percent"] as? Int == 66)
-        #expect(payload["is_complete"] as? Bool == false)
-        #expect(payload["timestamp"] != nil)
-    }
+    // PRReviewProgress removed during dead-weight cleanup (PR #29).
+    // Review progress tracking will be re-added when ReviewCommand
+    // is rebased on the thin JSON pipe architecture.
 }
