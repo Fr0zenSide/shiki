@@ -151,7 +151,9 @@ push                                                     logger    review    pro
 - **Correct** — send correction to orchestrator
 - **Defer** — push to later
 
-**CLI:** `shikki inbox` — full list. `shikki inbox --prs` — PRs only. `shikki inbox --count` — just the number.
+**CLI:** `shikki inbox` — full list. `shikki inbox --prs` — PRs only. `shikki inbox --count` — just the number. `shikki inbox --company maya` — scoped.
+
+**Piping to review:** `shikki review inbox` — auto-opens review for all PRs from inbox (equivalent to `shikki review --from inbox`). Also: `shikki review 14..18` — range notation for batch PR review. Each review pipes to external diff tools: `shikki review 14 | bat`, `shikki review 14 | delta`.
 
 ---
 
@@ -183,8 +185,8 @@ push                                                     logger    review    pro
 3. **Coverage** — meets threshold (configurable per project)
 4. **Risk** — release risk score from ShikiDB (graceful if DB down)
 5. **Changelog** — auto-generated from conventional commits
-6. **VersionBump** — semver bump based on commit types
-7. **Commit** — release commit with changelog + version
+6. **VersionBump** — semver bump based on commit types + git tag (`vX.Y.Z`) on the release commit
+7. **Commit** — release commit with changelog + version + signed tag
 8. **PR** — create PR to target branch (or merge directly)
 
 **UX:**
@@ -265,7 +267,9 @@ shikki.decisions.pending           — decisions needing input
 
 **Why NATS:** Only protocol with native pub/sub AND request/reply. Single binary, zero config. NKeys auth. Topic hierarchy. Scale path: single server → cluster → leaf nodes → superclusters. Language agnostic (Swift, TS, Go, Rust clients).
 
-**Format:** `[HH:MM:SS] company:agent scope what`
+**Format:** `[HH:MM:SS] {uuid8} company:agent scope what`
+
+Each event line includes a short UUID (8 chars). Copy-paste the UUID to the main orchestrator → it retrieves the full event context from ShikkiDB for discussion and course-correction.
 
 **Pane location:** Right side of main window, above heartbeat. ~40% of the right column height.
 
@@ -339,18 +343,18 @@ shikki.decisions.pending           — decisions needing input
 | ListReviewer | (TUI widget) | No | Shared component |
 
 **Core missing pieces (build order):**
-1. **ListReviewer** TUI component (everything depends on this)
-2. **`shikki backlog`** (first consumer of ListReviewer)
-3. **`shikki inbox`** (second consumer, replaces multi-pane)
-4. **`shikki quick`** CLI entry point (wraps existing /quick skill + auto-escalation)
+1. **`shikki spec`** — THE first stone. /md-feature was the first stone of what became Shikki. Wraps skill into ShikiCore SpecPipeline. Produces specs that feed the entire flow.
+2. **ListReviewer** TUI component (interactive mode — everything after spec depends on this)
+3. **`shikki backlog`** (first list consumer of ListReviewer)
+4. **`shikki inbox`** (second consumer — pipes to review)
 5. **`shikki run`** (dispatch from approved specs)
-6. **Event logger pane** (WS subscriber)
-7. **`shikki report`** (aggregation from DB)
-8. **`shikki ship`** (8-gate pipeline in ShikiCore — ShipService + ShipGate protocol)
-9. **`shikki wizard`** (onboarding tour + project scanner)
-10. **`shikki spec`** CLI entry point (wraps existing skill into ShikiCore)
+6. **`shikki quick`** CLI entry point (wraps skill + auto-escalation)
+7. **`shikki report`** (aggregation from ShikkiDB — daily/weekly/per-company/personal auto-reports)
+8. **`shikki ship`** (8-gate pipeline — ShipService + ShipGate + git tag)
+9. **Event logger pane** (NATS subscriber)
+10. **`shikki wizard`** (onboarding game)
 11. Polish `shikki decide` (adopt ListReviewer)
-12. Polish `shikki review` (rename + inbox integration)
+12. Polish `shikki review` (rename + inbox piping + range notation + context popup)
 
 ---
 
@@ -363,13 +367,61 @@ These features are part of the ListReviewer shared component. All list commands 
 3. **Batch actions** — Select multiple items with `Space`, apply action to all. "Approve 3, 5, 7" in one gesture.
 4. **Undo last action** — `Ctrl-Z` undoes the last approve/kill/defer. Irreversible actions (ship) still require confirmation.
 5. **Hybrid smart ordering** — Default: @shi team auto-sorts by composite score (age + priority + deps + blocking-impact). User can override by manually reordering items to the top (pinned items stay pinned across sessions). System proposes, user disposes. `--sort manual` disables auto-sort entirely.
-6. **Progress persistence** — Review 4 of 8, quit, next `shikki inbox` resumes from #5. Local JSON file at `~/.config/shiki/list-progress.json` (same pattern as review CLI progress tracking). No DB migration needed — just a file with `{listId, reviewedItemIds[], pinnedOrder[], lastIndex}`.
+6. **Progress persistence** — Review 4 of 8, quit, next `shikki inbox` resumes from #5. Stored in ShikkiDB (worker-scoped, private, not shared with companies). The system will be distributed — local JSON doesn't survive across nodes. ShikkiDB ensures progress is backed up, replicated, and available from any Shikki device. Local JSON only as offline cache.
 7. **Scoped color-coded urgency** — Colors are relative to each company/project scope, not global. Red = blocking within that scope. Yellow = aging within that scope's cadence. Green = ready. Dim = deferred. A maya P1 and a kintsugi P1 don't share the same urgency — `shikki inbox --company maya` shows maya's heatmap, `shikki inbox` groups by company with per-scope coloring.
 8. **Pipe-friendly** — `shikki inbox --json` for scripting. `shikki inbox --count` for just the number. Every list command is both TUI and pipe.
-9. **Context injection** — In `shikki review`, press `?` to see the event logger context (agent decisions during implementation) without leaving the review.
+9. **Context injection** — In `shikki review`, press `?` to open a tmux popup pane (like Ctrl+F in user's custom tmux setup) showing the event logger context (agent decisions during implementation). Toggle with `?` to open, `Esc` or `?` again to close. Works in any shikki command during a tmux session. Emacs/vi-style shortcuts for navigating the popup content.
 10. **Completion signal** — Terminal bell + ntfy push when all inbox items validated. Inbox zero should be tangible.
 
 **Implementation priority — v1:** Features 3 (batch actions), 5 (smart ordering), 6 (progress persistence), 7 (color urgency), 8 (pipe-friendly). **v1.1:** Features 1 (fuzzy search), 2 (inline preview), 4 (undo), 9 (context injection), 10 (completion signal).
+
+---
+
+## ShikkiDB Schema — Privacy & Scope Separation
+
+**Fundamental principle:** Personal data and company data are strictly separated in the schema.
+
+### Three data scopes
+
+1. **Worker scope (private)** — personal preferences, reading progress, inbox state, personal reports, AI conversation history. NEVER shared with companies. Encrypted at rest. Only the user can query this.
+
+2. **Company scope (shared, bounded)** — work sessions, PRs, task completions, code contributions, CODIR reports. Shared within the company but NOT across companies. A worker's activity for Company A is invisible to Company B.
+
+3. **Global scope (system)** — Shikki system state, agent configurations, NATS topology. No personal data.
+
+### Report scoping
+
+- `shikki report` defaults to `--all` (user sees everything)
+- `shikki report --company maya` — only maya work. This is the shareable version.
+- Sharing a report to a colleague = auto-scoped to their company. No privacy leaks.
+- **Manager level** — sees team activity for their company only. Can generate CODIR reports.
+- **CODIR level** — sees project/team aggregates. CANNOT see individual worker struggles.
+- **Worker protection** — if a worker is in trouble (low output, high context churn), this is visible ONLY to their direct manager, NOT to CODIR. Managers open the discussion — no judgment, just numbers and human care.
+
+### Philosophy: Humans at the center
+
+> "We are defining the way we gonna work with generative AI for the next decades. These great tools need to improve us, augment us, but not reduce us. We need to work together at every level, not against each other."
+
+- No surveillance metrics visible to executives
+- No "productivity score" that ranks workers
+- Reports show progress, not performance
+- AI augments the worker — it doesn't replace the conversation between manager and team member
+- The right to disconnect: a worker's personal Shikki data (outside work hours) is invisible to the company
+
+### GitHub independence path
+
+`shikki review 14..18` (range notation) + ShikkiDB comment system + ShikkiDB PR storage = GitHub becomes optional. Future: replace GitHub Actions with self-hosted CI (n8n, Woodpecker, Dagger), reduce GAFAM dependency. The code lives in git. The workflow lives in Shikki.
+
+---
+
+## Marketplace (backlog — obyw.one core)
+
+Third-party marketplace for Shikki, Brainy, and future OBYW products. Like an App Store but for extensions/plugins/sources.
+
+- Validate or reject external tools that improve products
+- Revenue model TBD (free tier + premium, or pure validation without commission)
+- Source plugins (Brainy), skills (Shikki), themes (DSKintsugi) — all distributed via marketplace
+- Built as a core OBYW.one service, shared across all products
 
 ---
 
