@@ -16,6 +16,9 @@ public enum KeyEvent: Equatable, Sendable {
     case escape
     case tab
     case backspace
+    case space          // 0x20 — batch toggle
+    case ctrlZ          // 0x1A — undo
+    case delete         // forward delete (CSI 3~)
     case char(Character)
     case unknown
 }
@@ -63,6 +66,10 @@ public enum TerminalInput {
             return .enter
         case 0x09: // Tab
             return .tab
+        case 0x1A: // Ctrl-Z
+            return .ctrlZ
+        case 0x20: // Space
+            return .space
         case 0x7F, 0x08: // Backspace / Delete
             return .backspace
         default:
@@ -94,6 +101,14 @@ public enum TerminalInput {
             case UInt8(ascii: "B"): return .down
             case UInt8(ascii: "C"): return .right
             case UInt8(ascii: "D"): return .left
+            case UInt8(ascii: "3"):
+                // Forward delete: ESC [ 3 ~
+                var tildeBuf: [UInt8] = [0]
+                let tn = read(STDIN_FILENO, &tildeBuf, 1)
+                if tn == 1, tildeBuf[0] == UInt8(ascii: "~") {
+                    return .delete
+                }
+                return .unknown
             default: return .unknown
             }
         }

@@ -66,17 +66,29 @@ public struct ListItem: Sendable, Equatable {
 /// Configuration for a ListReviewer instance.
 public struct ListReviewerConfig: Sendable {
     public let title: String
+    public let listId: String
     public let showProgress: Bool
     public let actions: [ListAction]
+    public let keyMode: KeyMode
+    public let sortMode: SortMode
+    public let companyScope: String?
 
     public init(
         title: String,
+        listId: String = "default",
         showProgress: Bool = true,
-        actions: [ListAction] = ListAction.defaults
+        actions: [ListAction] = ListAction.defaults,
+        keyMode: KeyMode = .emacs,
+        sortMode: SortMode = .smart,
+        companyScope: String? = nil
     ) {
         self.title = title
+        self.listId = listId
         self.showProgress = showProgress
         self.actions = actions
+        self.keyMode = keyMode
+        self.sortMode = sortMode
+        self.companyScope = companyScope
     }
 
     /// A single-key action available in the list.
@@ -84,27 +96,68 @@ public struct ListReviewerConfig: Sendable {
         public let key: Character
         public let label: String
         public let appliesTo: Set<ListItem.ItemStatus>
+        public let batchable: Bool
 
-        public init(key: Character, label: String, appliesTo: Set<ListItem.ItemStatus>) {
+        public init(
+            key: Character,
+            label: String,
+            appliesTo: Set<ListItem.ItemStatus>,
+            batchable: Bool = true
+        ) {
             self.key = key
             self.label = label
             self.appliesTo = appliesTo
+            self.batchable = batchable
         }
 
         /// Default actions for a review list.
         public static let defaults: [ListAction] = [
             ListAction(key: "a", label: "approve", appliesTo: [.pending, .inReview]),
             ListAction(key: "k", label: "kill", appliesTo: [.pending, .inReview]),
-            ListAction(key: "e", label: "enrich", appliesTo: [.pending]),
+            ListAction(key: "e", label: "enrich", appliesTo: [.pending], batchable: false),
             ListAction(key: "d", label: "defer", appliesTo: [.pending, .inReview]),
-            ListAction(key: "n", label: "next", appliesTo: Set(ListItem.ItemStatus.allCases)),
-            ListAction(key: "q", label: "quit", appliesTo: Set(ListItem.ItemStatus.allCases)),
+            ListAction(key: "n", label: "next", appliesTo: Set(ListItem.ItemStatus.allCases), batchable: false),
+            ListAction(key: "q", label: "quit", appliesTo: Set(ListItem.ItemStatus.allCases), batchable: false),
         ]
     }
 
     /// Filter actions applicable to a given status.
     public func availableActions(for status: ListItem.ItemStatus) -> [ListAction] {
         actions.filter { $0.appliesTo.contains(status) }
+    }
+}
+
+// MARK: - Sort Mode
+
+public enum SortMode: String, Sendable {
+    case smart      // composite score, pins override
+    case manual     // user-defined order only (pinnedOrder from progress)
+    case raw        // items as provided, no reordering
+}
+
+// MARK: - Action Result
+
+public enum ActionResult: Sendable {
+    case success(newStatus: ListItem.ItemStatus)
+    case failure(message: String)
+    case noChange
+}
+
+// MARK: - Reviewer Result
+
+public struct ListReviewerResult: Sendable {
+    public let reviewedCount: Int
+    public let totalCount: Int
+    public let actions: [(itemId: String, action: String, result: ActionResult)]
+
+    public init(
+        reviewedCount: Int,
+        totalCount: Int,
+        actions: [(itemId: String, action: String, result: ActionResult)]
+    ) {
+        self.reviewedCount = reviewedCount
+        self.totalCount = totalCount
+        self.actions = actions
     }
 }
 

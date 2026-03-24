@@ -24,6 +24,20 @@ public enum InputAction: Equatable, Sendable {
     case fix
     case quit
     case help
+
+    // ListReviewer-specific actions
+    case toggleSelect   // Space — batch toggle
+    case undo           // Ctrl-Z
+    case kill           // k
+    case enrich         // e
+    case defer_         // d (trailing underscore to avoid keyword)
+    case pin            // p — pin/unpin toggle
+}
+
+/// Context hint for key mapping disambiguation.
+public enum KeyContext: Sendable {
+    case general
+    case listReviewer
 }
 
 // MARK: - Key Modes
@@ -35,6 +49,28 @@ public enum KeyMode: String, Codable, Sendable {
 
     /// Map a raw KeyEvent to a logical InputAction, or nil if unmapped.
     public func mapAction(for key: KeyEvent) -> InputAction? {
+        mapAction(for: key, context: .general)
+    }
+
+    /// Map a raw KeyEvent to a logical InputAction with context awareness.
+    /// In `.listReviewer` context, list-specific keys take priority.
+    public func mapAction(for key: KeyEvent, context: KeyContext) -> InputAction? {
+        // ListReviewer-specific universal mappings
+        if context == .listReviewer {
+            switch key {
+            case .space: return .toggleSelect
+            case .ctrlZ: return .undo
+            case .char("a"): return .approve
+            case .char("k"): return .kill
+            case .char("e"): return .enrich
+            case .char("d"): return .defer_
+            case .char("p"): return .pin
+            case .char("q"): return .quit
+            case .escape: return .quit
+            default: break
+            }
+        }
+
         // Universal mappings (all modes)
         switch key {
         case .enter: return .select
