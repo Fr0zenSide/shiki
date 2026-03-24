@@ -6,7 +6,7 @@ public enum MenuRenderer {
     /// Render the command grid as a string (no ANSI — tmux popup handles borders).
     public static func renderGrid() -> String {
         let lines = [
-            "┌─ SHIKI ──────────────────────────┐",
+            "┌─ SHIKKI ─────────────────────────┐",
             "│  S  status      D  decide        │",
             "│  A  attach      O  observe       │",
             "│  /  search      @  chat          │",

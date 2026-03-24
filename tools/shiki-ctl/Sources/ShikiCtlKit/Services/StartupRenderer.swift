@@ -67,7 +67,7 @@ public enum StartupRenderer {
         let status = data.isHealthy
             ? "\(ANSI.green)\(ANSI.bold)\u{25CF} System Ready\(ANSI.reset)"
             : "\(ANSI.red)\(ANSI.bold)\u{25CF} Unhealthy\(ANSI.reset)"
-        let title = "\(ANSI.bold)  SHIKI v\(data.version)\(ANSI.reset)"
+        let title = "\(ANSI.bold)  SHIKKI v\(data.version)\(ANSI.reset)"
         printPaddedRow(left: title, right: status, width: width)
 
         // Split header

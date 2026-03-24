@@ -98,7 +98,7 @@ struct MiniStatusTests {
     @Test("Menu renders command grid")
     func menuRendersGrid() {
         let output = MenuRenderer.renderGrid()
-        #expect(output.contains("SHIKI"))
+        #expect(output.contains("SHIKKI"))
         #expect(output.contains("status"))
         #expect(output.contains("decide"))
         #expect(output.contains("attach"))

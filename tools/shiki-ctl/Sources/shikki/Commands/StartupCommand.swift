@@ -322,14 +322,11 @@ struct StartupCommand: AsyncParsableCommand {
 
     // MARK: - Tmux
 
-    /// Single-window layout: 80% orchestrator (left) + 20% sidebar (right).
-    /// Sidebar: one pane per company (equal height) + tiny heartbeat at bottom.
+    /// Single-window layout: 95% orchestrator (left) + 5% sidebar (right).
+    /// Sidebar: workspace shell (top) + heartbeat (bottom, ~3 lines).
     private func createTmuxLayout(
         workspace: String, session: String, companies: [String]
     ) async throws {
-        let companySlugs = companies.isEmpty
-            ? ["maya", "wabisabi", "brainy", "flsh", "kintsugi", "obyw-one"]
-            : companies
 
         func tmux(_ args: String...) throws {
             let process = Process()
@@ -358,74 +355,43 @@ struct StartupCommand: AsyncParsableCommand {
         // 1. Single window
         try tmux("new-session", "-d", "-s", session, "-n", "orchestrator", "-c", workspace)
 
-        // 2. Get the main pane (will become orchestrator — left 80%)
+        // 2. Get the main pane (will become orchestrator — left 95%)
         let mainPaneId = try tmuxCapture(
             "display-message", "-t", "\(session):orchestrator", "-p", "#{pane_id}"
         )
 
-        // 3. Split right sidebar (20%)
-        try tmux("split-window", "-h", "-t", mainPaneId, "-l", "20%", "-c", workspace)
-        var sidebarPaneId = try tmuxCapture(
+        // 3. Split right sidebar (5%)
+        try tmux("split-window", "-h", "-t", mainPaneId, "-l", "5%", "-c", workspace)
+        let sidebarPaneId = try tmuxCapture(
             "display-message", "-t", "\(session):orchestrator", "-p", "#{pane_id}"
         )
 
-        // 4. Split sidebar into company panes
-        // First company occupies the initial sidebar pane
-        var companyPanes: [(slug: String, paneId: String)] = []
-        companyPanes.append((companySlugs[0], sidebarPaneId))
-
-        // Split remaining companies from the bottom of the sidebar
-        for i in 1..<companySlugs.count {
-            // Each split: percentage = remaining panes / total remaining * 100
-            // e.g., for 6 companies: split 1 leaves 5/6=83%, split 2 leaves 4/5=80%, etc.
-            let remaining = companySlugs.count - i
-            let pct = Int((Double(remaining) / Double(remaining + 1)) * 100)
-            try tmux("split-window", "-v", "-t", sidebarPaneId, "-l", "\(pct)%", "-c", workspace)
-            sidebarPaneId = try tmuxCapture(
-                "display-message", "-t", "\(session):orchestrator", "-p", "#{pane_id}"
-            )
-            companyPanes.append((companySlugs[i], sidebarPaneId))
-        }
-
-        // 5. Split event-log pane from the last company pane (~40% of remaining height)
-        let lastCompanyPaneId = companyPanes.last!.paneId
-        try tmux("split-window", "-v", "-t", lastCompanyPaneId, "-l", "40%", "-c", workspace)
-        let eventLogPaneId = try tmuxCapture(
-            "display-message", "-t", "\(session):orchestrator", "-p", "#{pane_id}"
-        )
-
-        // 6. Split heartbeat from event-log pane (tiny — 3 lines at bottom)
-        try tmux("split-window", "-v", "-t", eventLogPaneId, "-l", "3", "-c", workspace)
+        // 4. Split sidebar: workspace shell (top) + heartbeat (bottom, ~3 lines)
+        try tmux("split-window", "-v", "-t", sidebarPaneId, "-l", "3", "-c", workspace)
         let heartbeatPaneId = try tmuxCapture(
             "display-message", "-t", "\(session):orchestrator", "-p", "#{pane_id}"
         )
 
-        // 7. Enable pane border titles + prevent shell from overriding them
+        // 5. Enable pane border titles + prevent shell from overriding them
         try tmux("set-option", "-w", "-t", "\(session):orchestrator", "pane-border-status", "top")
         try tmux("set-option", "-w", "-t", "\(session):orchestrator", "pane-border-format",
                  " #{pane_title} ")
         try tmux("set-option", "-w", "-t", "\(session):orchestrator", "allow-rename", "off")
 
-        // 8. Label all panes
+        // 6. Label all panes
         try tmux("select-pane", "-t", mainPaneId, "-T", "ORCHESTRATOR")
-        for (slug, paneId) in companyPanes {
-            try tmux("select-pane", "-t", paneId, "-T", slug.uppercased())
-        }
-        try tmux("select-pane", "-t", eventLogPaneId, "-T", "EVENT-LOG")
+        try tmux("select-pane", "-t", sidebarPaneId, "-T", "WORKSPACE")
         try tmux("select-pane", "-t", heartbeatPaneId, "-T", "HEARTBEAT")
 
-        // 9. Focus the orchestrator pane
+        // 7. Focus the orchestrator pane
         try tmux("select-pane", "-t", mainPaneId)
 
-        // 10. Save pane mapping for the launcher (/tmp/shiki-panes-{session}.json)
-        var mapping: [String: String] = [
+        // 8. Save pane mapping for the launcher (/tmp/shiki-panes-{session}.json)
+        let mapping: [String: String] = [
             "orchestrator": mainPaneId,
-            "event-log": eventLogPaneId,
+            "workspace": sidebarPaneId,
             "heartbeat": heartbeatPaneId,
         ]
-        for (slug, paneId) in companyPanes {
-            mapping[slug] = paneId
-        }
         let mappingFile = "/tmp/shiki-panes-\(session).json"
         let jsonData = try JSONSerialization.data(withJSONObject: mapping)
         FileManager.default.createFile(atPath: mappingFile, contents: jsonData)
@@ -502,11 +468,11 @@ struct StartupCommand: AsyncParsableCommand {
         - Spent today: $\(String(format: "%.2f", data.spentToday))
         - Weekly delta: +\(data.weeklyInsertions) / -\(data.weeklyDeletions) lines across \(data.weeklyProjectCount) projects
 
-        LAYOUT: You are in the left 80% pane. The right 20% sidebar has one pane per company + a heartbeat pane at the bottom.
-        COMPANIES (sidebar panes, top to bottom): \(companySlugs.joined(separator: ", "))
+        LAYOUT: You are in the left 95% pane (main). The right 5% sidebar has a workspace shell on top + a heartbeat pane at the bottom.
+        COMPANIES: \(companySlugs.joined(separator: ", "))
         BACKEND: http://localhost:3900
 
-        The heartbeat automatically dispatches tasks from the queue into company panes.
+        The heartbeat monitors company health and dispatches tasks from the queue.
 
         YOUR ROLE:
         - Use /board to see all running company sessions
