@@ -387,32 +387,40 @@ struct StartupCommand: AsyncParsableCommand {
             companyPanes.append((companySlugs[i], sidebarPaneId))
         }
 
-        // 5. Split heartbeat from the last company pane (tiny — 3 lines)
+        // 5. Split event-log pane from the last company pane (~40% of remaining height)
         let lastCompanyPaneId = companyPanes.last!.paneId
-        try tmux("split-window", "-v", "-t", lastCompanyPaneId, "-l", "3", "-c", workspace)
+        try tmux("split-window", "-v", "-t", lastCompanyPaneId, "-l", "40%", "-c", workspace)
+        let eventLogPaneId = try tmuxCapture(
+            "display-message", "-t", "\(session):orchestrator", "-p", "#{pane_id}"
+        )
+
+        // 6. Split heartbeat from event-log pane (tiny — 3 lines at bottom)
+        try tmux("split-window", "-v", "-t", eventLogPaneId, "-l", "3", "-c", workspace)
         let heartbeatPaneId = try tmuxCapture(
             "display-message", "-t", "\(session):orchestrator", "-p", "#{pane_id}"
         )
 
-        // 6. Enable pane border titles + prevent shell from overriding them
+        // 7. Enable pane border titles + prevent shell from overriding them
         try tmux("set-option", "-w", "-t", "\(session):orchestrator", "pane-border-status", "top")
         try tmux("set-option", "-w", "-t", "\(session):orchestrator", "pane-border-format",
                  " #{pane_title} ")
         try tmux("set-option", "-w", "-t", "\(session):orchestrator", "allow-rename", "off")
 
-        // 7. Label all panes
+        // 8. Label all panes
         try tmux("select-pane", "-t", mainPaneId, "-T", "ORCHESTRATOR")
         for (slug, paneId) in companyPanes {
             try tmux("select-pane", "-t", paneId, "-T", slug.uppercased())
         }
+        try tmux("select-pane", "-t", eventLogPaneId, "-T", "EVENT-LOG")
         try tmux("select-pane", "-t", heartbeatPaneId, "-T", "HEARTBEAT")
 
-        // 8. Focus the orchestrator pane
+        // 9. Focus the orchestrator pane
         try tmux("select-pane", "-t", mainPaneId)
 
-        // 9. Save pane mapping for the launcher (/tmp/shiki-panes-{session}.json)
+        // 10. Save pane mapping for the launcher (/tmp/shiki-panes-{session}.json)
         var mapping: [String: String] = [
             "orchestrator": mainPaneId,
+            "event-log": eventLogPaneId,
             "heartbeat": heartbeatPaneId,
         ]
         for (slug, paneId) in companyPanes {
@@ -464,11 +472,17 @@ struct StartupCommand: AsyncParsableCommand {
             throw ShikiCommandError.layoutFailed("Could not read pane mapping from \(mappingFile)")
         }
 
-        // 3. Launch heartbeat in the tiny bottom-right pane
+        // 3. Launch event logger in the event-log pane (above heartbeat)
+        if let eventLogPaneId = mapping["event-log"] {
+            let logCmd = "\(binaryPath) log; read"
+            try tmux("send-keys", "-t", eventLogPaneId, logCmd, "C-m")
+        }
+
+        // 4. Launch heartbeat in the tiny bottom-right pane
         let heartbeatCmd = "\(binaryPath) heartbeat --workspace \(workspace) --session \(session); read"
         try tmux("send-keys", "-t", heartbeatPaneId, heartbeatCmd, "C-m")
 
-        // 4. Build orchestrator prompt with dashboard data baked in
+        // 5. Build orchestrator prompt with dashboard data baked in
         let companySlugs = data.companySlugs.isEmpty
             ? ["maya", "wabisabi", "brainy", "flsh", "kintsugi", "obyw-one"]
             : data.companySlugs
@@ -506,7 +520,7 @@ struct StartupCommand: AsyncParsableCommand {
         let promptFile = "/tmp/shiki-orchestrator-prompt-\(session).txt"
         FileManager.default.createFile(atPath: promptFile, contents: Data(orchestratorPrompt.utf8))
 
-        // 5. In main pane: show dashboard → decide if needed → launch interactive Claude
+        // 6. In main pane: show dashboard → decide if needed → launch interactive Claude
         let cmd = "clear && cat \(statusFile)\(decideStep) && echo '' && claude \"$(cat \(promptFile))\""
         try tmux("send-keys", "-t", mainPaneId, cmd, "C-m")
     }
