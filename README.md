@@ -1,160 +1,390 @@
-# 四季 Shiki — Professional Operating System for Builders
+# Shiki — AI Orchestration OS for Multi-Project Development
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![v0.2.0](https://img.shields.io/badge/version-0.2.0-green.svg)]()
-[![Swift](https://img.shields.io/badge/Built%20with-Swift-orange.svg)]()
+[![Pre-1.0](https://img.shields.io/badge/status-pre--1.0-orange.svg)]()
+[![Swift](https://img.shields.io/badge/CLI-Swift-orange.svg)]()
+[![Ko-fi](https://img.shields.io/badge/Support-Ko--fi-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/Fr0zenSide)
 
-> One command to launch your multi-project workspace. AI-augmented development with persistent memory, quality gates, and a team of specialized agents.
+Shiki manages autonomous Claude Code agents across multiple projects with TDD enforcement, budget tracking, quality gates, and persistent memory. One CLI to orchestrate your entire development workspace.
 
-Shiki gives your AI coding agent a team, a memory, and a process — across every project. Your agent remembers decisions, follows TDD, reviews its own work through specialized personas, and all of this carries over between sessions and projects.
+**Status:** Pre-1.0 software built by a solo developer ([OBYW.one](https://obyw.one)). Actively used in production across 4 projects. Breaking changes may occur between releases.
+
+## How It Works
+
+```
+    YOU (idea)
+        |
+   -----+------
+   |           |
+ Small fix   New feature
+ /quick      /md-feature
+   |           |
+   |    +--- Agent Team ---+
+   |    |  @Sensei (arch)  |
+   |    |  @Hanami (UX)    |
+   |    |  @Ronin (review) |
+   |    +------------------+
+   |           |
+   +-----+-----+
+         |
+      /pre-pr
+    9 quality gates
+         |
+      /review
+   You approve, merge
+         |
+   Memory persists (vector DB)
+   Context carries to next session
+```
+
+You bring the idea. Shiki runs the process: the right pipeline kicks in, agent personas review the work, quality gates catch issues before merge, and everything your agent learns is stored in a searchable vector database. Next session, next project — context is preserved.
 
 ## Quick Start
 
-```bash
-# Install
-git clone https://github.com/Fr0zenSide/shiki.git
-cd shiki && cd tools/shiki-ctl && swift build
-ln -sf $(pwd)/.build/debug/shiki-ctl ~/.local/bin/shiki
+### Prerequisites
 
-# Launch
+- [Docker](https://docs.docker.com/get-docker/) (or [Colima](https://github.com/abiosoft/colima))
+- [Swift](https://swift.org/install) (5.9+)
+- [Claude Code](https://claude.ai/claude-code) (for agent skills)
+
+### Install
+
+```bash
+git clone https://github.com/Fr0zenSide/shiki.git
+cd shiki/tools/shiki-ctl && swift build
+ln -sf $(pwd)/.build/debug/shiki-ctl ~/.local/bin/shiki
+```
+
+### Launch
+
+```bash
 shiki start
 ```
 
-That's it. Shiki detects your environment, starts Docker, boots the backend, shows your dashboard, and drops you into tmux.
+Shiki detects your environment, starts Docker services, boots the backend, shows a startup dashboard, and drops you into a tmux workspace.
 
 ```
 Shiki — Smart Startup [shiki]
 
 [1/6] Environment
-  ✓ Docker daemon
-  ✓ Colima VM
-  ✓ Backend (localhost:3900)
-  ✓ LM Studio (127.0.0.1:1234)
+  + Docker daemon
+  + Colima VM
+  + Backend (localhost:3900)
+  + Embeddings (127.0.0.1:1234)
 ...
-╔══════════════════════════════════════════════════════════════╗
-║  SHIKI v0.2.0                                ● System Ready ║
-╠═════════════════════════╦════════════════════════════════════╣
-║  Last Session           ║  Upcoming                          ║
-║  ✓ maya: 3 tasks done   ║  → maya: 5 pending                 ║
-║  ✓ wabisabi: 2 done     ║  → flsh: 2 pending                 ║
-╠═════════════════════════╩════════════════════════════════════╣
-║  Session Stats: +127 / -43 lines (maya)  ≈ mature            ║
-║  Weekly: +93,706 / -15,906 lines across 4 projects           ║
-╠══════════════════════════════════════════════════════════════╣
-║  4 T1 decisions pending · 0 stale · $0 spent today           ║
-╚══════════════════════════════════════════════════════════════╝
++============================================================+
+|  SHIKI v0.2.0                             System Ready     |
+|------------------------------------------------------------+
+|  Last Session           |  Upcoming                        |
+|  3 tasks done (maya)    |  5 pending (maya)                |
+|  2 done (wabisabi)      |  2 pending (flsh)                |
+|------------------------------------------------------------+
+|  +127 / -43 lines (maya)  ~mature                          |
+|  Weekly: +93,706 / -15,906 across 4 projects               |
+|------------------------------------------------------------+
+|  4 T1 decisions pending | 0 stale | $0 spent today         |
++============================================================+
 ```
 
-## Features
+## What Shiki Does
 
 ### CLI Commands
 
 | Command | What it does |
 |---------|-------------|
-| `shiki start` | Smart startup — detects env, boots Docker, shows dashboard, auto-attaches tmux |
-| `shiki stop` | Stop with confirmation (shows active task count) |
+| `shiki start` | Smart startup — env detection, Docker boot, dashboard, tmux |
+| `shiki stop` | Graceful stop with active task count |
 | `shiki restart` | Restart heartbeat, preserve tmux session |
-| `shiki status` | Workspace + company overview with health indicators |
-| `shiki board` | Rich board — progress bars, budget, health per company |
-| `shiki decide` | Answer pending decisions (multiline input supported) |
-| `shiki report` | Daily cross-company digest |
+| `shiki status` | Workspace overview with health indicators |
+| `shiki board` | Rich board — progress bars, budget, health per project |
+| `shiki decide` | Answer pending decisions (multiline input) |
+| `shiki report` | Daily cross-project digest |
 | `shiki history` | Session transcript viewer |
 
-### Development Process
+### Development Process (Claude Code Skills)
 
-| Command | When | Docs |
-|---------|------|------|
-| `/quick "fix X"` | Small change (< 3 files) | [quick-flow.md](.claude/skills/shiki-process/quick-flow.md) |
-| `/md-feature "X"` | New feature | [feature-pipeline.md](.claude/skills/shiki-process/feature-pipeline.md) |
-| `/tdd` | Run tests, fix all failures | [tdd.md](.claude/skills/shiki-process/tdd.md) |
-| `/pre-pr` | Before any PR (9 quality gates) | [pre-pr-pipeline.md](.claude/skills/shiki-process/pre-pr-pipeline.md) |
-| `/review <PR#>` | Interactive PR review | [pr-review.md](.claude/skills/shiki-process/pr-review.md) |
-| `/dispatch` | Parallel implementation | [parallel-dispatch.md](.claude/skills/shiki-process/parallel-dispatch.md) |
-| `/ingest <url>` | Import knowledge into memory | — |
-| `/radar scan` | Monitor tech stack updates | — |
+These commands run inside Claude Code sessions. Shiki injects them as agent skills.
+
+| Command | When to use | Pipeline |
+|---------|------------|----------|
+| `/quick "fix X"` | Small changes (< 3 files) | 4-step: analyze, implement, test, verify |
+| `/md-feature "X"` | New features | 8-phase: spec, design, implement, test, review |
+| `/tdd` | Run tests, fix all failures | Continuous red-green-refactor |
+| `/pre-pr` | Before any PR | 9 quality gates |
+| `/review <PR#>` | PR review with 3-agent pre-analysis | Risk triage + security scan |
+| `/dispatch` | Large features | Parallel implementation across worktrees |
+| `/ingest <url>` | Import knowledge | Extract, chunk, embed, store |
+| `/radar scan` | Monitor dependencies | Breaking changes + semver tracking |
 
 ### Agent Team
 
-Specialized personas that review work through different lenses:
+Specialized personas that review work through different lenses during `/pre-pr` and `/review`:
 
-| Agent | Role |
-|-------|------|
-| **@Sensei** | CTO — architecture, code quality |
-| **@Hanami** | Designer — UX, accessibility |
-| **@Kintsugi** | Philosophy — design principles |
-| **@Ronin** | Reviewer — security, edge cases |
-| **@Shogun** | Strategy — market, positioning |
-| **@Daimyo** | Founder — final decisions |
+| Agent | Role | Focus |
+|-------|------|-------|
+| **@Sensei** | CTO | Architecture decisions, code quality, feasibility |
+| **@Hanami** | Designer | UX, accessibility, emotional design |
+| **@Kintsugi** | Philosophy | Design principles, wabi-sabi aesthetics |
+| **@Ronin** | Adversarial reviewer | Security, edge cases, failure modes |
+| **@Shogun** | Strategist | Market positioning, competitive analysis |
+| **@Katana** | DevOps/Security | Infrastructure hardening, audit, backups |
+| **@Daimyo** | Founder | Final authority on decisions |
+
+Agents are defined in `.claude/skills/shiki-process/agents.md`. You can customize them or add your own.
 
 ### Memory System
 
-Persistent semantic memory powered by vector embeddings (TimescaleDB + pgvector). Your agent's context survives across sessions and projects.
+Persistent semantic memory powered by vector embeddings (TimescaleDB + pgvector). Context survives across sessions and projects.
 
+- **Store** — memories get embedded via Ollama (`nomic-embed-text`, 768d) or LM Studio
+- **Search** — cosine similarity + DiskANN index for fast retrieval
+- **Lifecycle** — TimescaleDB handles compression and retention automatically
 - `/ingest` — import repos, URLs, docs into searchable knowledge base
 - `/radar` — monitor GitHub repos for breaking changes and updates
-- `/remember` — recall past decisions and context
 
 ### Orchestrator
 
-The heartbeat loop manages multiple companies/projects autonomously:
+The heartbeat loop manages multiple projects autonomously:
 
 - Dynamic task dispatch based on priority and budget
-- Per-company tmux windows (appear/disappear as tasks run)
-- ntfy push notifications for pending decisions
-- Session transcripts with git stats
+- Per-company tmux panes (appear/disappear as tasks run)
+- ntfy push notifications for pending decisions (iOS/Apple Watch)
+- Session transcripts with git stats and maturity indicators
 
 ## Architecture
 
 ```
 shiki/
-├── tools/shiki-ctl/        ← Swift CLI (shiki binary)
-│   ├── Sources/ShikiCtlKit/ ← Services: BackendClient, HeartbeatLoop, SessionStats
-│   └── Tests/               ← 38 tests, 8 suites
-├── src/backend/             ← Deno REST API + WebSocket
-├── src/frontend/            ← Vue 3 dashboard
-├── packages/                ← Shared SPM: CoreKit, NetKit, SecurityKit
-├── projects/                ← Your projects (each its own git repo)
-└── .claude/skills/          ← Process skills, agent definitions
++-- tools/shiki-ctl/         <-- Swift CLI (the `shiki` binary)
+|   +-- Sources/ShikiCtlKit/  <-- HeartbeatLoop, BackendClient, SessionStats
+|   +-- Tests/                 <-- 38 tests, 8 suites
++-- src/backend/              <-- Deno REST API + WebSocket
++-- src/frontend/             <-- Vue 3 dashboard
++-- packages/                 <-- Shared SPM: CoreKit, NetKit, SecurityKit
++-- .claude/
+|   +-- skills/shiki-process/ <-- Process skills, agent definitions
+|   +-- commands/             <-- Slash commands (/quick, /md-feature, etc.)
++-- projects/                 <-- Your projects (gitignored, each its own repo)
++-- scripts/                  <-- Backup, restore, ingestion utilities
+```
+
+### Services
+
+```
++-----------------+       +-----------------+       +--------------------+
+|                 |  ws   |                 |  sql  |                    |
+|   Vue 3 SPA    +------>|   Deno Backend  +------>| TimescaleDB / PG17 |
+|   :5174        |  rest |   :3900         |       |   :5433            |
+|                +------>|                 |       |                    |
++-----------------+       +--------+--------+       +--------------------+
+                                   |
+                                   | http
+                                   v
+                          +--------+--------+
+                          |                 |
+                          |  Ollama / LM    |
+                          |  Studio :11435  |
+                          |  nomic-embed    |
+                          +-----------------+
 ```
 
 | Service | Port | Stack |
 |---------|------|-------|
-| Backend | 3900 | Deno + postgres.js + Zod |
-| Database | 5433 | PostgreSQL 17 + TimescaleDB + pgvector |
+| Backend | 3900 | Deno 2.0 + postgres.js + Zod |
+| Database | 5433 | PostgreSQL 17 + TimescaleDB + pgvector + pgvectorscale |
 | Embeddings | 11435 | Ollama (nomic-embed-text) or LM Studio |
-| Frontend | 5174 | Vue 3 + Vite |
+| Frontend | 5174 | Vue 3 + TypeScript + Vite |
 
-## tmux Navigation
+### tmux Layout
 
 ```
-Tab 1: orchestrator  ← heartbeat loop + startup dashboard
-Tab 2: board         ← dynamic task panes (auto-managed)
-Tab 3: research      ← 4 panes: INGEST · RADAR · EXPLORE · SCRATCH
+Tab 1: orchestrator  <-- heartbeat loop + startup dashboard
+Tab 2: board         <-- dynamic task panes (auto-managed)
+Tab 3: research      <-- 4 panes: INGEST / RADAR / EXPLORE / SCRATCH
 ```
 
 | Action | Shortcut |
 |--------|----------|
-| Switch tabs | `Opt + Shift + ←/→` |
-| Switch panes | `Opt + ←/↑/↓/→` |
+| Switch tabs | `Opt + Shift + Left/Right` |
+| Switch panes | `Opt + Arrow` |
 | Zoom pane | `Ctrl-b z` |
 | Scroll up | `Ctrl-b [` |
 | Detach | `Ctrl-b d` |
 
-Full cheat sheet: [docs/cheatsheet.md](docs/cheatsheet.md)
+## API Reference
+
+### Health
+
+```bash
+curl http://localhost:3900/health
+```
+
+### Memories (Semantic Search)
+
+```bash
+# Store
+curl -X POST http://localhost:3900/api/memories \
+  -H "Content-Type: application/json" \
+  -d '{"projectId":"<uuid>","content":"...","category":"architecture","importance":0.8}'
+
+# Search
+curl -X POST http://localhost:3900/api/memories/search \
+  -H "Content-Type: application/json" \
+  -d '{"query":"How does auth work?","projectId":"<uuid>","limit":5,"threshold":0.3}'
+```
+
+### Knowledge Ingestion
+
+```bash
+# Ingest chunks from an external source
+curl -X POST http://localhost:3900/api/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"sourceUrl":"https://github.com/org/repo","sourceType":"github","chunks":[{"content":"...","title":"..."}]}'
+
+# List ingested sources
+curl http://localhost:3900/api/ingest/sources
+```
+
+### Tech Radar
+
+```bash
+# Trigger a scan
+curl -X POST http://localhost:3900/api/radar/scan
+
+# Get latest digest
+curl http://localhost:3900/api/radar/digests/latest
+```
+
+### Pipelines (Checkpoint and Resume)
+
+```bash
+# Create a pipeline run
+curl -X POST http://localhost:3900/api/pipelines \
+  -H "Content-Type: application/json" \
+  -d '{"pipelineType":"pre-pr","config":{"mode":"standard"}}'
+
+# Resume from a failed run
+curl -X POST http://localhost:3900/api/pipelines/<run-id>/resume \
+  -H "Content-Type: application/json" -d '{}'
+```
+
+### Dashboard
+
+```bash
+curl http://localhost:3900/api/dashboard/summary
+curl http://localhost:3900/api/dashboard/performance?days=7
+curl http://localhost:3900/api/dashboard/activity?hours=24
+```
+
+## Backup and Restore
+
+```bash
+./scripts/backup-db.sh                # Create timestamped backup
+./scripts/restore-db.sh               # Interactive restore
+./scripts/ingest-memories.sh <proj-id> # Seed project knowledge
+```
 
 ## Roadmap
 
+### Done
+
 - [x] Smart startup with environment detection
-- [x] Session productivity stats (+/- lines, maturity indicator)
-- [x] Multiline input for decisions
-- [x] zsh autocompletion (auto-refreshes on rebuild)
-- [x] Dynamic tmux session naming (multi-workspace ready)
-- [ ] `shiki wizard` — first-time onboarding
+- [x] Multi-project orchestration with heartbeat loop
+- [x] Semantic memory system (vector DB + embeddings)
+- [x] Process skills for Swift projects
+- [x] Knowledge ingestion pipeline (`/ingest`)
+- [x] Tech radar monitoring (`/radar`)
+- [x] Pipeline resilience (checkpointing, resume, conditional routing)
+- [x] ntfy push notifications (iOS/Apple Watch approval buttons)
+- [x] Session productivity stats and maturity indicators
+- [x] zsh autocompletion
+
+### In Progress
+
+- [ ] `shiki wizard` — first-time onboarding flow
 - [ ] `shiki new` — company/project CRUD
+- [ ] Linux support (Ubuntu/Debian — CLI compiles, full testing planned)
+
+### Planned
+
 - [ ] Multi-workspace support (workspace registry, knowledge isolation)
-- [ ] Backup strategy (per-workspace, GitHub Action, ntfy alerts)
-- [ ] Collaborator access (auth + knowledge projections)
-- [ ] AI provider agnostic orchestration
+- [ ] Dashboard: agent timeline, memory browser, decision history
+- [ ] Language addons: TypeScript, Python, Go, Rust (Swift shipped)
+- [ ] MCP server for IDE-native agent invocation
+- [ ] AI provider-agnostic orchestration (not locked to Claude)
+- [ ] Backup automation (per-workspace, scheduled, ntfy alerts)
+
+### Agent Memory Evolution
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| **0** | Static `team/*.md` files loaded into context | Current |
+| **1** | Split into per-agent directories with task-type retrieval | Planned |
+| **2** | Vector-indexed retrieval — agent spawns with top-K knowledge pack | Planned |
+| **3** | Agents read AND write memory — post-task learning extraction | Planned |
+
+## Contributing
+
+Contributions are welcome. Shiki is modular — you can extend it without touching core code.
+
+### Add a Slash Command
+
+Create a markdown file in `.claude/commands/`:
+
+```markdown
+# /my-command
+
+Instructions for the agent when this command is invoked...
+```
+
+Commands are automatically available as `/my-command` in any Shiki project.
+
+### Add a Language Addon
+
+1. Create a project adapter template in `.claude/skills/shiki-process/`
+2. Add language-specific checklist items in `.claude/skills/shiki-process/checklists/`
+3. Test with a new project and validate the process runs correctly
+
+### Add an Agent Persona
+
+Edit `.claude/skills/shiki-process/agents.md`. Each agent needs:
+- A name and role
+- A clear focus area
+- Review criteria they apply during `/pre-pr`
+
+### Submit Changes
+
+1. Fork the repository
+2. Create a feature branch from `develop`
+3. Make your changes
+4. Submit a pull request targeting `develop`
+
+## Development
+
+```bash
+# Run backend locally (Docker handles DB + embeddings)
+cd src/backend && deno task dev
+
+# Build the CLI
+cd tools/shiki-ctl && swift build
+
+# Run CLI tests
+cd tools/shiki-ctl && swift test
+
+# Apply schema manually
+psql -U shiki -d shiki -f src/db/init/01-schema.sql
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `postgres://shiki:shiki@localhost:5433/shiki` | PostgreSQL connection |
+| `OLLAMA_URL` | `http://localhost:11435` | Embedding model endpoint |
+| `EMBED_MODEL` | `nomic-embed-text` | Embedding model name |
+| `WS_PORT` | `3900` | Backend server port |
+| `NODE_ENV` | `development` | Environment mode |
+| `LOG_LEVEL` | `info` | Log verbosity |
 
 ## License
 
@@ -162,4 +392,4 @@ Full cheat sheet: [docs/cheatsheet.md](docs/cheatsheet.md)
 
 ---
 
-Built with [Claude Code](https://claude.ai/claude-code) · Powered by the @shi team
+Built by [OBYW.one](https://obyw.one) with [Claude Code](https://claude.ai/claude-code)
