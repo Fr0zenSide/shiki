@@ -5,18 +5,18 @@ import Foundation
 @Suite("AgentProvider")
 struct AgentProviderTests {
 
-    @Test("AgentOptions defaults are sensible")
+    @Test("AgentProviderOptions defaults are sensible")
     func agentOptionsDefaults() {
-        let options = AgentOptions()
+        let options = AgentProviderOptions()
         #expect(options.model == nil)
         #expect(options.maxTokens == nil)
         #expect(options.outputFormat == .json)
         #expect(options.allowedTools.isEmpty)
     }
 
-    @Test("AgentResult captures all fields")
+    @Test("AgentProviderResult captures all fields")
     func agentResultFields() {
-        let result = AgentResult(
+        let result = AgentProviderResult(
             output: "{\"result\": \"ok\"}",
             exitCode: 0,
             tokensUsed: 1500,
@@ -31,7 +31,7 @@ struct AgentProviderTests {
     @Test("ClaudeProvider builds correct command line args")
     func claudeProviderCommandArgs() async throws {
         let provider = ClaudeProvider()
-        let options = AgentOptions(outputFormat: .json)
+        let options = AgentProviderOptions(outputFormat: .json)
         let args = provider.buildArguments(prompt: "hello world", options: options)
 
         #expect(args.contains("-p"))
@@ -43,7 +43,7 @@ struct AgentProviderTests {
     @Test("ClaudeProvider includes model when specified")
     func claudeProviderModelArg() async throws {
         let provider = ClaudeProvider()
-        let options = AgentOptions(model: "opus", outputFormat: .text)
+        let options = AgentProviderOptions(model: "opus", outputFormat: .text)
         let args = provider.buildArguments(prompt: "test", options: options)
 
         #expect(args.contains("--model"))
@@ -53,16 +53,16 @@ struct AgentProviderTests {
     @Test("ClaudeProvider includes allowed tools")
     func claudeProviderAllowedTools() async throws {
         let provider = ClaudeProvider()
-        let options = AgentOptions(allowedTools: ["Read", "Write", "Bash"])
+        let options = AgentProviderOptions(allowedTools: ["Read", "Write", "Bash"])
         let args = provider.buildArguments(prompt: "test", options: options)
 
         #expect(args.contains("--allowedTools"))
         #expect(args.contains("Read,Write,Bash"))
     }
 
-    @Test("AgentOptions outputFormat encodes correctly")
+    @Test("AgentProviderOptions outputFormat encodes correctly")
     func outputFormatEncoding() {
-        #expect(AgentOptions.OutputFormat.json.rawValue == "json")
-        #expect(AgentOptions.OutputFormat.text.rawValue == "text")
+        #expect(AgentProviderOptions.OutputFormat.json.rawValue == "json")
+        #expect(AgentProviderOptions.OutputFormat.text.rawValue == "text")
     }
 }

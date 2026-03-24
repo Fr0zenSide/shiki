@@ -1,5 +1,21 @@
 import Foundation
 
+// MARK: - Gate Evaluation
+
+/// Structured replacement for the former tuple `(gate: String, result: PipelineGateResult, duration: Duration)`.
+/// Codable + Sendable so pipeline results can be serialized to JSON for event persistence.
+public struct GateEvaluation: Codable, Sendable {
+    public let gate: String
+    public let result: PipelineGateResult
+    public let duration: Duration
+
+    public init(gate: String, result: PipelineGateResult, duration: Duration) {
+        self.gate = gate
+        self.result = result
+        self.duration = duration
+    }
+}
+
 // MARK: - Pipeline Runner
 
 public actor PipelineRunner {
@@ -10,14 +26,14 @@ public actor PipelineRunner {
     }
 
     public func run(gates: [PipelineGate], context: PipelineContext) async throws -> PipelineResult {
-        var results: [(gate: String, result: PipelineGateResult, duration: Duration)] = []
+        var results: [GateEvaluation] = []
 
         for gate in gates {
             let start = ContinuousClock.now
             let result = try await gate.evaluate(context: context)
             let duration = ContinuousClock.now - start
 
-            results.append((gate.name, result, duration))
+            results.append(GateEvaluation(gate: gate.name, result: result, duration: duration))
 
             if let persister {
                 let payload = CoreEvent.gateEvaluated(
@@ -48,8 +64,8 @@ public actor PipelineRunner {
 
 // MARK: - Pipeline Result
 
-public struct PipelineResult: Sendable {
+public struct PipelineResult: Codable, Sendable {
     public let success: Bool
-    public let gateResults: [(gate: String, result: PipelineGateResult, duration: Duration)]
+    public let gateResults: [GateEvaluation]
     public let failedGate: String?
 }

@@ -16,7 +16,7 @@ public actor ClaudeProvider: AgentProvider {
 
     /// Build CLI arguments for the claude binary.
     /// Exposed for testing — callers should use `dispatch()`.
-    public nonisolated func buildArguments(prompt: String, options: AgentOptions) -> [String] {
+    public nonisolated func buildArguments(prompt: String, options: AgentProviderOptions) -> [String] {
         var args: [String] = []
 
         args.append("-p")
@@ -46,8 +46,8 @@ public actor ClaudeProvider: AgentProvider {
     public func dispatch(
         prompt: String,
         workingDirectory: URL,
-        options: AgentOptions
-    ) async throws -> AgentResult {
+        options: AgentProviderOptions
+    ) async throws -> AgentProviderResult {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = ["claude"] + buildArguments(prompt: prompt, options: options)
@@ -84,7 +84,7 @@ public actor ClaudeProvider: AgentProvider {
             _sessionSpend += spend
         }
 
-        return AgentResult(
+        return AgentProviderResult(
             output: output,
             exitCode: process.terminationStatus,
             tokensUsed: nil, // TODO: parse from claude JSON output

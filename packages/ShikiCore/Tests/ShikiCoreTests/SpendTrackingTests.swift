@@ -15,8 +15,8 @@ struct SpendTrackingTests {
             get async { spend }
         }
 
-        func dispatch(prompt: String, workingDirectory: URL, options: AgentOptions) async throws -> AgentResult {
-            AgentResult(output: "", exitCode: 0, tokensUsed: nil, duration: .seconds(0))
+        func dispatch(prompt: String, workingDirectory: URL, options: AgentProviderOptions) async throws -> AgentProviderResult {
+            AgentProviderResult(output: "", exitCode: 0, tokensUsed: nil, duration: .seconds(0))
         }
 
         func cancel() async {}
