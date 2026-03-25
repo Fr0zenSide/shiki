@@ -41,7 +41,9 @@ export interface SearchResult {
   content: string;
   category: string;
   similarity: number;
+  freshness: number;
   createdAt: Date;
+  corroborationCount: number;
   fromAgent: string | null;
 }
 
@@ -76,20 +78,39 @@ export async function searchMemories(
       content,
       category,
       1 - (embedding <=> ${JSON.stringify(queryEmbedding)}::vector) AS similarity,
+      compute_freshness(COALESCE(last_corroborated_at, created_at)) AS freshness,
       created_at,
+      corroboration_count,
       (SELECT handle FROM agents WHERE id = agent_memories.agent_id) AS from_agent
     FROM agent_memories
     WHERE ${whereClause}
-    ORDER BY embedding <=> ${JSON.stringify(queryEmbedding)}::vector
+    ORDER BY
+      (1 - (embedding <=> ${JSON.stringify(queryEmbedding)}::vector))
+      * compute_freshness(COALESCE(last_corroborated_at, created_at))
+      DESC
     LIMIT ${limit}
   `;
+
+  // Corroborate accessed memories (they were referenced by a search)
+  const ids = results.map((r: any) => r.id);
+  if (ids.length > 0) {
+    sql`UPDATE agent_memories SET
+      last_corroborated_at = NOW(),
+      freshness = 1.0,
+      corroboration_count = corroboration_count + 1,
+      last_accessed_at = NOW(),
+      access_count = access_count + 1
+    WHERE id = ANY(${ids})`.catch(() => {});
+  }
 
   return results.map((r: any) => ({
     id: r.id,
     content: r.content,
     category: r.category,
     similarity: parseFloat(r.similarity),
+    freshness: parseFloat(r.freshness),
     createdAt: r.created_at,
+    corroborationCount: r.corroboration_count,
     fromAgent: r.from_agent,
   }));
 }
