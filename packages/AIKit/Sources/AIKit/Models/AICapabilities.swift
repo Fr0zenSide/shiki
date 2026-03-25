@@ -18,4 +18,5 @@ public struct AICapabilities: OptionSet, Sendable, Codable, Hashable {
     public static let embedding       = AICapabilities(rawValue: 1 << 7)
     public static let vision          = AICapabilities(rawValue: 1 << 8)
     public static let toolUse         = AICapabilities(rawValue: 1 << 9)
+    public static let videoGeneration = AICapabilities(rawValue: 1 << 10)
 }
