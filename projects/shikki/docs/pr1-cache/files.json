@@ -1,0 +1,807 @@
+[
+  {
+    "category" : "docs",
+    "deletions" : 457,
+    "insertions" : 127,
+    "isNew" : false,
+    "path" : "README.md"
+  },
+  {
+    "category" : "docs",
+    "deletions" : 0,
+    "insertions" : 585,
+    "isNew" : true,
+    "path" : "docs\/session-2026-03-16-vision-and-architecture.md"
+  },
+  {
+    "category" : "docs",
+    "deletions" : 0,
+    "insertions" : 194,
+    "isNew" : true,
+    "path" : "features\/shiki-db-backup-strategy.md"
+  },
+  {
+    "category" : "docs",
+    "deletions" : 0,
+    "insertions" : 119,
+    "isNew" : true,
+    "path" : "features\/shiki-enterprise-safety.md"
+  },
+  {
+    "category" : "docs",
+    "deletions" : 0,
+    "insertions" : 125,
+    "isNew" : true,
+    "path" : "features\/shiki-os-vision.md"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 34,
+    "isNew" : true,
+    "path" : "scripts\/install-completions.sh"
+  },
+  {
+    "category" : "source",
+    "deletions" : 5,
+    "insertions" : 40,
+    "isNew" : false,
+    "path" : "scripts\/shiki"
+  },
+  {
+    "category" : "source",
+    "deletions" : 2,
+    "insertions" : 6,
+    "isNew" : false,
+    "path" : "src\/backend\/src\/orchestrator.ts"
+  },
+  {
+    "category" : "source",
+    "deletions" : 5,
+    "insertions" : 4,
+    "isNew" : false,
+    "path" : "src\/backend\/src\/routes.ts"
+  },
+  {
+    "category" : "config",
+    "deletions" : 190,
+    "insertions" : 1,
+    "isNew" : false,
+    "path" : "tools\/shiki-ctl\/Package.resolved"
+  },
+  {
+    "category" : "config",
+    "deletions" : 2,
+    "insertions" : 0,
+    "isNew" : false,
+    "path" : "tools\/shiki-ctl\/Package.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 89,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Events\/EventBus.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 374,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Events\/EventRouter.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 69,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Events\/PRReviewEvents.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 43,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Events\/ShikiDBEventLogger.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 130,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Events\/ShikiEvent.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 68,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/AgentMessages.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 166,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/AgentPersona.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 51,
+    "insertions" : 154,
+    "isNew" : false,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/BackendClient.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 114,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/ChatTargetResolver.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 1,
+    "insertions" : 4,
+    "isNew" : false,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/CompanyLauncher.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 45,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/DashboardSnapshot.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 134,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/DependencyTree.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 122,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/EnvironmentDetector.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 79,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/ExternalTools.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 60,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/HandoffChain.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 29,
+    "insertions" : 154,
+    "isNew" : false,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/HeartbeatLoop.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 37,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/MenuRenderer.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 112,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/MiniStatusFormatter.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 22,
+    "insertions" : 20,
+    "isNew" : false,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/NotificationService.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 227,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/ObservatoryEngine.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 230,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRCacheBuilder.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 59,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRConfig.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 49,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRFixAgent.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 95,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRQueue.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 187,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRReviewEngine.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 248,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRReviewParser.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 58,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRReviewState.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 135,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/PRRiskEngine.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 182,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/ProcessCleanup.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 99,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/RecoveryManager.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 340,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/S3Parser.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 146,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/S3TestGenerator.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 143,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/SessionJournal.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 168,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/SessionLifecycle.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 243,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/SessionRegistry.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 221,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/SessionStats.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 135,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/ShikiDoctor.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 200,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/SpecDocument.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 225,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/StartupRenderer.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 50,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/TmuxStateManager.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 108,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/Services\/Watchdog.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 222,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/FuzzyMatcher.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 112,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/KeyMode.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 63,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/PaletteEngine.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 164,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/PaletteRenderer.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 32,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/PaletteSource.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 206,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/PaletteSources.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 114,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/SelectionMenu.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 103,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/TerminalInput.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 103,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/TerminalOutput.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 110,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/ShikiCtlKit\/TUI\/TerminalSnapshot.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 40,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/AttachCommand.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 43,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/DashboardCommand.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 3,
+    "insertions" : 25,
+    "isNew" : false,
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/DecideCommand.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 52,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/DoctorCommand.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 4,
+    "insertions" : 9,
+    "isNew" : false,
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/HeartbeatCommand.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 62,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/MenuCommand.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 269,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/PRCommand.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 115,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/RestartCommand.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 201,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/SearchCommand.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 502,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/StartupCommand.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 1,
+    "insertions" : 162,
+    "isNew" : false,
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/StatusCommand.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 125,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Commands\/StopCommand.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 0,
+    "insertions" : 227,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Formatters\/PRReviewRenderer.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 1,
+    "insertions" : 15,
+    "isNew" : false,
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/Formatters\/StatusRenderer.swift"
+  },
+  {
+    "category" : "source",
+    "deletions" : 4,
+    "insertions" : 13,
+    "isNew" : false,
+    "path" : "tools\/shiki-ctl\/Sources\/shiki-ctl\/ShikiCtl.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 155,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/AgentCoordinationTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 118,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/AgentPersonaTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 107,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/AutopilotV2Tests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 28,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/BackendClientConnectionTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 78,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/ChatEditorTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 84,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/DoctorTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 51,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/EnvironmentDetectorTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 190,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/EventBusTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 211,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/EventRouterTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 126,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/ExternalToolsTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 73,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/KeyModeTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 130,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/MiniStatusTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 188,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/ObservatoryTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 96,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/PRCacheBuilderTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 67,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/PRQueueTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 198,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/PRReviewEngineTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 109,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/PRReviewParserTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 111,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/PRRiskEngineTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 168,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/PaletteRendererTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 158,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/ProcessCleanupTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 352,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/S3ParserTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 189,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/SessionIntegrationTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 139,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/SessionJournalTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 107,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/SessionLifecycleTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 188,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/SessionRegistryTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 69,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/SessionStatsTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 94,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/ShikiDBEventLoggerTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 139,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/SpecDocumentTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 78,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/StartupRendererTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 51,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/TerminalOutputTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 153,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/TerminalSnapshotTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 253,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/UserFlowTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 117,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/WatchdogTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 6,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/__Snapshots__\/RendererSnapshots\/attention-zones.snapshot"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 3,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/__Snapshots__\/RendererSnapshots\/dashboard-sessions.snapshot"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 4,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlKitTests\/__Snapshots__\/RendererSnapshots\/doctor-diagnostics.snapshot"
+  },
+  {
+    "category" : "test",
+    "deletions" : 9,
+    "insertions" : 7,
+    "isNew" : false,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlTests\/CommandParsingTests.swift"
+  },
+  {
+    "category" : "test",
+    "deletions" : 0,
+    "insertions" : 121,
+    "isNew" : true,
+    "path" : "tools\/shiki-ctl\/Tests\/ShikiCtlTests\/E2EScenarioTests.swift"
+  }
+]
