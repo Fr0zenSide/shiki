@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# install-completions.sh — Generate and install zsh completions for shiki
+# install-completions.sh — Generate and install zsh completions for shikki
 #
-# Run after building shiki-ctl:
+# Run after building shikki:
 #   bash scripts/install-completions.sh
 #
-# Called automatically by: shiki start (if completions are stale)
+# Called automatically by: shikki start (if completions are stale)
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE="$(cd "$SCRIPT_DIR/.." && pwd)"
-BINARY="$WORKSPACE/tools/shiki-ctl/.build/debug/shiki-ctl"
+BINARY="$WORKSPACE/projects/shikki/.build/debug/shikki"
 COMPLETIONS_DIR="${HOME}/.zsh/completions"
-COMPLETION_FILE="$COMPLETIONS_DIR/_shiki"
+COMPLETION_FILE="$COMPLETIONS_DIR/_shikki"
 
 if [ ! -f "$BINARY" ]; then
-  echo "shiki binary not found at $BINARY — build first"
+  echo "shikki binary not found at $BINARY — build first"
   exit 1
 fi
 
@@ -30,5 +30,5 @@ if ! grep -q 'zsh/completions' ~/.zshrc 2>/dev/null; then
   echo "Added fpath to ~/.zshrc"
 fi
 
-echo "Installed zsh completions for shiki ($(grep -c "'" "$COMPLETION_FILE") entries)"
+echo "Installed zsh completions for shikki ($(grep -c "'" "$COMPLETION_FILE") entries)"
 echo "Run 'exec zsh' to reload, or open a new terminal"

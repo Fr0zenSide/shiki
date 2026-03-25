@@ -41,22 +41,22 @@ shiki report               # Daily cross-company digest
 shiki report --date 2026-03-14   # Specific date
 ```
 
-### shiki-ctl (direct)
+### shikki (direct)
 
 ```bash
-shiki-ctl status           # Same as shiki status
-shiki-ctl status --legacy  # Old table format
-shiki-ctl board            # Rich board overview (tasks, budget, health, sessions)
-shiki-ctl history maya     # Transcript history for a company
-shiki-ctl history --task ID       # Filter by task
-shiki-ctl history --phase failed  # Filter by phase
-shiki-ctl history --detail ID     # Full transcript detail
-shiki-ctl history --raw --detail ID  # Include raw terminal log
-shiki-ctl start            # Run heartbeat loop (auto-dispatches tasks)
-shiki-ctl wake maya        # Force-launch a company session
-shiki-ctl pause brainy     # Pause a company
-shiki-ctl decide           # Answer T1 decisions
-shiki-ctl report           # Daily digest
+shikki status           # Same as shikki status
+shikki status --legacy  # Old table format
+shikki board            # Rich board overview (tasks, budget, health, sessions)
+shikki history maya     # Transcript history for a company
+shikki history --task ID       # Filter by task
+shikki history --phase failed  # Filter by phase
+shikki history --detail ID     # Full transcript detail
+shikki history --raw --detail ID  # Include raw terminal log
+shikki start            # Run heartbeat loop (auto-dispatches tasks)
+shikki wake maya        # Force-launch a company session
+shikki pause brainy     # Pause a company
+shikki decide           # Answer T1 decisions
+shikki report           # Daily digest
 ```
 
 ## Process Commands (inside any project Claude)

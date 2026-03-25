@@ -1,9 +1,9 @@
 {
   "mcpServers": {
-    "shiki-db": {
+    "shikki-db": {
       "command": "/Users/jeoffrey/.local/bin/shiki-mcp",
       "env": {
-        "SHIKI_DB_URL": "http://localhost:3900"
+        "SHIKKI_DB_URL": "http://localhost:3900"
       }
     }
   }

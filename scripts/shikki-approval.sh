@@ -1,0 +1,325 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────
+# shikki-approval.sh — Remote approval for Claude Code via ntfy.sh
+#
+# Claude Code PermissionRequest hook that sends push notifications
+# to your phone/watch and waits for Approve/Deny response.
+#
+# Config: ~/.config/shikki-notify/config
+# Setup: ./shikki notify setup
+# ─────────────────────────────────────────────────────────────
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/shikki-notify-lib.sh"
+
+CONFIG_DIR="$HOME/.config/shikki-notify"
+CONFIG_FILE="$CONFIG_DIR/config"
+LOG_FILE="$CONFIG_DIR/approval.log"
+
+# ── Load config ──────────────────────────────────────────────
+
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  # No config = fall back to CLI prompt (don't block Claude Code)
+  echo '{}' # empty output = no decision = fall back to interactive
+  exit 0
+fi
+
+source "$CONFIG_FILE"
+
+# Required: NTFY_TOPIC
+if [[ -z "${NTFY_TOPIC:-}" ]]; then
+  echo '{}' && exit 0
+fi
+
+NTFY_SERVER="${NTFY_SERVER:-http://localhost:2586}"
+NTFY_TIMEOUT="${NTFY_TIMEOUT:-120}"
+NTFY_TOKEN="${NTFY_TOKEN:-}"
+RESPONSE_TOPIC="${NTFY_TOPIC}-response"
+
+# ── Read hook input from stdin ───────────────────────────────
+
+INPUT=$(cat)
+
+TOOL_NAME=$(echo "$INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_name','unknown'))" 2>/dev/null || echo "unknown")
+TOOL_INPUT_RAW=$(echo "$INPUT" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+ti = d.get('tool_input', {})
+if isinstance(ti, dict):
+    cmd = ti.get('command', '')
+    fp = ti.get('file_path', '')
+    pattern = ti.get('pattern', '')
+    if cmd:
+        s = cmd[:200] + ('...' if len(cmd) > 200 else '')
+        print(s)
+    elif fp:
+        print(fp)
+    elif pattern:
+        print(pattern)
+    else:
+        print(json.dumps(ti)[:200])
+else:
+    print(str(ti)[:200])
+" 2>/dev/null || echo "")
+
+SESSION_ID=$(echo "$INPUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('session_id',''))" 2>/dev/null || echo "")
+
+# ── Logging helper ───────────────────────────────────────────
+
+log_approval() {
+  local decision="$1" tool="$2" detail="$3"
+  echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | $decision | $tool | ${detail:0:100}" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+# ── Auto-approve rules ──────────────────────────────────────
+# Tools that are always safe to auto-approve without notification
+
+AUTO_APPROVE_TOOLS="${AUTO_APPROVE_TOOLS:-}"
+if [[ -n "$AUTO_APPROVE_TOOLS" ]]; then
+  IFS=',' read -ra SAFE_TOOLS <<< "$AUTO_APPROVE_TOOLS"
+  for safe in "${SAFE_TOOLS[@]}"; do
+    safe=$(echo "$safe" | xargs) # trim whitespace
+    if [[ "$TOOL_NAME" == "$safe" ]]; then
+      log_approval "auto-approved" "$TOOL_NAME" "$TOOL_INPUT_RAW"
+      echo '{
+        "hookSpecificOutput": {
+          "hookEventName": "PermissionRequest",
+          "decision": { "behavior": "allow" }
+        }
+      }'
+      exit 0
+    fi
+  done
+fi
+
+# ── Build notification ───────────────────────────────────────
+
+# Unique request ID for matching response
+REQUEST_ID="req-$(date +%s)-$$"
+
+# Build workspace context tag (from shared lib)
+WORKSPACE_TAG=$(shikki_workspace_tag)
+
+# Build contextual title based on tool type
+case "$TOOL_NAME" in
+  Bash)   TITLE="Shikki${WORKSPACE_TAG}: Run Command" ;;
+  Edit)   TITLE="Shikki${WORKSPACE_TAG}: Edit File" ;;
+  Write)  TITLE="Shikki${WORKSPACE_TAG}: Create File" ;;
+  Read)   TITLE="Shikki${WORKSPACE_TAG}: Read File" ;;
+  Grep)   TITLE="Shikki${WORKSPACE_TAG}: Search Code" ;;
+  Glob)   TITLE="Shikki${WORKSPACE_TAG}: Find Files" ;;
+  Agent)  TITLE="Shikki${WORKSPACE_TAG}: Launch Agent" ;;
+  WebFetch) TITLE="Shikki${WORKSPACE_TAG}: Fetch URL" ;;
+  WebSearch) TITLE="Shikki${WORKSPACE_TAG}: Web Search" ;;
+  *)      TITLE="Shikki${WORKSPACE_TAG}: $TOOL_NAME" ;;
+esac
+
+# Build message with tool detail as subtitle
+MESSAGE="$TOOL_NAME"
+if [[ -n "$TOOL_INPUT_RAW" ]]; then
+  MESSAGE="$TOOL_INPUT_RAW"
+fi
+
+# Build auth header if token is set
+AUTH_HEADER=""
+if [[ -n "$NTFY_TOKEN" ]]; then
+  AUTH_HEADER="Authorization: Bearer $NTFY_TOKEN"
+fi
+
+# ── Send notification with action buttons ────────────────────
+
+# Build JSON payload via python3 using env vars (avoids heredoc injection)
+PUBLISH_PAYLOAD=$(
+  SHIKKI_TOPIC="$NTFY_TOPIC" \
+  SHIKKI_TITLE="$TITLE" \
+  SHIKKI_MESSAGE="$MESSAGE" \
+  SHIKKI_SERVER="$NTFY_SERVER" \
+  SHIKKI_RESPONSE_TOPIC="$RESPONSE_TOPIC" \
+  SHIKKI_REQUEST_ID="$REQUEST_ID" \
+  python3 -c '
+import json, os
+e = os.environ
+srv = e["SHIKKI_SERVER"]
+resp_topic = e["SHIKKI_RESPONSE_TOPIC"]
+req_id = e["SHIKKI_REQUEST_ID"]
+action_url = f"{srv}/{resp_topic}"
+payload = {
+    "topic": e["SHIKKI_TOPIC"],
+    "title": e["SHIKKI_TITLE"],
+    "message": e["SHIKKI_MESSAGE"].strip(),
+    "tags": ["robot"],
+    "priority": 4,
+    "actions": [
+        {
+            "action": "http",
+            "label": "\u2705 Approve",
+            "url": action_url,
+            "method": "POST",
+            "body": f"approve:{req_id}",
+            "clear": True
+        },
+        {
+            "action": "http",
+            "label": "\U0001f513 Always Allow",
+            "url": action_url,
+            "method": "POST",
+            "body": f"always_allow:{req_id}",
+            "clear": True
+        },
+        {
+            "action": "http",
+            "label": "\U0001f6ab Deny",
+            "url": action_url,
+            "method": "POST",
+            "body": f"deny:{req_id}",
+            "clear": True
+        }
+    ]
+}
+print(json.dumps(payload))
+'
+)
+
+CURL_ARGS=(-sf -X POST "$NTFY_SERVER" -H "Content-Type: application/json" -d "$PUBLISH_PAYLOAD")
+if [[ -n "$AUTH_HEADER" ]]; then
+  CURL_ARGS+=(-H "$AUTH_HEADER")
+fi
+
+curl "${CURL_ARGS[@]}" >/dev/null 2>&1 || {
+  # ntfy unreachable — fall back to CLI prompt
+  log_approval "ntfy-unreachable" "$TOOL_NAME" "falling back to CLI"
+  echo '{}' && exit 0
+}
+
+# ── Subscribe to response topic via SSE ──────────────────────
+
+# Use python3 for reliable SSE subscription (handles buffering, timeout, and parsing)
+SINCE_TS=$(date +%s)
+DECISION=$(
+  SHIKKI_SERVER="$NTFY_SERVER" \
+  SHIKKI_RESPONSE_TOPIC="$RESPONSE_TOPIC" \
+  SHIKKI_TIMEOUT="$NTFY_TIMEOUT" \
+  SHIKKI_TOKEN="$NTFY_TOKEN" \
+  SHIKKI_SINCE="$SINCE_TS" \
+  SHIKKI_REQUEST_ID="$REQUEST_ID" \
+  python3 -c '
+import urllib.request, json, sys, time, os
+
+server = os.environ["SHIKKI_SERVER"]
+topic = os.environ["SHIKKI_RESPONSE_TOPIC"]
+timeout = int(os.environ["SHIKKI_TIMEOUT"])
+token = os.environ.get("SHIKKI_TOKEN", "")
+since = os.environ["SHIKKI_SINCE"]
+request_id = os.environ["SHIKKI_REQUEST_ID"]
+
+url = f"{server}/{topic}/json?since={since}"
+req = urllib.request.Request(url)
+if token:
+    req.add_header("Authorization", f"Bearer {token}")
+
+try:
+    start = time.time()
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        while time.time() - start < timeout:
+            line = resp.readline().decode("utf-8").strip()
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+                if data.get("event") != "message":
+                    continue
+                raw = data.get("message", "").strip()
+                if ":" in raw:
+                    decision, txn_id = raw.split(":", 1)
+                    decision = decision.lower()
+                    if txn_id == request_id and decision in ("approve", "deny", "always_allow"):
+                        print(decision)
+                        sys.exit(0)
+            except (json.JSONDecodeError, ValueError):
+                continue
+except Exception:
+    pass
+
+print("")
+'
+)
+
+# ── Send single confirmation on first response ───────────────
+# One confirmation notification on the main topic so you know
+# Claude received your decision. No duplicates: the SSE listener
+# already exits after the first valid response.
+
+send_confirmation() {
+  local icon="$1"
+  local confirm_payload
+  confirm_payload=$(
+    SHIKKI_TOPIC="$NTFY_TOPIC" \
+    SHIKKI_TITLE="$icon $TOOL_NAME" \
+    SHIKKI_MESSAGE="$MESSAGE" \
+    python3 -c '
+import json, os
+payload = {
+    "topic": os.environ["SHIKKI_TOPIC"],
+    "title": os.environ["SHIKKI_TITLE"],
+    "message": os.environ["SHIKKI_MESSAGE"].strip(),
+    "priority": 1
+}
+print(json.dumps(payload))
+'
+  )
+  curl -sf -X POST "$NTFY_SERVER" \
+    -H "Content-Type: application/json" \
+    -d "$confirm_payload" >/dev/null 2>&1 || true
+}
+
+# ── Return decision to Claude Code ───────────────────────────
+
+case "$DECISION" in
+  approve)
+    log_approval "approved" "$TOOL_NAME" "$TOOL_INPUT_RAW"
+    send_confirmation "✅"
+    echo '{
+      "hookSpecificOutput": {
+        "hookEventName": "PermissionRequest",
+        "decision": { "behavior": "allow" }
+      }
+    }'
+    ;;
+  always_allow)
+    log_approval "always-allowed" "$TOOL_NAME" "$TOOL_INPUT_RAW"
+    send_confirmation "✅"
+    # Return allow + add permission rule so this tool won't ask again
+    echo "{
+      \"hookSpecificOutput\": {
+        \"hookEventName\": \"PermissionRequest\",
+        \"decision\": { \"behavior\": \"allow\" },
+        \"updatedPermissions\": [{\"tool\": \"$TOOL_NAME\", \"permission\": \"allow\"}]
+      }
+    }"
+    ;;
+  deny)
+    log_approval "denied" "$TOOL_NAME" "$TOOL_INPUT_RAW"
+    send_confirmation "❌"
+    echo '{
+      "hookSpecificOutput": {
+        "hookEventName": "PermissionRequest",
+        "decision": {
+          "behavior": "deny",
+          "message": "Denied via Shikki remote approval"
+        }
+      }
+    }'
+    ;;
+  *)
+    # Timeout or no response — fall back to CLI prompt
+    log_approval "timeout" "$TOOL_NAME" "no response in ${NTFY_TIMEOUT}s"
+    echo '{
+      "hookSpecificOutput": {
+        "hookEventName": "PermissionRequest",
+        "decision": { "behavior": "ask" }
+      }
+    }'
+    ;;
+esac

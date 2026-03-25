@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# orchestrate.sh — Fallback layout script (prefer `shiki start` which handles this natively)
+# orchestrate.sh — Fallback layout script (prefer `shikki start` which handles this natively)
 #
 # Single-window layout: 80% orchestrator (left) + 20% sidebar (right)
 # Sidebar: one pane per company + tiny heartbeat at bottom
@@ -9,9 +9,9 @@
 
 set -euo pipefail
 
-SESSION="shiki-board"
+SESSION="shikki-board"
 WORKSPACE="$(cd "$(dirname "$0")/.." && pwd)"
-SHIKI_CTL="$WORKSPACE/tools/shiki-ctl"
+SHIKKI_DIR="$WORKSPACE/projects/shikki"
 
 GREEN='\033[32m'
 DIM='\033[2m'
@@ -30,16 +30,16 @@ if ! curl -sf http://localhost:3900/health >/dev/null 2>&1; then
   exit 1
 fi
 
-# ── Build shiki-ctl if needed ────────────────────────────────────
+# ── Build shikki if needed ────────────────────────────────────
 
-if [ ! -f "$SHIKI_CTL/.build/debug/shiki-ctl" ]; then
-  echo -e "${YELLOW}Building shiki-ctl...${RST}"
-  (cd "$SHIKI_CTL" && swift build 2>&1 | tail -3)
+if [ ! -f "$SHIKKI_DIR/.build/debug/shikki" ]; then
+  echo -e "${YELLOW}Building shikki...${RST}"
+  (cd "$SHIKKI_DIR" && swift build 2>&1 | tail -3)
 fi
 
-SHIKI_CTL_BIN="$SHIKI_CTL/.build/debug/shiki-ctl"
+SHIKKI_BIN="$SHIKKI_DIR/.build/debug/shikki"
 
-# ── Prefer shiki start (handles layout natively) ─────────────────
+# ── Prefer shikki start (handles layout natively) ─────────────────
 
-echo -e "${GREEN}Delegating to shiki start...${RST}"
-exec "$SHIKI_CTL_BIN" start --workspace "$WORKSPACE"
+echo -e "${GREEN}Delegating to shikki start...${RST}"
+exec "$SHIKKI_BIN" start --workspace "$WORKSPACE"

@@ -1,0 +1,196 @@
+#!/usr/bin/env bash
+# shikki — Main entry point for the Shikki orchestrator system
+#
+# Usage:
+#   shikki start     Full cold start: docker + seed (if needed) + board + agents
+#   shikki stop      Kill all sessions (with confirmation)
+#   shikki restart   Restart orchestrator without losing tmux session
+#   shikki status    Quick orchestrator status
+#   shikki attach    Attach to running session
+#   shikki decide    Answer pending decisions
+#   shikki report    Daily digest
+#
+# From scratch (first time ever):
+#   shikki start
+#
+# Daily use (containers already running):
+#   shikki start
+
+set -euo pipefail
+
+SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || python3 -c "import os; print(os.path.realpath('$0'))")"
+WORKSPACE="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
+SCRIPTS="$WORKSPACE/scripts"
+SHIKKI_CTL="$WORKSPACE/projects/shikki/.build/debug/shikki"
+SESSION="shikki-board"
+
+GREEN='\033[32m'
+DIM='\033[2m'
+YELLOW='\033[33m'
+RED='\033[31m'
+RST='\033[0m'
+
+cmd="${1:-help}"
+shift 2>/dev/null || true
+
+case "$cmd" in
+
+  start)
+    echo -e "${GREEN}Starting Shikki system...${RST}"
+    echo
+
+    # Step 1: Ensure Docker containers are running
+    echo -e "${YELLOW}[1/4] Docker containers${RST}"
+    if curl -sf http://localhost:3900/health >/dev/null 2>&1; then
+      echo -e "  ${DIM}Backend already running${RST}"
+    else
+      echo "  Starting containers..."
+      (cd "$WORKSPACE" && docker compose up -d 2>&1 | sed 's/^/  /')
+      echo "  Waiting for backend..."
+      for i in $(seq 1 30); do
+        if curl -sf http://localhost:3900/health >/dev/null 2>&1; then break; fi
+        sleep 1
+      done
+      if ! curl -sf http://localhost:3900/health >/dev/null 2>&1; then
+        echo -e "  ${RED}Backend failed to start${RST}"
+        exit 1
+      fi
+      echo -e "  ${GREEN}Backend ready${RST}"
+    fi
+
+    # Step 2: Check if companies exist, seed if not
+    echo -e "${YELLOW}[2/4] Orchestrator data${RST}"
+    COMPANY_COUNT=$(curl -sf http://localhost:3900/api/companies | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+    if [ "$COMPANY_COUNT" -gt 0 ]; then
+      echo -e "  ${DIM}$COMPANY_COUNT companies found${RST}"
+    else
+      echo "  No companies found — seeding..."
+      bash "$SCRIPTS/seed-companies.sh" 2>&1 | sed 's/^/  /'
+    fi
+
+    # Step 3: Build shikki if needed
+    echo -e "${YELLOW}[3/4] shikki${RST}"
+    if [ -f "$SHIKKI_CTL" ]; then
+      echo -e "  ${DIM}Already built${RST}"
+    else
+      echo "  Building..."
+      (cd "$WORKSPACE/projects/shikki" && swift build 2>&1 | tail -3 | sed 's/^/  /')
+    fi
+
+    # Step 4: Launch tmux layout + agents
+    echo -e "${YELLOW}[4/4] Launching board${RST}"
+    bash "$SCRIPTS/orchestrate.sh"
+    ;;
+
+  stop)
+    if tmux has-session -t "$SESSION" 2>/dev/null; then
+      # Count active windows (excluding orchestrator)
+      WINDOW_COUNT=$(tmux list-windows -t "$SESSION" -F "#{window_name}" 2>/dev/null | grep -cv "^orchestrator$\|^board$\|^research$" || echo "0")
+      echo -e "${YELLOW}Stopping Shikki system...${RST}"
+      if [ "$WINDOW_COUNT" -gt 0 ]; then
+        echo -e "  ${RED}$WINDOW_COUNT active task window(s) running${RST}"
+      fi
+      echo -n "  Confirm kill tmux session? [y/N] "
+      read -r confirm
+      if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        tmux kill-session -t "$SESSION"
+        echo -e "  ${GREEN}Killed tmux session${RST}"
+      else
+        echo "  Aborted."
+        exit 0
+      fi
+    else
+      echo -e "${DIM}No tmux session running.${RST}"
+    fi
+    echo -e "${DIM}Containers left running (use 'docker compose down' to stop)${RST}"
+    ;;
+
+  restart)
+    echo -e "${YELLOW}Restarting Shikki system...${RST}"
+    if tmux has-session -t "$SESSION" 2>/dev/null; then
+      # Kill the orchestrator heartbeat loop but preserve the session layout
+      ORCH_WID=$(tmux list-windows -t "$SESSION" -F "#{window_id} #{window_name}" 2>/dev/null | grep orchestrator | awk '{print $1}')
+      if [ -n "$ORCH_WID" ]; then
+        ORCH_PANE=$(tmux list-panes -t "$ORCH_WID" -F "#{pane_id}" | head -1)
+        # Send Ctrl-C to stop heartbeat, then restart it
+        tmux send-keys -t "$ORCH_PANE" C-c
+        sleep 1
+        tmux send-keys -t "$ORCH_PANE" "$SHIKKI_CTL start --workspace $WORKSPACE" C-m
+        echo -e "  ${GREEN}Orchestrator restarted (session preserved)${RST}"
+      fi
+    else
+      echo -e "  ${DIM}No session running — doing full start${RST}"
+      exec "$0" start
+    fi
+    ;;
+
+  status)
+    if [ -f "$SHIKKI_CTL" ]; then
+      "$SHIKKI_CTL" status
+    else
+      echo "shikki not built. Run: shikki start"
+      exit 1
+    fi
+    ;;
+
+  attach)
+    if tmux has-session -t "$SESSION" 2>/dev/null; then
+      tmux attach-session -t "$SESSION"
+    else
+      echo "No session running. Run: shikki start"
+      exit 1
+    fi
+    ;;
+
+  board)
+    if [ -f "$SHIKKI_CTL" ]; then
+      "$SHIKKI_CTL" board "$@"
+    else
+      echo "shikki not built. Run: shikki start"
+      exit 1
+    fi
+    ;;
+
+  history)
+    if [ -f "$SHIKKI_CTL" ]; then
+      "$SHIKKI_CTL" history "$@"
+    else
+      echo "shikki not built. Run: shikki start"
+      exit 1
+    fi
+    ;;
+
+  decide)
+    if [ -f "$SHIKKI_CTL" ]; then
+      "$SHIKKI_CTL" decide
+    else
+      echo "shikki not built. Run: shikki start"
+      exit 1
+    fi
+    ;;
+
+  report)
+    if [ -f "$SHIKKI_CTL" ]; then
+      "$SHIKKI_CTL" report "$@"
+    else
+      echo "shikki not built. Run: shikki start"
+      exit 1
+    fi
+    ;;
+
+  help|*)
+    echo "Usage: shikki <command>"
+    echo
+    echo "Commands:"
+    echo "  start     Launch everything (docker + seed + board + dispatcher)"
+    echo "  stop      Kill tmux session (with confirmation)"
+    echo "  restart   Restart orchestrator (preserves tmux session)"
+    echo "  status    Orchestrator status overview (active/queued/idle)"
+    echo "  board     Rich board: tasks, budget, health, last session per company"
+    echo "  history   Session transcript history (shikki history maya)"
+    echo "  attach    Attach to running session"
+    echo "  decide    Answer pending decisions"
+    echo "  report    Daily cross-company digest"
+    ;;
+
+esac

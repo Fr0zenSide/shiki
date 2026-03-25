@@ -1,4 +1,4 @@
-# Shiki (四季) — Dev OS Workspace
+# Shikki (四季) — Dev OS Workspace
 # Docker Compose — full local stack
 #
 # Usage:
@@ -8,15 +8,15 @@
 #
 # Requirements: Docker Desktop 4.x+, ~2GB RAM, ~2GB disk
 
-name: shiki
+name: shikki
 
 services:
   db:
     image: timescale/timescaledb-ha:pg17
     restart: unless-stopped
     environment:
-      POSTGRES_DB:       ${POSTGRES_DB:-shiki}
-      POSTGRES_USER:     ${POSTGRES_USER:-shiki}
+      POSTGRES_DB:       ${POSTGRES_DB:-shikki}
+      POSTGRES_USER:     ${POSTGRES_USER:-shikki}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - db_data:/home/postgres/pgdata/data
@@ -24,7 +24,7 @@ services:
     ports:
       - "127.0.0.1:5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shiki} -d ${POSTGRES_DB:-shiki}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shikki} -d ${POSTGRES_DB:-shikki}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -74,11 +74,11 @@ services:
       ollama:
         condition: service_healthy
     environment:
-      DATABASE_URL:     postgres://${POSTGRES_USER:-shiki}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-shiki}
+      DATABASE_URL:     postgres://${POSTGRES_USER:-shikki}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-shikki}
       OLLAMA_URL:       http://ollama:11434
       EMBED_MODEL:      nomic-embed-text
       WS_PORT:          "3900"
-      SHIKI_API_KEY:    ${SHIKI_API_KEY:-}
+      SHIKKI_API_KEY:    ${SHIKI_API_KEY:-}
       NODE_ENV:         ${NODE_ENV:-development}
       LOG_LEVEL:        ${LOG_LEVEL:-info}
     ports:

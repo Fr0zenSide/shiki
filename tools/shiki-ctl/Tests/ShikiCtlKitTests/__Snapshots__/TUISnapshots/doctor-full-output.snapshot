@@ -1,9 +1,0 @@
-Shiki Doctor
-────────────────────────────────────────────────────────
-
-  ✓ git       git 2.44 found
-  ✓ tmux      tmux 3.4 found
-  ✓ claude    claude found
-  ⚠ delta     delta not found
-  ⚠ qmd       qmd not found
-  ✓ disk      125.3 GB free

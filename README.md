@@ -51,8 +51,8 @@ You bring the idea. Shiki runs the process: the right pipeline kicks in, agent p
 
 ```bash
 git clone https://github.com/Fr0zenSide/shiki.git
-cd shiki/tools/shiki-ctl && swift build
-ln -sf $(pwd)/.build/debug/shiki-ctl ~/.local/bin/shiki
+cd shiki/projects/shikki && swift build
+ln -sf $(pwd)/.build/debug/shikki ~/.local/bin/shikki
 ```
 
 ### Launch
@@ -155,8 +155,8 @@ The heartbeat loop manages multiple projects autonomously:
 
 ```
 shiki/
-+-- tools/shiki-ctl/         <-- Swift CLI (the `shiki` binary)
-|   +-- Sources/ShikiCtlKit/  <-- HeartbeatLoop, BackendClient, SessionStats
++-- projects/shikki/         <-- Swift CLI (the `shikki` binary)
+|   +-- Sources/ShikkiKit/    <-- HeartbeatLoop, BackendClient, SessionStats
 |   +-- Tests/                 <-- 38 tests, 8 suites
 +-- src/backend/              <-- Deno REST API + WebSocket
 +-- src/frontend/             <-- Vue 3 dashboard
@@ -366,10 +366,10 @@ Edit `.claude/skills/shiki-process/agents.md`. Each agent needs:
 cd src/backend && deno task dev
 
 # Build the CLI
-cd tools/shiki-ctl && swift build
+cd projects/shikki && swift build
 
 # Run CLI tests
-cd tools/shiki-ctl && swift test
+cd projects/shikki && swift test
 
 # Apply schema manually
 psql -U shiki -d shiki -f src/db/init/01-schema.sql
