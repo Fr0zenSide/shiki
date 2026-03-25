@@ -252,4 +252,4 @@ seed_task "$OBYW_CID" "Caddy config refresh" "Update reverse proxy rules" 6 "oby
 
 echo
 echo -e "${GREEN}Done! Seeded 6 companies + tasks with project paths.${RST}"
-echo -e "${DIM}Verify with: shiki-ctl status${RST}"
+echo -e "${DIM}Verify with: shikki status${RST}"

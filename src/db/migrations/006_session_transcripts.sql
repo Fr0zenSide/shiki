@@ -43,7 +43,7 @@ CREATE INDEX idx_transcripts_slug ON session_transcripts(company_slug, created_a
 CREATE INDEX idx_transcripts_phase ON session_transcripts(phase) WHERE phase NOT IN ('completed', 'failed');
 
 -- ═══════════════════════════════════════════════════════════════════
--- BOARD_OVERVIEW VIEW — rich snapshot for `shiki board` / `shiki-ctl board`
+-- BOARD_OVERVIEW VIEW — rich snapshot for `shikki board`
 -- ═══════════════════════════════════════════════════════════════════
 
 CREATE VIEW board_overview AS
