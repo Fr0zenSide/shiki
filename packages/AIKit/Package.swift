@@ -14,13 +14,22 @@ let package = Package(
             targets: ["AIKit"]
         ),
     ],
+    dependencies: [
+        .package(name: "NetKit", path: "../NetKit"),
+    ],
     targets: [
         .target(
-            name: "AIKit"
+            name: "AIKit",
+            dependencies: [
+                .product(name: "NetKit", package: "NetKit"),
+            ]
         ),
         .testTarget(
             name: "AIKitTests",
-            dependencies: ["AIKit"]
+            dependencies: [
+                "AIKit",
+                .product(name: "NetKit", package: "NetKit"),
+            ]
         ),
     ]
 )
