@@ -109,6 +109,9 @@ struct StatusCommand: AsyncParsableCommand {
         }
         print(String(repeating: "\u{2500}", count: 56))
 
+        // Node health (Mesh heartbeat)
+        await printNodeHealth()
+
         if overview.t1PendingDecisions > 0 {
             print("\u{1B}[33m\u{26A0} \(overview.t1PendingDecisions) T1 decision(s) pending\u{1B}[0m")
             print()
@@ -293,6 +296,76 @@ struct StatusCommand: AsyncParsableCommand {
         let known = "\(home)/Documents/Workspaces/shiki"
         if FileManager.default.fileExists(atPath: "\(known)/docker-compose.yml") { return known }
         return FileManager.default.currentDirectoryPath
+    }
+
+    // MARK: - Node Health (Mesh Heartbeat)
+
+    /// Ping known ShikiDB nodes and display health.
+    private func printNodeHealth() async {
+        struct NodeCheck: Sendable {
+            let name: String
+            let url: String
+            let latencyMs: Int?
+            let healthy: Bool
+        }
+
+        let nodes: [(String, String)] = [
+            ("Local", "http://localhost:3900/api/health"),
+            // VPS node (activated when deployed)
+            // ("VPS", "https://back.obyw.one/db/api/health"),
+        ]
+
+        var checks: [NodeCheck] = []
+
+        for (name, healthURL) in nodes {
+            let start = DispatchTime.now()
+            var healthy = false
+            var latencyMs: Int?
+
+            do {
+                let url = URL(string: healthURL)!
+                // Disable redirect following — a health endpoint that redirects is misconfigured
+                let config = URLSessionConfiguration.ephemeral
+                let noRedirectSession = URLSession(configuration: config, delegate: NoRedirectDelegate.shared, delegateQueue: nil)
+                var request = URLRequest(url: url, timeoutInterval: 3)
+                request.httpMethod = "GET"
+                let (_, response) = try await noRedirectSession.data(for: request)
+                let elapsed = DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds
+                latencyMs = Int(elapsed / 1_000_000)
+
+                if let httpResponse = response as? HTTPURLResponse {
+                    // Only 200 OK is healthy. 3xx = misconfigured redirect. 4xx/5xx = broken.
+                    healthy = httpResponse.statusCode == 200
+                }
+            } catch {
+                healthy = false
+            }
+
+            checks.append(NodeCheck(name: name, url: healthURL, latencyMs: latencyMs, healthy: healthy))
+        }
+
+        let nodeLine = checks.map { node in
+            if node.healthy, let ms = node.latencyMs {
+                return "\u{1B}[32m\(node.name): \(ms)ms\u{1B}[0m"
+            } else {
+                return "\u{1B}[31m\(node.name): unreachable\u{1B}[0m"
+            }
+        }.joined(separator: "  ")
+
+        print("\u{1B}[2mNodes:\u{1B}[0m     \(nodeLine)")
+    }
+
+    // MARK: - No Redirect Delegate
+
+    /// Prevents URLSession from following redirects — a health endpoint that redirects is not healthy.
+    private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+        static let shared = NoRedirectDelegate()
+        func urlSession(_ session: URLSession, task: URLSessionTask,
+                        willPerformHTTPRedirection response: HTTPURLResponse,
+                        newRequest request: URLRequest,
+                        completionHandler: @escaping (URLRequest?) -> Void) {
+            completionHandler(nil) // Block redirect
+        }
     }
 
     /// Detect all tmux sessions that look like shiki workspaces.
