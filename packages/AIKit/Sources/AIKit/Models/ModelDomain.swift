@@ -5,4 +5,5 @@ public enum ModelDomain: String, Sendable, Codable, CaseIterable {
     case voice
     case vision
     case inpainting
+    case video
 }
