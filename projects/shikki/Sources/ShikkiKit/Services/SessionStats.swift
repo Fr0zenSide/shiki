@@ -78,7 +78,7 @@ public struct SessionStats: SessionStatsProviding, Sendable {
             }
 
             if let lastEnd {
-                let timestamp = ISO8601DateFormatter().string(from: lastEnd)
+                let timestamp = lastEnd.iso8601
                 if let stats = await gitStats(at: projectPath, since: timestamp, projectName: project) {
                     sinceSession.append(stats)
                 }
@@ -102,7 +102,7 @@ public struct SessionStats: SessionStatsProviding, Sendable {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
         let file = dir.appendingPathComponent(Self.timestampFile)
-        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let timestamp = Date().iso8601
         try timestamp.write(to: file, atomically: true, encoding: .utf8)
     }
 
@@ -114,7 +114,7 @@ public struct SessionStats: SessionStatsProviding, Sendable {
             .appendingPathComponent(Self.timestampFile)
 
         guard let contents = try? String(contentsOf: file, encoding: .utf8) else { return nil }
-        return ISO8601DateFormatter().date(from: contents.trimmingCharacters(in: .whitespacesAndNewlines))
+        return ISO8601DateFormatter.standard.date(from: contents.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     /// Run `git log --since=<since> --shortstat --oneline` and parse the aggregated output.

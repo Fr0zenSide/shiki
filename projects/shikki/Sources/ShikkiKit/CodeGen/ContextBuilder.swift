@@ -257,6 +257,8 @@ public enum ContextBuilder {
 
     // MARK: - Private
 
+    // NOTE: Uses custom ISO 8601 format (withFullDate + withTime, no timezone Z suffix)
+    // which differs from the standard extension. Kept as custom formatter.
     private static func formatDate(_ date: Date) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withFullDate, .withTime, .withDashSeparatorInDate, .withColonSeparatorInTime]

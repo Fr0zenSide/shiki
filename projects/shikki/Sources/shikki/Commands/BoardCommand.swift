@@ -54,8 +54,7 @@ struct BoardCommand: AsyncParsableCommand {
             print()
         }
 
-        let formatter = ISO8601DateFormatter()
-        print("\u{1B}[2mTimestamp: \(formatter.string(from: Date()))\u{1B}[0m")
+        print("\u{1B}[2mTimestamp: \(Date().iso8601)\u{1B}[0m")
     }
 
     private func renderEntry(_ e: BoardEntry) {

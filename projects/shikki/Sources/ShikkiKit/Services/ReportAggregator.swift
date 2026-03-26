@@ -31,9 +31,8 @@ public struct ReportAggregator: Sendable {
         now: Date = Date()
     ) async throws -> Report {
         let resolved = range.resolve(now: now)
-        let formatter = ISO8601DateFormatter()
-        let startISO = formatter.string(from: resolved.start)
-        let endISO = formatter.string(from: resolved.end)
+        let startISO = resolved.start.iso8601
+        let endISO = resolved.end.iso8601
 
         // Fetch companies to know what we're reporting on
         let allCompanies = try await client.getCompanies(status: nil)

@@ -164,15 +164,13 @@ public struct TUIReportRenderer: ReportRenderer {
     }
 
     func weekOfYear(from isoDate: String) -> Int {
-        let formatter = ISO8601DateFormatter()
-        guard let date = formatter.date(from: isoDate) else { return 0 }
+        guard let date = ISO8601DateFormatter.standard.date(from: isoDate) else { return 0 }
         return Calendar.current.component(.weekOfYear, from: date)
     }
 
     func daysInRange(_ range: ReportDateRange) -> Double {
-        let formatter = ISO8601DateFormatter()
-        guard let start = formatter.date(from: range.start),
-              let end = formatter.date(from: range.end) else { return 1.0 }
+        guard let start = ISO8601DateFormatter.standard.date(from: range.start),
+              let end = ISO8601DateFormatter.standard.date(from: range.end) else { return 1.0 }
         return max(1.0, end.timeIntervalSince(start) / 86400.0)
     }
 }

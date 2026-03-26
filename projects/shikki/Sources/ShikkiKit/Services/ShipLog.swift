@@ -49,9 +49,7 @@ public struct ShipLog: Sendable {
 
     /// Append an entry to the ship log file.
     public func append(_ entry: ShipLogEntry) throws {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm"
-        let dateStr = dateFormatter.string(from: entry.date)
+        let dateStr = entry.date.shortDisplay
 
         let markdown = """
 

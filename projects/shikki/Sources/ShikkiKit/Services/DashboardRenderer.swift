@@ -221,10 +221,8 @@ public enum DashboardRenderer {
             if eventsToShow.isEmpty {
                 lines.append(vertical + padToWidth("  No events", innerWidth) + vertical)
             } else {
-                let formatter = DateFormatter()
-                formatter.dateFormat = "HH:mm"
                 for event in eventsToShow {
-                    let time = formatter.string(from: event.timestamp)
+                    let time = DateFormatter.timeDisplay.string(from: event.timestamp)
                     let eventLine = "  \(time) \(padPlain(event.type, 17)) \(padPlain(event.agent, 10)) \(event.detail)"
                     lines.append(vertical + padToWidth(eventLine, innerWidth) + vertical)
                 }
@@ -337,10 +335,8 @@ public enum DashboardRenderer {
                 let noEvents = "  " + ANSI.dim + "No events" + ANSI.reset
                 lines.append(ANSI.dim + vertical + ANSI.reset + padToWidthAnsi(noEvents, innerWidth) + ANSI.dim + vertical + ANSI.reset)
             } else {
-                let formatter = DateFormatter()
-                formatter.dateFormat = "HH:mm"
                 for event in eventsToShow {
-                    let time = ANSI.dim + formatter.string(from: event.timestamp) + ANSI.reset
+                    let time = ANSI.dim + DateFormatter.timeDisplay.string(from: event.timestamp) + ANSI.reset
                     let eventLine = "  \(time) \(padPlainAnsi(ANSI.yellow + event.type + ANSI.reset, 17)) \(padPlainAnsi(ANSI.cyan + event.agent + ANSI.reset, 10)) \(event.detail)"
                     lines.append(ANSI.dim + vertical + ANSI.reset + padToWidthAnsi(eventLine, innerWidth) + ANSI.dim + vertical + ANSI.reset)
                 }

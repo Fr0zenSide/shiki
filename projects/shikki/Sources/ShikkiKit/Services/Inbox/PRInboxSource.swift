@@ -89,10 +89,8 @@ struct GitHubPR: Codable, Sendable {
     let files: [GitHubFile]?
 
     var age: TimeInterval {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = formatter.date(from: createdAt)
-            ?? ISO8601DateFormatter().date(from: createdAt) else { return 0 }
+        guard let date = ISO8601DateFormatter.precise.date(from: createdAt)
+            ?? ISO8601DateFormatter.standard.date(from: createdAt) else { return 0 }
         return Date().timeIntervalSince(date)
     }
 }
@@ -144,11 +142,8 @@ extension JSONDecoder {
         decoder.dateDecodingStrategy = .custom { decoder in
             let container = try decoder.singleValueContainer()
             let string = try container.decode(String.self)
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = formatter.date(from: string) { return date }
-            formatter.formatOptions = [.withInternetDateTime]
-            if let date = formatter.date(from: string) { return date }
+            if let date = ISO8601DateFormatter.precise.date(from: string) { return date }
+            if let date = ISO8601DateFormatter.standard.date(from: string) { return date }
             throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date: \(string)")
         }
         return decoder

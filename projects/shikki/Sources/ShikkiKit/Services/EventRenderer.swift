@@ -41,14 +41,8 @@ public struct ANSIEventRenderer: EventRenderer {
 
     // MARK: - Timestamp
 
-    private static let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm:ss"
-        return f
-    }()
-
     func formatTimestamp(_ date: Date) -> String {
-        Self.timeFormatter.string(from: date)
+        date.timeOnly
     }
 
     // MARK: - Scope
