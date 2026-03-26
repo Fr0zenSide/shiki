@@ -97,13 +97,35 @@ extension ScheduleCommand {
             abstract: "List all scheduled tasks."
         )
 
+        @Option(name: .long, help: "Output format: table (default), json.")
+        var format: String = "table"
+
+        @Option(name: .shortAndLong, help: "Filter tasks by name (grep-style).")
+        var query: String?
+
         func run() async throws {
-            // In a real implementation this would read from ShikiDB.
-            // For now, show built-in tasks as a baseline.
-            let tasks = ScheduledTask.builtinTasks.map { task -> ScheduledTask in
-                var t = task
-                t.nextRunAt = t.computeNextRun()
-                return t
+            // Load tasks from TaskSchedulerService (seeds built-ins if empty)
+            let scheduler = TaskSchedulerService()
+            await scheduler.seedBuiltinTasks()
+            var tasks = await scheduler.allTasks()
+
+            // Filter by query if provided (BR-35 enhancement: grep-style)
+            if let query = query?.lowercased(), !query.isEmpty {
+                tasks = tasks.filter {
+                    $0.name.lowercased().contains(query)
+                    || $0.command.lowercased().contains(query)
+                    || $0.cronExpression.contains(query)
+                }
+            }
+
+            // JSON output for piping: `schedule list --format json | jq`
+            if format == "json" {
+                let encoder = JSONEncoder()
+                encoder.dateEncodingStrategy = .iso8601
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                let data = try encoder.encode(tasks)
+                Swift.print(String(data: data, encoding: .utf8) ?? "[]")
+                return
             }
 
             let dateFormatter = DateFormatter()
@@ -123,10 +145,11 @@ extension ScheduleCommand {
                 let lastRun = task.lastRunAt.map { dateFormatter.string(from: $0) } ?? "—"
                 let avgDuration = task.avgDurationMs.map { "\($0)" } ?? "—"
                 let status = task.enabled ? (task.claimedBy != nil ? "running" : "ready") : "disabled"
+                let builtin = task.isBuiltin ? " [built-in]" : ""
 
                 let line = String(
                     format: "%-24s %-16s %-20s %-20s %-10s %-8s",
-                    task.name, task.cronExpression, nextRun, lastRun, avgDuration, status
+                    task.name + builtin, task.cronExpression, nextRun, lastRun, avgDuration, status
                 )
                 Swift.print(line)
             }

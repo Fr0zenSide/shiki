@@ -1,0 +1,143 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(colima status:*)",
+      "Bash(colima start:*)",
+      "Bash(COLIMA_HOME=~/.colima colima start:*)",
+      "Bash(mv:*)",
+      "Bash(OLLAMA_URL=http://host.docker.internal:1234 EMBED_PROVIDER=openai docker compose:*)",
+      "Bash(swift build:*)",
+      "Bash(swift test:*)",
+      "Bash(mkdir:*)",
+      "Bash(chmod +x:*)",
+      "Bash(xargs -I{} git diff-tree --numstat {})",
+      "Bash(while read h)",
+      "Bash(do git diff-tree --numstat -r \"$h\")",
+      "Bash(done)",
+      "Bash(perl:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebSearch",
+      "WebFetch(domain:deepwiki.com)",
+      "WebFetch(domain:docs.anythingllm.com)",
+      "Bash(curl:*)",
+      "WebFetch(domain:www.langchain.com)",
+      "WebFetch(domain:python.langchain.com)",
+      "WebFetch(domain:docs.langchain.com)",
+      "WebFetch(domain:langchain-ai.github.io)",
+      "WebFetch(domain:github.com)",
+      "Bash(echo === Create Pipeline Run ===:*)",
+      "Bash(./shikki health:*)",
+      "Bash(echo:*)",
+      "WebFetch(domain:www.cmux.dev)",
+      "WebFetch(domain:docs.ntfy.sh)",
+      "Bash(bash:*)",
+      "Bash(/Users/jeoffrey/Documents/Workspaces/shiki/scripts/shikki-approval.sh:*)",
+      "Bash(/Users/jeoffrey/Documents/Workspaces/shiki/shikki notify:*)",
+      "Bash(./shikki notify:*)",
+      "Bash(rm:*)",
+      "Bash(gh api:*)",
+      "Bash(xargs basename:*)",
+      "Bash(python3:*)",
+      "Bash(do echo:*)",
+      "Bash(zip:*)",
+      "Read(//private/tmp/EDL/**)",
+      "Read(//tmp/EDL/**)",
+      "Bash(xcodebuild:*)",
+      "Bash(xcrun simctl:*)",
+      "Bash(cp:*)",
+      "WebFetch(domain:webflow.com)",
+      "WebFetch(domain:blast-6abc35.webflow.io)",
+      "Bash(file:*)",
+      "Read(//Users/jeoffrey/.claude/**)",
+      "Read(//Users/jeoffrey/**)",
+      "Bash(OBYW=\"/Users/jeoffrey/Documents/Workspaces/shiki/projects/obyw-one\")",
+      "Bash(cp \"$OBYW/index.html\" \"$OBYW/landings/obyw.one/\")",
+      "Bash(cp -r \"$OBYW/css\" \"$OBYW/landings/obyw.one/\")",
+      "Bash(cp -r \"$OBYW/js\" \"$OBYW/landings/obyw.one/\")",
+      "Bash(cp -r \"$OBYW/assets\" \"$OBYW/landings/obyw.one/\")",
+      "Read(//Users/jeoffrey/Documents/Workspaces/shiki/projects/obyw-one/$OBYW/**)",
+      "WebFetch(domain:www.comaps.app)",
+      "WebFetch(domain:organicmaps.app)",
+      "WebFetch(domain:localhost)",
+      "WebFetch(domain:garagehq.deuxfleurs.fr)",
+      "WebFetch(domain:yggdrasil-network.github.io)",
+      "WebFetch(domain:publicpeers.neilalexander.dev)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:www.ville-biscarrosse.fr)",
+      "WebFetch(domain:faster.dev)",
+      "WebFetch(domain:www.youtube.com)",
+      "WebFetch(domain:depot.dev)",
+      "WebFetch(domain:alexpasmantier.github.io)",
+      "mcp__shikki-db__shiki_save_decision",
+      "WebFetch(domain:www.crafterslab.dev)",
+      "WebFetch(domain:www.anthropic.com)",
+      "WebFetch(domain:www.vastdata.com)",
+      "WebFetch(domain:x.com)",
+      "WebFetch(domain:heroui.com)",
+      "WebFetch(domain:www.heroui.com)",
+      "mcp__shikki-db__shiki_save_event",
+      "WebFetch(domain:nitter.net)",
+      "WebFetch(domain:xcancel.com)",
+      "mcp__shikki-db__shiki_save_context",
+      "WebFetch(domain:youtu.be)",
+      "mcp__shikki-db__shiki_health",
+      "mcp__shikki-db__shiki_get_plans",
+      "mcp__shikki-db__shiki_search",
+      "mcp__shikki-db__shiki_save_plan",
+      "mcp__shiki-db__shiki_save_event",
+      "mcp__shiki-db__shiki_get_context",
+      "mcp__shiki-db__shiki_search",
+      "Skill(schedule)",
+      "WebFetch(domain:kyutai.org)",
+      "WebFetch(domain:mistral.ai)",
+      "WebFetch(domain:gradium.ai)",
+      "WebFetch(domain:moshi.chat)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "shikki-db"
+  ],
+  "hooks": {
+    "PermissionRequest": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/jeoffrey/Documents/Workspaces/shiki/scripts/shikki-approval.sh",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/jeoffrey/Documents/Workspaces/shiki/scripts/shikki-idle.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/jeoffrey/Documents/Workspaces/shiki/scripts/shikki-activity.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  },
+  "sandbox": {
+    "enabled": false,
+    "autoAllowBashIfSandboxed": false
+  }
+}
