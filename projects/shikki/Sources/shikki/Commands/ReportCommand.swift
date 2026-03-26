@@ -113,9 +113,6 @@ struct ReportCommand: AsyncParsableCommand {
     }
 
     private func dateFormatter() -> DateFormatter {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = TimeZone.current
-        return f
+        DateFormatter.dateOnly
     }
 }

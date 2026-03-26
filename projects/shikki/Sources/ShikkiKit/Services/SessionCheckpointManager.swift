@@ -156,7 +156,7 @@ public struct PausedSessionManager: Sendable {
     public func buildResumeContext(checkpoint: PausedSession) -> String {
         var lines: [String] = []
         lines.append("# Session Resume — \(checkpoint.sessionId)")
-        lines.append("Paused: \(ISO8601DateFormatter().string(from: checkpoint.pausedAt))")
+        lines.append("Paused: \(checkpoint.pausedAt.iso8601)")
         lines.append("Branch: \(checkpoint.branch)")
         lines.append("")
 
@@ -225,7 +225,7 @@ public struct PausedSession: Codable, Sendable {
     public let personality: [String]  // behavioral observations
 
     public init(
-        sessionId: String = UUID().uuidString.prefix(8).lowercased() + "-" + ISO8601DateFormatter().string(from: Date()).prefix(10),
+        sessionId: String = UUID().uuidString.prefix(8).lowercased() + "-" + Date().dateOnly,
         pausedAt: Date = Date(),
         branch: String,
         summary: String? = nil,

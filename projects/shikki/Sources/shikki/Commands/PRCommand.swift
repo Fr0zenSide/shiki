@@ -279,7 +279,7 @@ struct PRCommand: AsyncParsableCommand {
         let cacheData: [String: Any] = [
             "_command": "shikki pr \(number) --from \(from ?? "develop")",
             "_diffSpec": diffSpec,
-            "_builtAt": ISO8601DateFormatter().string(from: Date()),
+            "_builtAt": Date().iso8601,
             "files": files,
         ]
         let cacheJSON = try JSONSerialization.data(withJSONObject: cacheData, options: [.prettyPrinted, .sortedKeys])

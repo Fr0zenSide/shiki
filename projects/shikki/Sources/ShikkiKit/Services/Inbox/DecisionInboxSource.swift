@@ -111,13 +111,10 @@ public struct SpecInboxSource: InboxDataSource {
 // MARK: - Date Parsing Helper
 
 func parseAge(from isoString: String) -> TimeInterval {
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    if let date = formatter.date(from: isoString) {
+    if let date = ISO8601DateFormatter.precise.date(from: isoString) {
         return max(0, Date().timeIntervalSince(date))
     }
-    formatter.formatOptions = [.withInternetDateTime]
-    if let date = formatter.date(from: isoString) {
+    if let date = ISO8601DateFormatter.standard.date(from: isoString) {
         return max(0, Date().timeIntervalSince(date))
     }
     return 0

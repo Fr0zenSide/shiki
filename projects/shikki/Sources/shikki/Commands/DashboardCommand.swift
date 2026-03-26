@@ -57,6 +57,6 @@ struct DashboardCommand: AsyncParsableCommand {
         }
 
         print()
-        print("\u{1B}[2m\(snapshot.sessions.count) session(s) at \(ISO8601DateFormatter().string(from: snapshot.timestamp))\u{1B}[0m")
+        print("\u{1B}[2m\(snapshot.sessions.count) session(s) at \(snapshot.timestamp.iso8601)\u{1B}[0m")
     }
 }
