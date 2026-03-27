@@ -1,6 +1,6 @@
-# Emoji Chaining + @Agent Actions
+# Shikkimoji Chaining + @Agent Actions
 
-> Addendum to [Emoji Protocol](shikki-emoji-protocol.md) — multi-command chains with agent targeting.
+> Addendum to [Shikkimoji](shikki-emoji-protocol.md) — multi-command chains with agent targeting.
 >
 > Status: **ANALYSIS** (pre-spec brainstorm synthesis)
 > Author: @t team (full brainstorm)
@@ -28,7 +28,7 @@ shikki 🌟🧠📦@t "new payment system"       # challenge + brainstorm + ship
 
 ### @Sensei (Architecture) — 2 Ideas
 
-**1. Left-to-Right EmojiChain Parser**
+**1. Left-to-Right EmojiChainParser**
 
 The `EmojiRouter` currently handles single-emoji rewriting. Chaining requires a new layer: `EmojiChainParser`. It consumes a string left-to-right, greedily matching the longest registered emoji at each position (greedy-longest-match, same principle as lexer tokenization). This handles ZWJ sequences correctly — `🧙‍♂️` is longer than `🧙` so it matches first.
 
@@ -69,18 +69,19 @@ Exception: signal emoji (✅❌👍👎) at the start of a chain apply to the **
 
 **1. Chain Progress Visualization**
 
-During a chain, the user sees a horizontal pipeline indicator:
+During a chain, the user sees a Claude Code wave-style progress display:
 
 ```
-🔍 ━━━ 🌟 ─── 🧠@t
- ✓      ▸       ○
+● Wave 1/3  🔍 research ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ done
+▸ Wave 2/3  🌟 challenge ─────────────────────────────────────────
+○ Wave 3/3  🧠@t brainstorm
 
-Researching https://github.com/foo/bar...
+Challenging https://github.com/foo/bar...
 ```
 
 Each step shows: `✓` (done), `▸` (active), `○` (pending), `✗` (failed). The active step's output streams below the pipeline bar. When a step completes, its summary collapses to one line, and the next step begins.
 
-For short chains (2 steps), this is inline. For 3+ steps, the pipeline bar stays pinned at top (TUI mode) or reprints (raw terminal mode).
+**Auto-refresh is adaptive**: short chains (2 steps, fast commands) refresh every 10 seconds; complex chains (3+ steps, agent calls) refresh every 30 seconds to avoid terminal noise. In TUI mode, the pipeline bar stays pinned at top. In raw terminal mode, it reprints at each refresh interval.
 
 **2. Error Handling: Fail-Forward with Escape**
 
@@ -106,7 +107,7 @@ Unicode emoji are not single codepoints. Problems:
 
 **Mitigation**: The greedy-longest-match parser must use Unicode's emoji segmentation rules (UAX #29 extended grapheme clusters). In Swift, iterating by `Character` (which IS grapheme clusters) handles this correctly. `"🌟🧠".forEach { ... }` yields two Characters. `"👨‍👩‍👧‍👦"` yields one Character. Swift's String type is our ally here.
 
-For repeated emoji (`🌟🌟🌟`): treat as N repetitions of the same command. Three stars = three sequential challenge rounds. This is actually useful — "challenge this three times from different angles." Limit to 3 repetitions max (BR-EM-CHAIN-REPEAT-CAP).
+For repeated emoji (`🌟🌟🌟`): treat as N repetitions of the same command. Three stars = three sequential challenge rounds. This is actually useful — "challenge this three times from different angles." Maximum **3 repetitions** (BR-EM-CHAIN-REPEAT-CAP). More than 3 is rejected.
 
 **2. Conflicting Targets**
 
@@ -114,17 +115,20 @@ What if the chain mixes agent-specific commands?
 - `🗡️@Ronin🧠@Sensei` — review by Ronin, then brainstorm by Sensei?
 - Current syntax puts `@target` at the END of the emoji chain, applying to ALL steps
 
-**Decision**: One target per chain. `@target` applies to the entire chain. If you need different agents for different steps, use separate commands or pipe syntax. Rationale: the chain is one thought, one intent. Splitting agents across steps adds complexity for a rare use case. If someone truly needs Ronin-then-Sensei, two commands is clearer:
+**Decision**: One target per chain. `@target` applies to the entire chain. If you need different agents for different steps, use `&&` or `;` as bash separators for distinct commands. Rationale: the chain is one thought, one intent. Splitting agents across steps adds complexity for a rare use case. If someone truly needs Ronin-then-Sensei, two commands is clearer:
 
 ```
 shikki 🗡️@Ronin PR#42 && shikki 🧠@Sensei "review Ronin's findings"
+shikki 🗡️@Ronin PR#42 ; shikki 🌡️   # review then check status regardless of exit code
 ```
+
+The `&&` form stops on failure. The `;` form always continues.
 
 ---
 
 ### @Enso (Brand) — 1 Idea
 
-**Emoji Chaining as Language Grammar**
+**Shikkimoji Chaining as Language Grammar**
 
 The chain syntax creates a natural grammar:
 
@@ -136,13 +140,34 @@ The chain syntax creates a natural grammar:
 
 So `🔍🌟@t https://github.com/foo/bar` reads as: "research and challenge, team, this repo."
 
-This is Shikki's **sentence structure**: `[verbs]@[subject] [object]`. It's the inverse of English (SVO) — it's VSO (Verb-Subject-Object), like Welsh, Arabic, and classical Irish. This feels right for a command language: the action comes first, because that's what matters most.
+This is Shikkimoji's **sentence structure**: `[verbs]@[subject] [object]`. It's the inverse of English (SVO) — it's VSO (Verb-Subject-Object), like Welsh, Arabic, and classical Irish. This feels right for a command language: the action comes first, because that's what matters most.
 
 Lean into this. Documentation should frame chains as "sentences." The help text for chaining could say: *"Write what you want to do, who should do it, and what it's about."*
 
 ---
 
-## Pipe Syntax: Analysis
+## Team Aliases
+
+Agent targets support team aliases with defined membership:
+
+| Alias | Members |
+|-------|---------|
+| `@tech` | @Sensei, @Ronin, @Katana, @Kenshi, @Metsuke |
+| `@creative` | @Sensei, @Hanami, @Enso, @Tsubaki |
+| `@marketing` | @Shogun, @Enso, @Tsubaki, @Kintsugi |
+
+**@Sensei is a member of every team** — architecture context is always relevant. Team aliases are shorthand: `shikki 🧠@tech "CRDT tradeoffs"` dispatches to all tech team members in parallel and synthesizes their outputs.
+
+Custom team aliases can be defined in `~/.config/shikki/teams.toml`:
+
+```toml
+[teams.infra]
+members = ["Sensei", "Katana", "Kenshi"]
+```
+
+---
+
+## Pipe Syntax and --format: Analysis
 
 Two options were proposed:
 
@@ -156,22 +181,26 @@ shikki 🔍🌟🧠@t https://foo
 shikki 🔍 https://foo | 🌟 | 🧠@t
 ```
 
-### Verdict: Concatenation wins, pipes as escape hatch
+### Verdict: Concatenation wins, pipes reserved for bash
 
 **Concatenation** is the primary syntax because:
 1. Shorter — the whole point of emoji is speed
 2. Visually cohesive — one "word" of intent
 3. Matches the linguistic metaphor (one sentence, not three piped commands)
-4. Shell `|` has its own semantics — overloading it creates confusion with actual Unix pipes
+4. Shell `|` is reserved for bash piping — do NOT overload it
 
-**Pipes** exist as an explicit long-form when you need per-step arguments:
+**`|` is strictly bash piping**: `shikki 🌡️ | jq '.sessions'` works as expected — Shikki outputs JSON, jq processes it. We do not repurpose `|` for internal chain syntax. This avoids confusion and preserves composability with the Unix ecosystem.
+
+**Future `--format` flag** for structured output (reserves the design space):
 ```
-shikki 🔍 https://foo --depth=3 | 🌟 | 🧠@t
+shikki 🌡️ --format json    # machine-readable, for piping
+shikki 📊 --format html    # export board as HTML
+shikki 📊 --format md      # export as Markdown
 ```
 
-You cannot pass per-step args in concatenated form. Concatenation means all args apply to the chain as a whole. If you need `--depth=3` only on the research step, use pipe syntax.
+`--format` is output formatting only — not a chain separator. Implementation deferred post-v0.3.0.
 
-Implementation: the shell `|` creates separate processes, so pipe syntax is actually three `shikki` invocations with stdin/stdout piping. Each step reads the previous step's JSON output from stdin. This means pipe syntax works for free — each invocation is a single-emoji command that reads stdin if present. No special chain parser needed for pipes.
+Implementation: the shell `|` creates separate processes, so pipe syntax is actually separate `shikki` invocations with stdin/stdout piping. Each invocation reads the previous step's JSON output from stdin. This means pipeline composition works for free — single-emoji commands gain pipeline support by checking stdin.
 
 ---
 
@@ -181,25 +210,34 @@ Implementation: the shell `|` creates separate processes, so pipe syntax is actu
 The `EmojiChainParser` splits a single argument string into a sequence of `ChainStep` values by iterating Swift `Character` boundaries (grapheme clusters). Each Character is looked up in `EmojiRegistry.byEmoji`. Unrecognized characters terminate the emoji sequence — everything after is `@target` or args.
 
 ### BR-EM-CHAIN-02: Agent Targeting
-`@target` appears immediately after the emoji chain, before any space. Recognized targets: `@t` / `@team` / `@shi` (full team), or any agent name from `agents.md` (e.g., `@Sensei`, `@Ronin`, `@Hanami`). If no `@target`, the command uses its default agent routing.
+`@target` appears immediately after the emoji chain, before any space. Recognized targets: `@t` / `@team` / `@shi` (full team), named team aliases (`@tech`, `@creative`, `@marketing`), or any agent name from `agents.md` (e.g., `@Sensei`, `@Ronin`, `@Hanami`). If no `@target`, the command uses its default agent routing.
 
 ### BR-EM-CHAIN-03: Sequential Pipeline Execution
 Chain steps execute left-to-right. Each step receives the prior step's `StepOutput` as context. Steps do not run in parallel. The chain halts on abort; skips on non-interactive failure.
 
 ### BR-EM-CHAIN-04: Single Target per Chain
-One `@target` applies to the entire chain. Mixed per-step targeting is not supported. Use separate commands or pipe syntax for multi-agent workflows.
+One `@target` applies to the entire chain. Mixed per-step targeting is not supported. Use `&&` or `;` bash separators for multi-agent workflows across separate commands.
 
 ### BR-EM-CHAIN-05: Repetition Cap
-The same emoji repeated N times (e.g., `🌟🌟🌟`) runs that command N times sequentially, each receiving the previous iteration's output. Maximum 3 repetitions. More than 3 is an error: "Chain repetition limit is 3. Use a loop or separate commands."
+The same emoji repeated N times (e.g., `🌟🌟🌟`) runs that command N times sequentially, each receiving the previous iteration's output. **Maximum 3 repetitions.** More than 3 is an error: "Chain repetition limit is 3. Use a loop or separate commands."
 
 ### BR-EM-CHAIN-06: Destructive Emoji in Chains
 Destructive emoji (❌, ⏪) cannot appear in chains. They must be standalone commands. `❌🚀` is rejected with: "Destructive commands cannot be chained. Run `shikki ❌` separately." This extends BR-EM-16.
 
-### BR-EM-CHAIN-07: Pipe Syntax
-Shell pipe (`|`) between `shikki` invocations is supported implicitly. Each invocation reads `StepOutput` JSON from stdin if present. No special chain handling needed — single-emoji commands gain pipeline support by checking stdin.
+### BR-EM-CHAIN-07: Bash Pipe Passthrough
+Shell pipe (`|`) between `shikki` invocations is bash piping — Shikki does not intercept it. Each invocation reads `StepOutput` JSON from stdin if present. No special chain handling needed — single-emoji commands gain pipeline support by checking stdin.
 
 ### BR-EM-CHAIN-08: Args Apply to Chain
-In concatenated syntax, trailing text/args apply to the chain as a whole (passed to the first step, then context-forwarded). In pipe syntax, args apply per-step.
+In concatenated syntax, trailing text/args apply to the chain as a whole (passed to the first step, then context-forwarded). Per-step args require separate commands with `&&` or `;`.
+
+### BR-EM-CHAIN-09: Ambiguous Chain Confirmation
+For chains of 3+ emoji where the intent is not obvious (detected by LLM intent classifier), Shikki may prompt: "You're about to run [challenge → brainstorm → ship]. Is that right? Y/n". Default is Y (confirm with Enter). In non-interactive mode, always proceed without prompt. The LLM intent classifier runs locally and only fires when confidence is below threshold.
+
+### BR-EM-CHAIN-10: `--format` Flag (Future)
+`--format json|html|md` controls output serialization format. Reserved design space — not implemented in v0.3.0. Do not repurpose `|` for format switching.
+
+### BR-EM-CHAIN-11: Team Aliases
+Named team aliases (`@tech`, `@creative`, `@marketing`) dispatch to all members in parallel and synthesize outputs. Custom aliases defined in `~/.config/shikki/teams.toml`. @Sensei is present in every built-in team.
 
 ---
 
@@ -218,16 +256,18 @@ public struct EmojiChain: Sendable {
 
 public struct ChainStep: Sendable {
     public let entry: EmojiRegistry.Entry
-    public let repetition: Int  // 1 for normal, 2-3 for repeats
+    public let repetition: Int  // 1 for normal, 2-3 for repeats (max 3)
 }
 
 public enum AgentTarget: Sendable, Equatable {
     case team
+    case namedTeam(String)   // @tech, @creative, @marketing
     case agent(String)
 
     public init?(string: String) {
         switch string.lowercased() {
         case "t", "team", "shi": self = .team
+        case "tech", "creative", "marketing": self = .namedTeam(string.lowercased())
         default: self = .agent(string)
         }
     }
@@ -281,12 +321,17 @@ public struct ChainExecutor {
 | 30 | `testChainParserAgentTarget` — "🧠@Sensei" → chain + .agent("Sensei") | BR-EM-CHAIN-02 |
 | 31 | `testChainParserWithArgs` — "🔍🌟@t https://foo" → chain + args | BR-EM-CHAIN-08 |
 | 32 | `testRepetition` — "🌟🌟🌟" → 3x challenge | BR-EM-CHAIN-05 |
-| 33 | `testRepetitionCap` — "🌟🌟🌟🌟" → error | BR-EM-CHAIN-05 |
+| 33 | `testRepetitionCap` — "🌟🌟🌟🌟" → error (max 3) | BR-EM-CHAIN-05 |
 | 34 | `testDestructiveInChainRejected` — "❌🚀" → error | BR-EM-CHAIN-06 |
 | 35 | `testSingleEmojiUnchanged` — "🥕" → same as before (no chain) | Backward compat |
 | 36 | `testZWJNotSplitInChain` — "🧙‍♂️🌟" → [wizard, challenge] not [wizard-broken, star] | BR-EM-CHAIN-01 + BR-EM-12 |
 | 37 | `testStdinPipelineInput` — StepOutput JSON on stdin → consumed as input | BR-EM-CHAIN-07 |
-| 38 | `testChainProgressRendering` — pipeline bar snapshot | @Hanami UX |
+| 38 | `testChainProgressRendering` — Claude Code wave-style progress bar snapshot | BR-EM-CHAIN-09 + @Hanami UX |
+| 39 | `testAdaptiveRefreshShortChain` — 2-step chain refresh interval = 10s | BR-EM-CHAIN-09 |
+| 40 | `testAdaptiveRefreshComplexChain` — 3+ step agent chain refresh interval = 30s | BR-EM-CHAIN-09 |
+| 41 | `testTeamAliasExpansion` — @tech → [Sensei, Ronin, Katana, Kenshi, Metsuke] | BR-EM-CHAIN-11 |
+| 42 | `testSenseiInAllTeams` — @creative and @marketing both include Sensei | BR-EM-CHAIN-11 |
+| 43 | `testAmbiguousChainPrompt` — long chain below confidence threshold → Y/n prompt | BR-EM-CHAIN-09 |
 
 ---
 
@@ -299,6 +344,8 @@ public struct ChainExecutor {
 3. **Chain history storage.** Should the EventBus log the chain as one event or N events? Proposal: one `chain_executed` event with steps array, plus individual step events for granular tracking.
 
 4. **Autocomplete.** How does shell tab-completion work for chains? It can't — emoji are pasted or typed via OS emoji picker, not tab-completed. This is fine. Chains are for power users who know the emoji.
+
+5. **LLM intent detection threshold.** What confidence score triggers the "Is that right?" prompt for ambiguous chains? Proposed: < 0.7. Needs calibration against real usage.
 
 ---
 
