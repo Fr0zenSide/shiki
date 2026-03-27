@@ -1,4 +1,4 @@
-# Shikki Emoji Protocol
+# Feature: Shikkimoji — The Emoji Language for Shikki
 
 > Emoji-first command interface — faster to type, more expressive, alive.
 >
@@ -9,12 +9,26 @@
 
 ---
 
+## Brand Family
+
+Shikkimoji lives within the Shikki brand family:
+
+| Product | Role |
+|---------|------|
+| **Shikki** | BUILD — the CLI orchestrator |
+| **Kintsugi** | DESIGN — the design system |
+| **WabiSabi** | PRESENT — the iOS app |
+| **Moto** | AUTHENTICATE — auth layer |
+| **Shikkimoji** | COMMUNICATE — the emoji language |
+
+---
+
 ## Phase 1: Team Brainstorm
 
 ### @Hanami (UX) — 3 Ideas
 
 **1. Emoji as Muscle Memory, Not Novelty**
-Emoji commands must feel like keyboard shortcuts, not gimmicks. The mapping should be *associative* — the emoji instantly evokes the action. A carrot (🥕) for doctor works because "eat your veggies = stay healthy." If a user has to think "wait, what was the thermometer one again?", the protocol fails. Every emoji must pass the **3-second recall test**: can you remember what it does after seeing it once?
+Emoji commands must feel like keyboard shortcuts, not gimmicks. The mapping should be *associative* — the emoji instantly evokes the action. A carrot (🥕) for doctor works because of the classic Bugs Bunny "What's up, doc?" — playful, questioning, and instantly memorable. If a user has to think "wait, what was the thermometer one again?", the protocol fails. Every emoji must pass the **3-second recall test**: can you remember what it does after seeing it once?
 
 **2. Text Always Works**
 Emoji are an *acceleration layer*, never a gate. Every emoji command MUST have a text equivalent that works identically. The help output (`shikki help` or 📃) should show both side by side. Tab-completion in the shell should suggest emoji after the text command, and vice versa. Non-emoji users lose nothing. Emoji users gain speed and joy.
@@ -26,8 +40,12 @@ On startup, Shikki's splash/welcome screen should show the 5 most-used emoji com
 
 ### @Sensei (Architecture) — 2 Ideas
 
-**1. EmojiRouter as Pre-Parser**
-Swift ArgumentParser does not natively support emoji as subcommand names (they work in `commandName` strings but are fragile across terminals). Instead, implement an `EmojiRouter` that intercepts `CommandLine.arguments` in `ShikkiCommand.main()` *before* `parseAsRoot()`. The router maps emoji to their text equivalents, rewrites argv, and lets ArgumentParser handle the rest. This keeps ArgumentParser clean and makes emoji a zero-cost layer.
+**1. EmojiRouter as Pre-Parser — Dual Strategy**
+Swift ArgumentParser does not natively support emoji as subcommand names (they work in `commandName` strings but are fragile across terminals). The strategy is two-pronged:
+
+**Now: EmojiRouter SPM package** — implement `EmojiRouter` as a standalone SPM package that intercepts `CommandLine.arguments` in `ShikkiCommand.main()` *before* `parseAsRoot()`. The router maps emoji to their text equivalents, rewrites argv, and lets ArgumentParser handle the rest. This keeps ArgumentParser clean and makes emoji a zero-cost layer. Ship this immediately.
+
+**Later: Fork ArgumentParser** — nobody has submitted native emoji subcommand support to Apple's `swift-argument-parser` yet. This is an opportunity. After `EmojiRouter` proves the concept in production, contribute a PR to apple/swift-argument-parser adding first-class emoji command support. We'd be the first to do this.
 
 ```swift
 // In ShikkiCommand.main(), before parseAsRoot():
@@ -55,11 +73,11 @@ Emoji commands are inherently shareable. A screenshot of `shikki 🚀` deploying
 ### @Enso (Brand) — 2 Ideas
 
 **1. Emoji as Shikki's Emotional Vocabulary**
-Shikki is not a cold tool — it's a professional companion. The emoji protocol makes that tangible. Each emoji is a *word* in Shikki's language. The carrot says "let me check on you." The brain says "let's think together." The rocket says "let's go." This isn't decoration — it's the product's personality expressed through interaction design. The protocol should feel like a conversation shorthand between you and your tool.
+Shikki is not a cold tool — it's a professional companion. The emoji protocol makes that tangible. Each emoji is a *word* in Shikki's language. The carrot says "let me check on you" (Bugs Bunny style — "What's up, doc?"). The brain says "let's think together." The rocket says "let's go." This isn't decoration — it's the product's personality expressed through interaction design. The protocol should feel like a conversation shorthand between you and your tool.
 
 **2. The Soul Emojis**
 Every brand has core symbols. Shikki's soul emojis are:
-- 🥕 — Health (the diagnostic carrot, playful and distinctive)
+- 🥕 — Health (the diagnostic carrot, Bugs Bunny energy — playful and distinctive)
 - 🧠 — Intelligence (the team brain, collective thinking)
 - 🚀 — Momentum (shipping, executing, moving forward)
 - 🌟 — Excellence (the challenge star, pushing quality higher)
@@ -74,7 +92,10 @@ These four should appear in the logo, documentation, and splash screen. They ARE
 
 | Emoji | Command | Args | Description |
 |-------|---------|------|-------------|
-| 🥕 | `doctor` | — | Diagnostic health check |
+| 🥕 | `doctor` | — | Diagnostic health check ("What's up, doc?") |
+| 🐰 | `doctor` | — | Doctor alias (Bugs Bunny) |
+| 🐰🥕 | `doctor` | — | Doctor alias (Bugs Bunny with carrot) |
+| 🥕🐰 | `doctor` | — | Doctor alias (carrot + rabbit variant) |
 | 🧠 | `brain` | `<prompt>` | Brainstorm with @t team |
 | 🌟 | `challenge` | `<prompt>` | Challenge session with @t team (Easter egg!) |
 | 🚀 | `wave` | `[--resume]` | Run next waves/tasks |
@@ -122,7 +143,7 @@ These are daily actions missing from the original map:
 ## Phase 3: Feature Brief
 
 ### What
-An emoji-first command interface for Shikki that maps single emoji (or emoji + arguments) to full CLI commands. Emoji are parsed before ArgumentParser sees them, rewritten to text equivalents, and executed normally. The system is bidirectional: emoji appear in command output too.
+An emoji-first command interface for Shikki that maps single emoji (or emoji + arguments) to full CLI commands. Emoji are parsed before ArgumentParser sees them, rewritten to text equivalents, and executed normally. The system is bidirectional: emoji appear in command output too. Named **Shikkimoji** (漆器文字) — the emoji language of Shikki.
 
 ### Why
 1. **Speed** — One emoji is faster than typing a multi-character command
@@ -199,7 +220,12 @@ Emoji are multi-byte Unicode. The router must compare using `String` equality (n
 Some terminals render emoji as double-width, some as single. The protocol does not attempt to fix terminal rendering — it works at the argument level. Emoji in output headers use the ANSI-aware padding already in StatusRenderer/ShipRenderer.
 
 ### BR-EM-14: Focus Mode
-🔇 enters focus mode: suppresses ntfy notifications, queues inbox items instead of interrupting, and sets a tmux status indicator. Optional `[duration]` argument (e.g., `shikki 🔇 45m`). Auto-exits on timer expiry or manual `shikki 🔇` toggle.
+🔇 enters focus mode with explicit duration support:
+- `shikki 🔇 20m` — focus for 20 minutes
+- `shikki 🔇` (no duration) — show elapsed time since focus mode was enabled
+- At timer expiry: popup "Want more? Y/N". Y extends by the same duration, N exits focus mode and suggests a ☕ break
+- Focus mode suppresses ntfy notifications, queues inbox items instead of interrupting, and sets a tmux status indicator
+- Manual toggle: `shikki 🔇` again exits focus mode early (same behavior as before)
 
 ### BR-EM-15: Undo via Checkpoint
 ⏪ triggers checkpoint-based undo. Without arguments, it shows the last 5 checkpoints. With a UUID, it restores that specific checkpoint. Delegates to `CheckpointManager.restore()`.
@@ -209,6 +235,19 @@ Following BR-43 (never auto-correct to "stop"), the emoji router must NEVER auto
 
 ### BR-EM-17: Shell Alias Generation
 `shikki doctor --emit-aliases` (or a dedicated setup command) can generate shell aliases for users who prefer typing `:carrot:` instead of pasting emoji. Optional convenience, not required for core protocol.
+
+### BR-EM-18: Carrot/Rabbit Aliases
+🥕, 🐰, 🐰🥕, and 🥕🐰 all map to `doctor`. The Bugs Bunny "What's up, doc?" reference is the soul of this command — the rabbit and carrot variants are easter eggs for users who know the joke. All four are registered in `EmojiRegistry` and treated as first-class aliases.
+
+### BR-EM-19: Reaction System
+Slack/iMessage-style reactions on tasks, agent outputs, and decisions. A reaction (using any signal emoji) can target a specific sub-task UUID:
+
+```
+shikki ✅ <task-uuid>   # validate a specific task
+shikki 👍 <output-uuid> # like a specific agent output
+```
+
+Reactions are stored in `quality_signals` and feed the learning loop. Sub-task targeting means reactions are granular — reacting to a sub-task does not automatically react to its parent.
 
 ---
 
@@ -227,7 +266,7 @@ public enum EmojiRegistry {
     }
 
     public enum Category: String, Sendable, CaseIterable {
-        case diagnostic   // 🥕 🌡️ 🕸️
+        case diagnostic   // 🥕 🐰 🌡️ 🕸️
         case workflow      // 🚀 📦 ✏️ ⏸️ ▶️ 🔇
         case intelligence  // 🧠 🌟 🤔 🤠 🧙‍♂️ 🔍 🎯 🏗️
         case signals       // ✅ ❌ 👍 👎
@@ -239,7 +278,13 @@ public enum EmojiRegistry {
     public static let all: [Entry] = [
         // Diagnostic
         Entry(emoji: "🥕", command: "doctor", category: .diagnostic, acceptsArgs: false,
-              description: "Health check"),
+              description: "Health check (\"What's up, doc?\")"),
+        Entry(emoji: "🐰", command: "doctor", category: .diagnostic, acceptsArgs: false,
+              description: "Doctor alias (Bugs Bunny)"),
+        Entry(emoji: "🐰🥕", command: "doctor", category: .diagnostic, acceptsArgs: false,
+              description: "Doctor alias (Bugs Bunny with carrot)"),
+        Entry(emoji: "🥕🐰", command: "doctor", category: .diagnostic, acceptsArgs: false,
+              description: "Doctor alias (carrot + rabbit variant)"),
         Entry(emoji: "🌡️", command: "status", category: .diagnostic, acceptsArgs: false,
               description: "Status overview"),
         Entry(emoji: "🕸️", command: "nodes", category: .diagnostic, acceptsArgs: false,
@@ -257,7 +302,7 @@ public enum EmojiRegistry {
         Entry(emoji: "▶️", command: "restart", category: .workflow, acceptsArgs: false,
               description: "Restart/resume"),
         Entry(emoji: "🔇", command: "focus", category: .workflow, acceptsArgs: true,
-              description: "Focus mode"),
+              description: "Focus mode (e.g. 🔇 20m)"),
 
         // Intelligence
         Entry(emoji: "🧠", command: "brain", category: .intelligence, acceptsArgs: true,
@@ -426,75 +471,82 @@ CREATE INDEX idx_quality_signals_type ON quality_signals(signal_type);
 | 8 | `testVariationSelectorStripping` — ⏰ with/without VS16 | BR-EM-12 multi-byte safety |
 | 9 | `testZWJSequence` — 🧙‍♂️ (with ZWJ) → wizard | BR-EM-12 ZWJ handling |
 | 10 | `testMultipleEmojiAliases` — ⚡️ and 📨 both → inbox | BR-EM-02 alias support |
+| 11 | `testRabbitAlias` — 🐰 → doctor | BR-EM-18 Bugs Bunny alias |
+| 12 | `testRabbitCarrotAlias` — 🐰🥕 → doctor | BR-EM-18 compound alias |
+| 13 | `testCarrotRabbitAlias` — 🥕🐰 → doctor | BR-EM-18 compound alias variant |
 
 ### Unit Tests (EmojiRegistryTests.swift)
 
 | # | Test | Validates |
 |---|------|-----------|
-| 11 | `testAllEntriesHaveUniqueEmoji` — no duplicate emoji keys | BR-EM-02 registry integrity |
-| 12 | `testByCommandReverseLookup` — every command maps back to an emoji | BR-EM-08 bidirectional |
-| 13 | `testCategoryCoverage` — every category has at least one entry | BR-EM-02 completeness |
-| 14 | `testAllCommandsExistInShikki` — registry commands match known subcommands | BR-EM-03 sync check |
+| 14 | `testAllEntriesHaveUniqueEmoji` — no duplicate emoji keys (excluding intentional aliases) | BR-EM-02 registry integrity |
+| 15 | `testByCommandReverseLookup` — every command maps back to an emoji | BR-EM-08 bidirectional |
+| 16 | `testCategoryCoverage` — every category has at least one entry | BR-EM-02 completeness |
+| 17 | `testAllCommandsExistInShikki` — registry commands match known subcommands | BR-EM-03 sync check |
 
 ### Unit Tests (Signal Storage)
 
 | # | Test | Validates |
 |---|------|-----------|
-| 15 | `testValidateSignalCreatesEntry` — ✅ + UUID → DB insert | BR-EM-06 |
-| 16 | `testInvalidateSignalCreatesEntry` — ❌ + UUID → DB insert | BR-EM-06 |
-| 17 | `testLikeSignalCreatesEntry` — 👍 + text → DB insert | BR-EM-07 |
-| 18 | `testDislikeSignalCreatesEntry` — 👎 + text → DB insert | BR-EM-07 |
+| 18 | `testValidateSignalCreatesEntry` — ✅ + UUID → DB insert | BR-EM-06 |
+| 19 | `testInvalidateSignalCreatesEntry` — ❌ + UUID → DB insert | BR-EM-06 |
+| 20 | `testLikeSignalCreatesEntry` — 👍 + text → DB insert | BR-EM-07 |
+| 21 | `testDislikeSignalCreatesEntry` — 👎 + text → DB insert | BR-EM-07 |
 
 ### Integration Tests
 
 | # | Test | Validates |
 |---|------|-----------|
-| 19 | `testEndToEndEmojiDoctor` — full `shikki 🥕` invocation | Full pipeline |
-| 20 | `testEndToEndEmojiWithPrompt` — `shikki 🧠 "test"` invocation | Args passthrough |
-| 21 | `testEmojiInOutputHeaders` — status output contains 🌡️ | BR-EM-08 bidirectional rendering |
-| 22 | `testHelpShowsEmojiTable` — help output contains emoji column | BR-EM-09 |
-| 23 | `testFocusModeToggle` — 🔇 enables, 🔇 again disables | BR-EM-14 |
-| 24 | `testDestructiveEmojiNoAutoCorrect` — near-miss to ❌ rejected | BR-EM-16 safety |
+| 22 | `testEndToEndEmojiDoctor` — full `shikki 🥕` invocation | Full pipeline |
+| 23 | `testEndToEndEmojiWithPrompt` — `shikki 🧠 "test"` invocation | Args passthrough |
+| 24 | `testEmojiInOutputHeaders` — status output contains 🌡️ | BR-EM-08 bidirectional rendering |
+| 25 | `testHelpShowsEmojiTable` — help output contains emoji column | BR-EM-09 |
+| 26 | `testFocusModeWithDuration` — 🔇 20m starts timer, expires with popup | BR-EM-14 |
+| 27 | `testFocusModeNoArgShowsElapsed` — 🔇 with no args shows elapsed | BR-EM-14 |
+| 28 | `testFocusModeToggle` — 🔇 then 🔇 again disables | BR-EM-14 |
+| 29 | `testDestructiveEmojiNoAutoCorrect` — near-miss to ❌ rejected | BR-EM-16 safety |
+| 30 | `testReactionTargetsSubTask` — ✅ <subtask-uuid> stored with sub-task reference | BR-EM-19 |
 
 ### Snapshot Tests
 
 | # | Test | Validates |
 |---|------|-----------|
-| 25 | `testHelpEmojiCheatSheet` — golden snapshot of help output | BR-EM-09 visual regression |
-| 26 | `testSplashStarterKit` — splash shows 🥕 🌡️ 📊 🚀 📃 | BR-EM-10 |
+| 31 | `testHelpEmojiCheatSheet` — golden snapshot of help output | BR-EM-09 visual regression |
+| 32 | `testSplashStarterKit` — splash shows 🥕 🌡️ 📊 🚀 📃 | BR-EM-10 |
 
 ---
 
 ## Implementation Waves
 
-### Wave 1: Core Router (~200 LOC, ~14 tests)
-- `EmojiRegistry.swift` — full registry with all entries
+### Wave 1: Core Router (~200 LOC, ~17 tests)
+- `EmojiRegistry.swift` — full registry with all entries including 🐰 aliases
 - `EmojiRouter.swift` — argv rewriter with VS16/ZWJ normalization
 - Integration in `ShikkiCommand.main()` — 3 lines
-- Tests: #1-14
+- Tests: #1-17
 
 ### Wave 2: Signal Commands (~150 LOC, ~4 tests)
 - `ValidateCommand.swift`, `InvalidateCommand.swift`, `LikeCommand.swift`, `DislikeCommand.swift`
-- `QualitySignalService.swift` — DB persistence
+- `QualitySignalService.swift` — DB persistence with sub-task targeting (BR-EM-19)
 - `quality_signals` migration
-- Tests: #15-18
+- Tests: #18-21
 
 ### Wave 3: Bidirectional Rendering + Help (~100 LOC, ~4 tests)
 - Update renderers to use `EmojiRegistry.byCommand` for headers
 - Emoji cheat sheet in help output
 - Splash screen starter kit
-- Tests: #21-22, #25-26
+- Tests: #24-25, #31-32
 
-### Wave 4: New Commands (~200 LOC, ~4 tests)
-- `FocusCommand.swift` (🔇)
+### Wave 4: New Commands (~250 LOC, ~7 tests)
+- `FocusCommand.swift` (🔇) with duration + expiry popup + ☕ suggestion
 - `UndoCommand.swift` (⏪)
 - `BrainCommand.swift` (🧠), `ChallengeCommand.swift` (🌟)
-- Tests: #19-20, #23-24
+- Tests: #22-23, #26-30
 
 ### Wave 5: Polish (~50 LOC)
 - Shell alias generation (BR-EM-17)
 - Splash screen personalization (top 5 used)
 - TypoCorrector emoji extension (BR-EM-11)
+- Fork ArgumentParser — submit PR to apple/swift-argument-parser for native emoji subcommand support
 
 ---
 
@@ -503,22 +555,23 @@ CREATE INDEX idx_quality_signals_type ON quality_signals(signal_type);
 ```
 DIAGNOSTICS          WORKFLOW             INTELLIGENCE
 🥕  doctor           🚀  wave/run         🧠  brainstorm
-🌡️  status           📦  ship             🌟  challenge
-🕸️  nodes            ✏️  spec             🤔  explain
-                     ⏸️  pause            🤠  ingest
-SIGNALS              ▶️  restart          🧙‍♂️  wizard
-✅  validate          🔇  focus            🔍  research
-❌  invalidate                             🎯  co-direct
-👍  like             NAVIGATION            🏗️  decide
-👎  dislike          📊  board             🗡️  review
-                     ⚡️  inbox
-META                 📋  backlog
-📃  help             🔄  history
-⏰  schedule         📝  log
-💾  save context     🔔  wake
+🐰  doctor (alias)   📦  ship             🌟  challenge
+🌡️  status           ✏️  spec             🤔  explain
+🕸️  nodes            ⏸️  pause            🤠  ingest
+                     ▶️  restart          🧙‍♂️  wizard
+SIGNALS              🔇  focus [dur]      🔍  research
+✅  validate                              🎯  co-direct
+❌  invalidate       NAVIGATION            🏗️  decide
+👍  like             📊  board             🗡️  review
+👎  dislike          ⚡️  inbox
+                     📋  backlog
+META                 🔄  history
+📃  help             📝  log
+⏰  schedule         🔔  wake
+💾  save context
 📂  load context
 ⏪  undo
 ```
 
 > "The best interface is the one that feels like a conversation."
-> — Shikki Emoji Protocol, v1
+> — Shikkimoji (漆器文字), v1
