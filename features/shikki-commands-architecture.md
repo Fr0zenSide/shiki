@@ -295,19 +295,27 @@ For `/spec`, `/wave`, `/ship`, `/review` — the Swift code is the authoritative
 
 The most critical gap: `shikki ship` (Swift) and `/pre-pr` (skill) are parallel implementations of "quality gate before shipping". This must converge.
 
-Option A: `shikki ship` absorbs `/pre-pr` gates. The review gates (CTO review, slop scan, test validation) become `ShipGate` implementations in Swift that invoke the skill prompts as their LLM step.
+**Decision (@Daimyo): Option A + B combined.**
 
-Option B: Create `shikki review --pre-pr` as the pre-ship gate command, and `shikki ship` requires passing `shikki review --pre-pr` first (checked via lockfile or ShikiDB record).
+Option A: `shi ship` absorbs `/pre-pr` gates. The review gates (CTO review, slop scan, test validation) become `ShipGate` implementations in Swift that invoke the skill prompts as their LLM step. Gate pass/fail is determined by Swift, not by Claude saying "this looks good".
 
-Recommendation: **Option A**. One command, one pipeline. Gates call LLM prompts (skills) for the reasoning steps. Gate pass/fail is determined by Swift, not by Claude saying "this looks good".
+Option B: `shi ship --pre-pr` and `shi review --pre-pr` also exist as explicit commands. `shi ship` REQUIRES pre-pr to have passed — if not run yet, it runs automatically before shipping. If pre-pr fails, ship aborts with explicit message: "Run `shi ship --pre-pr` to fix quality gates first."
+
+**Rule: No release without pre-pr. Ever. Quality is not optional.**
+
+The only exception: `shi fast <prompt>` (see Wave 3) which bundles quick + yolo + run + ship --pre-pr in one command for fast iteration. Even then, pre-pr runs — it's just automatic.
 
 **Wave 2 — `ReviewCommand.swift` (P0, already TODOed)**
 
 `ShikkiCommand.swift` line 28 has `// TODO: rebase on top of PR #29 cleanup`. This is the `ReviewCommand` that was removed. Restore it — it should be the compiled entry point for PR review, with `pr-review.md` as its system prompt body.
 
-**Wave 3 — `shikki quick` Swift command (P1)**
+**Wave 3 — `shi fast` + `shi quick` Swift commands (P1)**
 
-Create a lightweight `QuickCommand.swift` that maps to `WaveCommand` with a quick-flow preset (no spec required, single-agent, no gate review). The `/quick-flow` skill becomes its prompt body.
+Two fast-path commands:
+- `shi quick <prompt>` — small, well-understood change. Single-agent, no spec required, no gate review. The `/quick-flow` skill becomes its prompt body.
+- `shi fast <prompt>` — the ultimate shortcut: quick + --yolo + run + ship --pre-pr. One command, zero stops. For when you know exactly what you want and trust the pipeline. Emoji: 🌪️
+
+Name challenge for @t: quick vs fast vs quick-flow vs 🌪️. Current proposal: `quick` = careful quick, `fast` = yolo quick + ship.
 
 **Wave 4 — Skill version manifest (P2)**
 
@@ -327,7 +335,7 @@ Extend `ShikkiCommand.swift` to output a rich help screen that shows compiled co
 
 3. **Skills are prompt bodies, not command definitions.** Removing a skill file must not break any compiled command. The compiled command must gracefully degrade if its skill prompt is missing (use a fallback minimal prompt, log a warning).
 
-4. **`shikki` is the only user-facing entry point.** Claude Code skills are implementation tools. Users are never instructed to type `/pre-pr` or `/orchestrate` — they type `shikki review --pre-pr` or `shikki` (which routes to the orchestrator).
+4. **`shi` is the primary user-facing entry point.** `shikki` is a symlink to `shi` (both work identically). Claude Code skills are implementation tools. Users are never instructed to type `/pre-pr` or `/orchestrate` — they type `shi review --pre-pr` or `shi` (which routes to the orchestrator). The product is Shikki, the command is `shi` (3 chars, fast to type).
 
 5. **Skill logic migrations are accompanied by tests.** Before any skill logic moves to Swift, the target behavior must be captured in a test. No migration without a failing test first (TDD migration).
 
