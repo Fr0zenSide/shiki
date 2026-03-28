@@ -98,6 +98,10 @@ These four should appear in the logo, documentation, and splash screen. They ARE
 | 🥕🐰 | `doctor` | — | Doctor alias (carrot + rabbit variant) |
 | 🧠 | `brain` | `<prompt>` | Brainstorm with @t team |
 | 🌟 | `challenge` | `<prompt>` | Challenge session with @t team (Easter egg!) |
+| ⭐ | `challenge` | `<prompt>` | Star alternative for challenge |
+| 🌠 | `challenge` | `<prompt>` | Shooting star alternative |
+| ✨ | `challenge` | `<prompt>` | Sparkles alternative |
+| 💫 | `challenge` | `<prompt>` | Dizzy star alternative |
 | 🚀 | `wave` | `[--resume]` | Run next waves/tasks |
 | 🤠 | `ingest` | `<prompt>` | Ingest or remember with @Indy |
 | 🤔 | `explain` | `<UUID\|prompt>` | Tell me more about that |
@@ -191,7 +195,17 @@ shikki 🤔 abc123-def456
 All Unicode clock face emoji (🕐 through 🕛, plus ⏰ ⏱️ ⏲️) map to `schedule`. The router normalizes any clock-like emoji to the same command.
 
 ### BR-EM-06: Validation and Invalidation Signals
-✅ and ❌ are quality signals stored in ShikiDB. When invoked with a UUID, they update the `quality_signals` table for that entity. When invoked with free text, they create a new signal entry. These feed the learning loop and confidence scoring.
+✅ and ❌ are quality signals stored in ShikiDB. When invoked with a UUID, they update the `reactions` table for that entity. When invoked with free text, they create a new signal entry. These feed the learning loop and confidence scoring.
+
+**Generic Reaction System Architecture:**
+- Every reaction (✅❌👍👎) is linked to a UUID that points to a context entity (task, spec, event, decision, memory, agent output)
+- `reactions` table: `id`, `entity_id` (UUID), `entity_type` (task|spec|event|decision|memory|output), `reaction` (emoji), `user_id`, `created_at`, `updated_at`
+- Bidirectional: user adds reactions on any entity, system presents entities WITH their reactions
+- Reactions are mutable: updating a reaction on the same entity replaces the previous one (one state per user per entity)
+- Full chain: entity → reactions → context. Query any entity and get all reactions. Query reactions and get the full entity context.
+- Future UI: Slack/iMessage-style reaction display on tasks, agent outputs, specs, decisions
+- Reactions update in-place in DB (not append-only — one active reaction per user per entity)
+- Feeds: confidence scoring, learning loop, quality metrics, @Metsuke audits
 
 ```sql
 INSERT INTO quality_signals (entity_id, signal_type, context, created_at)
@@ -501,7 +515,7 @@ CREATE INDEX idx_quality_signals_type ON quality_signals(signal_type);
 | 23 | `testEndToEndEmojiWithPrompt` — `shikki 🧠 "test"` invocation | Args passthrough |
 | 24 | `testEmojiInOutputHeaders` — status output contains 🌡️ | BR-EM-08 bidirectional rendering |
 | 25 | `testHelpShowsEmojiTable` — help output contains emoji column | BR-EM-09 |
-| 26 | `testFocusModeWithDuration` — 🔇 20m starts timer, expires with popup | BR-EM-14 |
+| 26 | `testFocusModeWithDuration` — 🔇 10s starts timer, expires with popup (use 10s for test speed) | BR-EM-14 |
 | 27 | `testFocusModeNoArgShowsElapsed` — 🔇 with no args shows elapsed | BR-EM-14 |
 | 28 | `testFocusModeToggle` — 🔇 then 🔇 again disables | BR-EM-14 |
 | 29 | `testDestructiveEmojiNoAutoCorrect` — near-miss to ❌ rejected | BR-EM-16 safety |
