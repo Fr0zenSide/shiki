@@ -27,8 +27,14 @@ public enum SplashRenderer {
     /// - Parameters:
     ///   - version: The version string to display below the title.
     ///   - resumeContext: Optional session resume state (branch, last summary).
+    ///   - emojiShortcuts: Top emoji shortcuts to display (defaults to starter kit). BR-EM-10.
     ///   - skipSleep: If true, skip the 1-second pause (for testing).
-    public static func render(version: String, resumeContext: String? = nil, skipSleep: Bool = false) {
+    public static func render(
+        version: String,
+        resumeContext: String? = nil,
+        emojiShortcuts: [(emoji: String, command: String)]? = nil,
+        skipSleep: Bool = false
+    ) {
         guard isatty(STDIN_FILENO) == 1 else { return }
 
         TerminalOutput.clearScreen()
@@ -47,6 +53,10 @@ public enum SplashRenderer {
             print()
         }
 
+        let shortcuts = emojiShortcuts ?? EmojiRegistry.starterKit
+        print(formatEmojiShortcuts(shortcuts, dim: dim, reset: reset))
+        print()
+
         if !skipSleep {
             Thread.sleep(forTimeInterval: 1.0)
         }
@@ -54,7 +64,11 @@ public enum SplashRenderer {
 
     /// Render splash to a string (for testing/snapshot purposes).
     /// Does NOT check for TTY — always produces output.
-    public static func renderToString(version: String, resumeContext: String? = nil) -> String {
+    public static func renderToString(
+        version: String,
+        resumeContext: String? = nil,
+        emojiShortcuts: [(emoji: String, command: String)]? = nil
+    ) -> String {
         let purple = "\u{1B}[38;2;189;147;249m"
         let dim = "\u{1B}[2m"
         let reset = "\u{1B}[0m"
@@ -69,6 +83,23 @@ public enum SplashRenderer {
             lines.append("")
         }
 
+        let shortcuts = emojiShortcuts ?? EmojiRegistry.starterKit
+        lines.append(formatEmojiShortcuts(shortcuts, dim: dim, reset: reset))
+        lines.append("")
+
         return lines.joined(separator: "\n")
+    }
+
+    // MARK: - Private Helpers
+
+    /// Formats emoji shortcuts as "Quick commands: 🥕 doctor  🌡️ status  📊 board  🚀 wave  📃 help"
+    /// BR-EM-10: New users see the starter kit.
+    static func formatEmojiShortcuts(
+        _ shortcuts: [(emoji: String, command: String)],
+        dim: String,
+        reset: String
+    ) -> String {
+        let pairs = shortcuts.map { "\($0.emoji) \($0.command)" }.joined(separator: "  ")
+        return "\(dim)Quick commands: \(pairs)\(reset)"
     }
 }
