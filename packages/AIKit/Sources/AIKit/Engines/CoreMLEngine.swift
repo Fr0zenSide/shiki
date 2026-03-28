@@ -19,8 +19,13 @@ public final class CoreMLEngine: RuntimeEngine, @unchecked Sendable {
         if let dir = modelsDirectory {
             self.modelsDirectory = dir
         } else {
+            #if os(macOS)
             let home = FileManager.default.homeDirectoryForCurrentUser
             self.modelsDirectory = home.appendingPathComponent(".aikit/coreml-models", isDirectory: true)
+            #else
+            let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            self.modelsDirectory = docs.appendingPathComponent("aikit-coreml-models")
+            #endif
         }
     }
 
