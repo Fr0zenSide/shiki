@@ -97,17 +97,27 @@ The Mac app has a NavigationSplitView sidebar + detail. On iPad this maps direct
 
 ---
 
-### v2 — VPS Download Proxy (iPad downloads without Mac)
+### v2 — VPS Download Proxy + DLNA Local Streaming
 
-**What it is**: A lightweight server endpoint (Deno or Go) on the existing VPS (`92.134.242.73`) that accepts a YouTube URL, runs yt-dlp, and stores the result in an S3-compatible bucket (or directly syncs to iCloud via a Mac daemon).
+**What it is**: A lightweight server endpoint (Deno or Go) on the existing VPS (`92.134.242.73`) that accepts a YouTube URL, runs yt-dlp, and stores the video on the VPS. Plus a DLNA/minidlna-like service for streaming to local devices.
+
+**Architecture**: Mac is the master node. VPS is a storage + download node. iOS/tvOS/visionOS are companion consumers.
 
 **What it adds**:
-- "Add video" on iPad sends URL to VPS API → VPS downloads → file lands in iCloud Drive
-- Download status polling via webhook or short-poll
-- Auth: simple API key (shared secret stored in Keychain on iPad)
+- "Add video" on iPad sends URL to VPS API → VPS downloads → file stored on VPS
+- DLNA-like service on VPS or Mac for local network streaming to companions
+- Companion devices can browse the master's library and download (direct download, like from any web source)
+- Context menu on sidebar: right-click → "Get in Local" (SF Symbol: arrow.down.circle) downloads from master to companion device
+- Multi-select → "Get in Local (5)" downloads all selected to companion
+- Videos consumed offline after local download — no streaming dependency
+- Download status via webhook or short-poll
+- Auth: simple API key (shared secret stored in Keychain)
+
+**NO iCloud Drive for videos.** Videos stay on VPS or Mac local storage. Companions download via direct transfer.
 
 **Out of scope for v2**:
-- Native streaming (no re-encoding, just download + sync)
+- iCloud Drive video sync (explicitly rejected)
+- Native streaming (download first, watch offline)
 - Multiple user support
 - App Store distribution
 
@@ -116,7 +126,7 @@ The Mac app has a NavigationSplitView sidebar + detail. On iPad this maps direct
 ### Out of Scope (Both Versions)
 
 - App Store distribution until v2 is stable and playback-only mode is confirmed clean by review
-- tvOS / visionOS / watchOS targets
+- watchOS target (screen too small)
 - In-app YouTube search / browsing
 - Android / web clients
 - Any Swift-native YouTube extraction library (fragile, unmaintainable)
@@ -163,23 +173,27 @@ The Mac app has a NavigationSplitView sidebar + detail. On iPad this maps direct
 
 ---
 
-### BR-003 — iCloud Video Sync
+### BR-003 — Local Video Transfer (NO iCloud Drive for videos)
 
-**Description**: On macOS, the app must write downloaded videos to an iCloud Drive container. On iOS, the app reads from the same container, showing sync status per video.
+**Description**: Videos stay on Mac (local) or VPS. Companion devices (iPad/tvOS/visionOS) download videos via direct transfer from the master node, NOT via iCloud Drive.
 
 **Acceptance Criteria**:
-- Mac app stores videos in `FileManager.default.url(forUbiquityContainerIdentifier: "iCloud.one.obyw.BrainyTube")` when iCloud is available; falls back to `applicationSupportDirectory` when iCloud is off (with user warning)
-- iPad app reads the same container path
-- Per-video `cloudStatus` enum: `.local`, `.cloudOnly`, `.downloading(progress: Double)`, `.syncing`
-- `VideoRowView` shows a cloud icon badge when video is `cloudOnly` or `downloading`
-- Tapping "Download to iPad" on a `cloudOnly` video calls `FileManager.default.startDownloadingUbiquitousItem(at:)` and tracks progress via `NSMetadataQuery`
-- `Video` model gains a `cloudStatus` computed property derived from iCloud metadata
-- App shows an onboarding warning if `ubiquityIdentityToken == nil` (iCloud not signed in or not enabled)
+- Mac app stores videos in `applicationSupportDirectory` (unchanged from current behavior)
+- VPS stores videos downloaded via VPS proxy (v2)
+- Companion devices browse the master's library via local network API or DLNA
+- Context menu on companion: "Get in Local" (SF Symbol: `arrow.down.circle`) downloads video file from master
+- Multi-select: "Get in Local (N)" downloads all selected
+- Per-video `transferStatus` enum: `.remote`, `.downloading(progress: Double)`, `.local`
+- Downloaded videos play offline — no streaming dependency
+- iCloud used ONLY for lightweight data sync (DB metadata, preferences) — NOT video files
+- Master exposes a simple HTTP endpoint or DLNA service for file transfer
 
 **Technical notes**:
-- `NSMetadataQuery` is the correct API for tracking iCloud download progress on iOS
-- The SQLite DB (or libsql DB) itself is stored locally on each platform, not in iCloud, to avoid write conflicts. Only video files and thumbnails live in the shared iCloud container.
-- Mac side must use `NSFileCoordinator` when writing video files to the iCloud container to prevent corruption if iPad is reading simultaneously.
+- Local network discovery via Bonjour/mDNS (same as Shikki mesh protocol pattern)
+- Direct download = simple HTTP GET from master's video directory
+- No iCloud Drive entitlement needed for video files
+- DB metadata can sync via iCloud KV store (lightweight, no video data)
+- Check existing CoreKit/DataKit for libsql usage — may already have iOS patterns
 
 ---
 
@@ -219,8 +233,9 @@ The Mac app has a NavigationSplitView sidebar + detail. On iPad this maps direct
 - `PlayerViewModel` is shared with macOS target — no iOS-specific fork
 
 **Technical notes**:
-- `VideoPlayerCell` refactored to support both Mac (mouse hover for controls) and iPad (tap for controls). Use `#if os(iOS)` guards only for gesture recognizer attachment.
+- `VideoPlayerCell` refactored to support: Mac (mouse hover for controls), iPad (tap for controls), tvOS (focus-based navigation via `@FocusState` + `focusable()` modifier), visionOS (gaze + tap). Use `#if os(iOS)` / `#if os(tvOS)` / `#if os(visionOS)` guards for gesture/focus attachment.
 - `AVPlayerViewController` wrapping is acceptable for PiP on iOS vs custom `VideoPlayerLayer` on macOS
+- **PiP behavior**: see BR-007b below.
 
 ---
 
@@ -261,6 +276,20 @@ The Mac app has a NavigationSplitView sidebar + detail. On iPad this maps direct
 **Technical notes**:
 - SwiftUI `.keyboardShortcut()` works on iPadOS 15+. The existing macOS `.commands {}` approach does not exist on iOS, but `Button` with `.keyboardShortcut()` works directly in views.
 - Notification-based shortcuts (current macOS approach using `NotificationCenter`) must be replaced with direct `Button` + `.keyboardShortcut()` in the player view for iPad compatibility.
+- **`M` key** = toggle mute/unmute on active player. In grid mode: toggles on the current active audio slot. If keyboard focus/cursor is on a specific grid cell, toggle that cell instead.
+
+### BR-007b — Picture-in-Picture Lifecycle
+
+**Description**: Swipe down on any video player detaches to PiP. All other players stop. On re-attach, restore previous multi-player state.
+
+**Acceptance Criteria**:
+- Swipe down on video (single or grid cell) → detach to PiP via AVKit
+- All other running players pause immediately and store their state (currentTime, playbackRate, muted)
+- PiP video continues playing independently
+- On PiP re-attach (user taps to return) → all previously-running players resume from stored state
+- Player states stored in memory only (not persisted) — PiP is a transient mode
+- Works on iPad, iPhone (if ever supported), and macOS (native PiP)
+- `AVPictureInPictureController` for iOS, `AVPlayerView.allowsPictureInPicturePlayback` for macOS
 
 ---
 
@@ -271,13 +300,14 @@ The Mac app has a NavigationSplitView sidebar + detail. On iPad this maps direct
 **Acceptance Criteria**:
 - Library header shows "X videos · Y GB on device" badge
 - Per-video storage size shown in cell (e.g., "1.2 GB") from file attributes
-- "Remove from iPad" action in long-press context menu: deletes local copy from iCloud cache, keeps video in iCloud (file reverts to `cloudOnly` state), does NOT delete from Mac
-- "Delete" action removes from iCloud + Mac + library (requires confirmation)
+- "Remove from iPad" action in long-press context menu: deletes local copy, video stays available on master (Mac/VPS) for re-download
+- "Delete" action removes from local + master library (requires confirmation)
 - Storage sort: library sortable by size (largest first) for easy cleanup
 
 **Technical notes**:
 - File size from `URLResourceValues.fileSizeKey` on the local video file
-- "Remove from iPad" uses `FileManager.default.evictUbiquitousItem(at:)` — evicts the local cache, keeps in iCloud
+- "Remove from iPad" = simple file delete. Video metadata stays in local DB with `transferStatus = .remote`
+- No iCloud eviction API — just delete the file
 
 ---
 
@@ -298,15 +328,16 @@ The Mac app has a NavigationSplitView sidebar + detail. On iPad this maps direct
 
 ---
 
-### BR-010 — iCloud Entitlement + Provisioning
+### BR-010 — Data Sync (iCloud KV Store only, NO video files)
 
-**Description**: The iCloud container entitlement must be correctly configured for both macOS and iOS targets.
+**Description**: iCloud is used ONLY for lightweight data sync (library metadata, preferences, watch history). Video files are NEVER stored in iCloud — they stay local on Mac/VPS and are transferred via direct download.
 
 **Acceptance Criteria**:
-- `iCloud.one.obyw.BrainyTube` container declared in `Entitlements-macOS.entitlements` and `Entitlements-iOS.entitlements`
-- Both targets declare `com.apple.developer.ubiquity-kvstore-identifier` and `com.apple.developer.icloud-container-identifiers`
-- Provisioning profiles registered under OBYW.one team (Team ID: `L8NRHDDSWG` — after Developer Program enrollment) for both macOS and iOS
-- App gracefully degrades when iCloud is unavailable: falls back to local-only mode on Mac, shows "iCloud not available" empty state on iPad with setup instructions
+- `NSUbiquitousKeyValueStore` for syncing: video metadata (title, URL, channel, download date), user preferences, watch progress
+- NO `iCloud.one.obyw.BrainyTube` container for video files — no iCloud Drive usage
+- Only `com.apple.developer.ubiquity-kvstore-identifier` entitlement needed (lightweight KV, not file container)
+- App works fully without iCloud: local DB is the source of truth, iCloud KV is optional sync layer
+- Check existing CoreKit/DataKit SPM packages for libsql usage patterns — may already have iOS-compatible storage
 
 ---
 
@@ -328,17 +359,18 @@ The Mac app has a NavigationSplitView sidebar + detail. On iPad this maps direct
 | `VideoLibrary` on iOS uses iCloud container path | `videosDirectory` returns ubiquity URL on iOS |
 | `AppViewModel` on iOS has no `downloadQueue` behavior | `importURLs()` on iOS shows "Mac required" alert instead of queuing |
 
-### T-003 — iCloud Sync Integration Tests
+### T-003 — Data Sync + Local Transfer Tests
 
-Run on device pair (Mac + iPad on same Apple ID):
+Run on device pair (Mac + iPad on same network):
 
 | Test | Expected |
 |---|---|
-| Download video on Mac → appears on iPad within 5 min | Video shows in iPad library with `cloudOnly` status |
-| Tap "Download to iPad" → progress shows → video plays | `NSMetadataQuery` progress updates, video plays offline after download |
-| Delete video on iPad ("Remove from iPad") → file evicted → still in Mac library | `evictUbiquitousItem` succeeds, Mac library unchanged |
+| Download video on Mac → iPad sees it in library as `.remote` | Video metadata synced via iCloud KV, status = `.remote` |
+| Tap "Get in Local" on iPad → progress shows → video plays | Direct HTTP download from Mac, video plays offline after download |
+| "Remove from iPad" → local file deleted → still in Mac library | File deleted, metadata stays with `.remote` status, Mac unchanged |
 | Disconnect iPad from network → play already-downloaded video | AVPlayer plays from local copy, no network required |
-| iCloud unavailable (sign out) → launch app | Shows empty state with "iCloud required" guidance, no crash |
+| iCloud KV unavailable → launch app | Local DB is source of truth, no crash, library shows local-only content |
+| VPS download (v2) → iPad fetches from VPS | Same flow as Mac transfer but from VPS endpoint |
 
 ### T-004 — iPad UI Tests (Simulator)
 
@@ -366,8 +398,18 @@ Requires iPad with Magic Keyboard attached:
 | Cmd+2 | Speed = 1.5x |
 | Cmd+3 | Speed = 2x |
 | Cmd+4 | Speed = 3x |
+| M | Toggle mute/unmute on active player (grid: active audio slot or focused cell) |
 | Hold Cmd | Keyboard shortcut overlay shown by iPadOS |
 | Escape (in full-screen) | Dismiss to library |
+
+### T-005b — PiP Lifecycle Tests (Device)
+
+| Test | Expected |
+|---|---|
+| Swipe down on single player → PiP | Video continues in PiP, player view shows library |
+| Swipe down in grid mode → PiP active cell | Active cell goes PiP, other players pause, states stored |
+| Re-attach from PiP | All previously-running players resume from stored positions |
+| PiP + app background → foreground | PiP continues, re-attach restores state |
 
 ### T-006 — Storage Management Tests
 
