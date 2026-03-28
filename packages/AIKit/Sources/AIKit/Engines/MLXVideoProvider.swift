@@ -1,4 +1,4 @@
-#if canImport(Darwin)
+#if os(macOS)
 import Foundation
 
 /// Generates video from text or image prompts via mlx-video CLI.
