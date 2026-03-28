@@ -159,7 +159,12 @@ public final class PerformanceStore: @unchecked Sendable {
     }
 
     private static func defaultStorePath() -> URL {
+        #if os(macOS)
         let home = FileManager.default.homeDirectoryForCurrentUser
         return home.appendingPathComponent(".aikit/performance.json")
+        #else
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return docs.appendingPathComponent("aikit-performance.json")
+        #endif
     }
 }

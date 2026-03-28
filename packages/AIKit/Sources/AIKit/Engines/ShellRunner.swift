@@ -1,5 +1,6 @@
 import Foundation
 
+#if os(macOS)
 /// Runs a shell command asynchronously with stdout/stderr capture.
 /// Used by local engine wrappers (MLX, whisper, etc.) to shell-out to Python/CLI tools.
 public enum ShellRunner {
@@ -116,3 +117,5 @@ public enum ShellRunner {
         }
     }
 }
+
+#endif // os(macOS)

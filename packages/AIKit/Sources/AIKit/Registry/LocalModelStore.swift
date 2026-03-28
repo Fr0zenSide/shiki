@@ -27,9 +27,15 @@ public final class LocalModelStore: @unchecked Sendable {
     private let fileManager: FileManager
 
     public init(basePath: URL? = nil) {
-        let base = basePath ?? FileManager.default.homeDirectoryForCurrentUser
+        #if os(macOS)
+        let defaultBase = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".aikit")
             .appendingPathComponent("models")
+        #else
+        let defaultBase = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("aikit-models")
+        #endif
+        let base = basePath ?? defaultBase
         self.basePath = base
         self.manifestURL = base.appendingPathComponent("manifest.json")
         self.fileManager = FileManager.default
