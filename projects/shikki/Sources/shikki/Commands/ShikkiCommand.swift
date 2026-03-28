@@ -50,8 +50,10 @@ struct ShikkiCommand: AsyncParsableCommand {
     /// Note: ArgumentParser has built-in fuzzy matching for close matches (distance ~1).
     /// Our TypoCorrector adds hints for cases ArgumentParser can't auto-resolve.
     static func main() async {
+        // BR-EM-01: Emoji pre-parser — rewrite emoji argv before ArgumentParser
+        let rewrittenArgs = EmojiRouter.rewrite(CommandLine.arguments)
         do {
-            var command = try parseAsRoot()
+            var command = try parseAsRoot(rewrittenArgs.dropFirst().map { String($0) })
             if var asyncCommand = command as? AsyncParsableCommand {
                 try await asyncCommand.run()
             } else {
@@ -60,7 +62,7 @@ struct ShikkiCommand: AsyncParsableCommand {
         } catch {
             // BR-41 to BR-44: Typo correction for unknown subcommands
             // Check if the first CLI arg looks like an unknown subcommand
-            let args = Array(CommandLine.arguments.dropFirst())
+            let args = Array(rewrittenArgs.dropFirst())
             if let firstArg = args.first,
                !firstArg.hasPrefix("-"),
                !Self.configuration.subcommands.contains(where: {
