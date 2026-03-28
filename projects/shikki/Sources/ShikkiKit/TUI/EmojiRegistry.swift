@@ -172,4 +172,26 @@ public enum EmojiRegistry: Sendable {
         let stripped = str.replacingOccurrences(of: "\u{FE0F}", with: "")
         return byEmoji[stripped]
     }
+
+    // MARK: - Convenience API (compatibility)
+
+    /// Resolve an emoji string to its command name. Supports single emoji and compound aliases (🐰🥕).
+    public static func resolve(_ emoji: String) -> String? {
+        let normalized = emoji.precomposedStringWithCanonicalMapping
+        // Try direct lookup by string
+        if let entry = byEmoji[normalized] { return entry.command }
+        // Try stripping VS16
+        let stripped = normalized.replacingOccurrences(of: "\u{FE0F}", with: "")
+        if let entry = byEmoji[stripped] { return entry.command }
+        // Try single character
+        if normalized.count == 1, let char = normalized.first, let entry = lookup(char) {
+            return entry.command
+        }
+        return nil
+    }
+
+    /// All entries as (emoji, command) pairs.
+    public static func allEntries() -> [(emoji: String, command: String)] {
+        all.map { (emoji: $0.emoji, command: $0.command) }
+    }
 }
