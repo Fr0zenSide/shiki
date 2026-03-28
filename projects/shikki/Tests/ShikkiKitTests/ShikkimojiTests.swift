@@ -89,9 +89,11 @@ struct EmojiRouterTests {
         #expect(result == [])
     }
 
-    @Test("All registered emojis resolve through router")
+    @Test("All single-character emojis resolve through router")
     func routerHandlesAllRegisteredEmojis() {
         for entry in EmojiRegistry.all {
+            // Skip compound aliases (🐰🥕) — those go through ChainParser, not Router
+            guard entry.emoji.count == 1 else { continue }
             let result = EmojiRouter.rewrite(["shikki", entry.emoji])
             #expect(
                 result[1] == entry.command,

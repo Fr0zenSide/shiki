@@ -21,12 +21,15 @@ public enum EmojiRouter: Sendable {
             .precomposedStringWithCanonicalMapping
             .trimmingCharacters(in: .whitespaces)
 
-        guard let command = EmojiRegistry.resolve(candidate) else {
+        // Try single-character lookup first
+        guard candidate.count == 1,
+              let char = candidate.first,
+              let entry = EmojiRegistry.lookup(char) else {
             return args
         }
 
         var rewritten = args
-        rewritten[1] = command
+        rewritten[1] = entry.command
         return rewritten
     }
 }
