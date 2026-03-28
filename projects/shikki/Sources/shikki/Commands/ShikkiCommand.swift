@@ -32,6 +32,7 @@ struct ShikkiCommand: AsyncParsableCommand {
             ContextCommand.self,
             FocusCommand.self,
             RestartCommand.self,
+            ScheduleCommand.self,
             UndoCommand.self,
             SearchCommand.self,
             ShipCommand.self,

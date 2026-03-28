@@ -101,6 +101,12 @@ public enum EventType: Codable, Sendable, Hashable {
     case codeGenPipelineCompleted
     case codeGenPipelineFailed
 
+    // Scheduler (Wave 2)
+    case scheduledTaskFired
+    case scheduledTaskCompleted
+    case scheduledTaskFailed
+    case corroborationSweep
+
     // Generic
     case custom(String)
 }
