@@ -167,6 +167,16 @@ public enum EventClassifier {
         case .codeGenPipelineFailed:
             return .alert
 
+        // Scheduler
+        case .scheduledTaskFired:
+            return .progress
+        case .scheduledTaskCompleted:
+            return .progress
+        case .scheduledTaskFailed:
+            return .alert
+        case .corroborationSweep:
+            return .background
+
         // Custom
         case .custom(let name):
             if name == "redFlag" { return .critical }

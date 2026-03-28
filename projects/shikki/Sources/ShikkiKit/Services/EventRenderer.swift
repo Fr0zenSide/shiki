@@ -105,6 +105,10 @@ public struct ANSIEventRenderer: EventRenderer {
         case .codeGenFixCompleted: return "codegen"
         case .codeGenPipelineCompleted: return "codegen"
         case .codeGenPipelineFailed: return "codegen"
+        case .scheduledTaskFired: return "scheduler"
+        case .scheduledTaskCompleted: return "scheduler"
+        case .scheduledTaskFailed: return "scheduler"
+        case .corroborationSweep: return "scheduler"
         case .custom(let name): return name
         }
     }
