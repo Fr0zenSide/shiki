@@ -7,6 +7,7 @@ struct ShikkiCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "shikki",
         abstract: "Shikki — unified orchestrator command. Auto-detects state: start, resume, or attach.",
+        discussion: EmojiRenderer.renderHelpTable(),
         version: "shikki 0.3.0-pre",
         subcommands: [
             // New shikki stop with countdown
