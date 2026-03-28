@@ -11,8 +11,18 @@ struct DoctorCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Auto-fix issues where possible")
     var fix: Bool = false
 
+    /// BR-EM-17: Emit shell aliases for all Shikkimoji emoji commands.
+    /// Usage: eval "$(shikki doctor --emit-aliases)"
+    @Flag(name: .long, help: "Emit bash/zsh aliases for all Shikkimoji emoji commands")
+    var emitAliases: Bool = false
+
     func run() async throws {
-        print("\u{1B}[1m\u{1B}[36mShiki Doctor\u{1B}[0m")
+        if emitAliases {
+            print(EmojiRegistry.generateShellAliases())
+            return
+        }
+
+        print("\u{1B}[1m\u{1B}[36m🥕 Shikki Doctor\u{1B}[0m")
         print(String(repeating: "\u{2500}", count: 56))
         print()
 
