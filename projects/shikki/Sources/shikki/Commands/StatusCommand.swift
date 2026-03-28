@@ -90,8 +90,8 @@ struct StatusCommand: AsyncParsableCommand {
         }
         let overview = status.overview
 
-        // Header with workspace info
-        print("\u{1B}[1m\u{1B}[36mShiki Orchestrator\u{1B}[0m")
+        // Header with workspace info — BR-EM-08: emoji in output headers
+        print("\u{1B}[1m\u{1B}[36m🌡️ Shikki Orchestrator\u{1B}[0m")
         print(String(repeating: "\u{2500}", count: 56))
 
         // Workspace & sessions info
@@ -101,11 +101,12 @@ struct StatusCommand: AsyncParsableCommand {
 
         print("\u{1B}[2mWorkspace:\u{1B}[0m \(workspace)")
         if sessions.count > 1 {
-            print("\u{1B}[2mSessions:\u{1B}[0m  \(sessions.map { $0 == currentSession ? "\u{1B}[32m\($0) ●\u{1B}[0m" : "\u{1B}[2m\($0)\u{1B}[0m" }.joined(separator: "  "))")
+            // BR-EM-08: 🟢 = healthy/active, ⏸️ = paused
+            print("\u{1B}[2mSessions:\u{1B}[0m  \(sessions.map { $0 == currentSession ? "\u{1B}[32m\($0) 🟢\u{1B}[0m" : "\u{1B}[2m\($0)\u{1B}[0m" }.joined(separator: "  "))")
         } else if sessions.count == 1 {
-            print("\u{1B}[2mSession:\u{1B}[0m   \(sessions[0]) \u{1B}[32m●\u{1B}[0m")
+            print("\u{1B}[2mSession:\u{1B}[0m   \(sessions[0]) 🟢")
         } else {
-            print("\u{1B}[2mSession:\u{1B}[0m   \u{1B}[33mnot running\u{1B}[0m")
+            print("\u{1B}[2mSession:\u{1B}[0m   \u{1B}[33m🔴 not running\u{1B}[0m")
         }
         print(String(repeating: "\u{2500}", count: 56))
 
