@@ -42,9 +42,11 @@ Three problems to solve:
 **Scope v1.0 — Migration + Pointer System** (this spec):
 - Migration script: read all `memory/*.md`, classify, POST to @db with proper scope/category
 - New MEMORY.md format: query pointers only, zero sensitive data, inline safe conventions
-- Git history cleanup: `git filter-repo` removes all `memory/*.md` from all commits
+- **Full backup FIRST**: copy entire repo + git history to `~/Documents/Workspaces/shikki-backup-archive/` (gitignored, NOT /tmp). Non-negotiable prerequisite.
+- Git history cleanup: `git filter-repo` removes all `memory/*.md` from all commits. **SEPARATE /spec + dedicated plan. P0 backlog. Only when ALL branches merged to main+develop, zero pending work.**
 - Local cache fallback + write queue when @db unreachable
-- `shikki doctor` checks: @db reachable, identity configured, memories migrated, git clean
+- `shi memory` Swift command replaces MEMORY.md injection — retrieves context from @db via MCP
+- `shi doctor` checks: @db reachable, identity configured, memories migrated, git clean
 
 **Scope v1.1 — User Identity + Scoping**:
 - `users` and `companies` tables in @db
@@ -86,7 +88,7 @@ Three problems to solve:
 
 **BR-03**: `MEMORY.md` post-migration MUST fit in under 50 lines. It is a routing manifest, not a knowledge base. Any drift above 50 lines is a signal that sensitive content has crept back in.
 
-**BR-04**: Inline conventions in MEMORY.md MUST pass the "anyone who clones this repo" test. If you would not publish it as a README, it does not belong in MEMORY.md. Branching strategy: safe. Infrastructure passwords: not safe. Agent alias names: safe. Competitive radar: not safe.
+**BR-04**: Inline conventions in MEMORY.md MUST pass the "anyone who clones this repo" test. If you would not publish it as a README, it does not belong in MEMORY.md. Branching strategy: safe. Infrastructure passwords: not safe. Agent alias names: safe (for core @shi team — but future plugin personas are per-user + per-company scoped, no collision between coworkers). Competitive radar: not safe. Core conventions MUST be compiled in Swift (locked, not overridable without PR + unit tests). Users can add prompts on top to override behavior, but cannot erase Shikki Core Conventions.
 
 **BR-05**: `feedback_*.md` files (all 44+) MUST NOT remain in `memory/` post-migration. These files contain personal workflow preferences, tool opinions, and behavioral instructions that are private context — not generic conventions. They move to @db as `personal` scope `preference` category.
 
@@ -94,7 +96,9 @@ Three problems to solve:
 
 ### Category B: What Moves to @db (BRs 06-10)
 
-**BR-06**: ALL of the following file categories MUST be migrated to @db before git history cleanup:
+**BR-06**: ALL of the following file categories MUST be migrated to @db before git history cleanup.
+
+**Versioning**: Each migrated document gets a `version` field (integer, auto-increment on update) + `updated_at` timestamp + `content_hash` (SHA-256). This replaces git history tracking for .md files. Query `SELECT version, updated_at FROM agent_memories WHERE source_file = 'X' ORDER BY version DESC` to see evolution over time. The `content` field stores the full document text (not just metadata). This is the equivalent of `git log` for memories — every update creates a new version row, old versions are kept (append-only, like Patina Protocol — never delete, just add).
 
 | Category | Target Scope | Example Files |
 |----------|-------------|---------------|
@@ -176,12 +180,15 @@ POST /api/memories/search { "scope": "company", "category": "infrastructure" }
   "handle": "daimyo",
   "email": "contact@obyw.one",
   "companies": [
-    { "id": "<uuid>", "slug": "obyw-one", "name": "OBYW.one", "role": "owner" },
-    { "id": "<uuid>", "slug": "fj-studio", "name": "FJ Studio", "role": "co-founder" }
+    { "id": "<uuid>", "slug": "obyw-one", "name": "OBYW.one", "role": "owner", "email": "contact@obyw.one" },
+    { "id": "<uuid>", "slug": "fj-studio", "name": "FJ Studio", "role": "co-founder", "email": "jeoffrey@fjstudio.com" }
   ],
   "defaultCompany": "obyw-one",
   "createdAt": "2026-03-27T00:00:00Z"
 }
+```
+
+**Note**: Each company entry has its own `email` field — companies typically give you a work email. Default personal email is at the user level, per-company email overrides it for that company's scope.
 ```
 
 **BR-15**: Identity resolution order MUST be: `~/.config/shikki/identity.json` → `SHIKKI_USER_ID` env var → error with actionable message `"Identity not configured. Run: shikki identity init"`. Never silently fall back to anonymous or use machine fingerprint. Machine fingerprint is not reliable across reinstalls.
@@ -206,6 +213,10 @@ POST /api/memories/search { "scope": "company", "category": "infrastructure" }
 **BR-19**: Project membership is derived from company membership. A user who belongs to a company can access all projects associated with that company (`project_companies` join table). No per-project membership list in v1. Finer-grained project ACL is a v2 feature.
 
 **BR-20**: Scope downgrade is forbidden. A memory created as `personal` cannot be changed to `project` or `company` without explicit user action (`shikki memory share <id> --scope project`). Scope upgrades are allowed (project → company → global) with confirmation. This prevents accidental data exposure from scope widening bugs.
+
+**BR-20b**: **Replica Lock** — Dev machine local cache DB MUST be encrypted at rest and locked against unauthorized extraction. Company data cached locally for offline use CANNOT be bulk-exported or copied without authentication. No personal data stored on company DB — only work process entries, knowledge contributions, and tool usage. Bidirectional safety: company data doesn't leak from dev machines, personal data doesn't leak to company DB.
+
+**BR-20c**: **Plugin Discovery Protocol** — Plugins, skills, and personas installed in the workspace are registered in @db with a discoverable manifest (not loaded into context). When a plugin's knowledge is needed, the MCP protocol queries it on demand — no upfront loading of all plugin data. Each plugin has its own namespace in @db, queryable via `shi mcp query plugin:<name> <query>`. This prevents context bloat from N plugins × M files.
 
 ---
 
