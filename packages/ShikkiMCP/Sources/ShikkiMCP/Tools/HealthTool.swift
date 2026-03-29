@@ -3,22 +3,22 @@ import Foundation
 enum HealthTool: Sendable {
     static let definition = MCPToolDefinition(
         name: "shiki_health",
-        description: "Check if the ShikiDB backend is reachable and healthy",
+        description: "Check if the ShikkiDB backend is reachable and healthy",
         inputSchema: .object([
             "type": .string("object"),
             "properties": .object([:]),
         ])
     )
 
-    static func execute(params: JSONValue?, dbClient: ShikiDBClientProtocol) async -> JSONValue {
+    static func execute(params: JSONValue?, dbClient: ShikkiDBClientProtocol) async -> JSONValue {
         do {
             let healthy = try await dbClient.healthCheck()
             return .object([
                 "content": .array([
                     .object([
                         "type": .string("text"),
-                        "text": .string(healthy ? "ShikiDB is healthy" : "ShikiDB is not responding"),
-                    ])
+                        "text": .string(healthy ? "ShikkiDB is healthy" : "ShikkiDB is not responding"),
+                    ]),
                 ]),
                 "isError": .bool(!healthy),
             ])
@@ -28,7 +28,7 @@ enum HealthTool: Sendable {
                     .object([
                         "type": .string("text"),
                         "text": .string("Health check failed: \(error)"),
-                    ])
+                    ]),
                 ]),
                 "isError": .bool(true),
             ])

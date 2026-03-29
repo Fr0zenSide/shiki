@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "ShikiMCP",
+    name: "ShikkiMCP",
     platforms: [
         .macOS(.v14),
     ],
@@ -12,14 +12,14 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "ShikiMCP",
+            name: "ShikkiMCP",
             dependencies: [
                 .product(name: "Logging", package: "swift-log"),
             ]
         ),
         .testTarget(
-            name: "ShikiMCPTests",
-            dependencies: ["ShikiMCP"]
+            name: "ShikkiMCPTests",
+            dependencies: ["ShikkiMCP"]
         ),
     ]
 )

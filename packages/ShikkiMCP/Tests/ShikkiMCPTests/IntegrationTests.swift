@@ -1,6 +1,6 @@
-import Testing
 import Foundation
-@testable import ShikiMCP
+import Testing
+@testable import ShikkiMCP
 
 @Suite("Integration — stdin/stdout round-trip")
 struct IntegrationTests {
@@ -19,7 +19,8 @@ struct IntegrationTests {
         #expect(response.id == .int(1))
         #expect(response.error == nil)
         #expect(response.result?["protocolVersion"]?.stringValue == "2024-11-05")
-        #expect(response.result?["serverInfo"]?["name"]?.stringValue == "shiki-mcp")
+        #expect(response.result?["serverInfo"]?["name"]?.stringValue == "shikki-mcp")
+        #expect(response.result?["serverInfo"]?["version"]?.stringValue == "1.1.0")
     }
 
     @Test("tools/list returns all tool definitions")
@@ -44,8 +45,10 @@ struct IntegrationTests {
         // Check tool names are present
         let names = tools?.compactMap { $0["name"]?.stringValue } ?? []
         #expect(names.contains("shiki_save_decision"))
+        #expect(names.contains("shiki_save_batch"))
         #expect(names.contains("shiki_search"))
         #expect(names.contains("shiki_health"))
+        #expect(names.contains("shiki_daily_summary"))
     }
 
     @Test("tools/call with valid input returns success")
@@ -126,5 +129,73 @@ struct IntegrationTests {
         let response = try JSONDecoder().decode(JSONRPCResponse.self, from: Data(responseStr.utf8))
 
         #expect(response.error?.code == MCPError.parseError)
+    }
+
+    @Test("tools/call with missing tool name returns error")
+    func toolsCallMissingName() async throws {
+        let mock = MockDBClient()
+        let server = MCPServer(dbClient: mock)
+
+        let request = """
+        {"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"arguments":{}}}
+        """
+        let responseStr = await server.handleMessage(request)
+        let response = try JSONDecoder().decode(JSONRPCResponse.self, from: Data(responseStr.utf8))
+
+        #expect(response.error?.code == MCPError.invalidParams)
+        #expect(response.error?.message.contains("Missing tool name") == true)
+    }
+
+    @Test("tools/call with unknown tool returns error")
+    func toolsCallUnknownTool() async throws {
+        let mock = MockDBClient()
+        let server = MCPServer(dbClient: mock)
+
+        let request = """
+        {"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"nonexistent_tool","arguments":{}}}
+        """
+        let responseStr = await server.handleMessage(request)
+        let response = try JSONDecoder().decode(JSONRPCResponse.self, from: Data(responseStr.utf8))
+
+        #expect(response.error?.code == MCPError.invalidParams)
+        #expect(response.error?.message.contains("Unknown tool") == true)
+    }
+
+    @Test("initialized notification returns ack")
+    func initializedNotification() async throws {
+        let mock = MockDBClient()
+        let server = MCPServer(dbClient: mock)
+
+        let request = """
+        {"jsonrpc":"2.0","id":9,"method":"initialized"}
+        """
+        let responseStr = await server.handleMessage(request)
+        let response = try JSONDecoder().decode(JSONRPCResponse.self, from: Data(responseStr.utf8))
+
+        #expect(response.error == nil)
+        #expect(response.result == .object([:]))
+    }
+
+    @Test("Request counter increments")
+    func requestCounter() async throws {
+        let mock = MockDBClient()
+        let server = MCPServer(dbClient: mock)
+
+        let count0 = await server.processedRequestCount
+        #expect(count0 == 0)
+
+        _ = await server.handleMessage("""
+        {"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}
+        """)
+
+        let count1 = await server.processedRequestCount
+        #expect(count1 == 1)
+
+        _ = await server.handleMessage("""
+        {"jsonrpc":"2.0","id":2,"method":"tools/list"}
+        """)
+
+        let count2 = await server.processedRequestCount
+        #expect(count2 == 2)
     }
 }

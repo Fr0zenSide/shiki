@@ -61,7 +61,7 @@ enum AnalyticsTools: Sendable {
 
     // MARK: - Execution
 
-    static func execute(toolName: String, params: JSONValue?, dbClient: ShikiDBClientProtocol) async -> JSONValue {
+    static func execute(toolName: String, params: JSONValue?, dbClient: ShikkiDBClientProtocol) async -> JSONValue {
         let args = params?.objectValue ?? [:]
 
         switch toolName {
@@ -72,19 +72,19 @@ enum AnalyticsTools: Sendable {
         case "shiki_agent_effectiveness":
             return await executeAgentEffectiveness(args: args, dbClient: dbClient)
         default:
-            return WriteTools.errorResult("Unknown analytics tool: \(toolName)")
+            return ToolResult.error("Unknown analytics tool: \(toolName)")
         }
     }
 
     // MARK: - Individual handlers
 
-    private static func executeDailySummary(args: [String: JSONValue], dbClient: ShikiDBClientProtocol) async -> JSONValue {
+    private static func executeDailySummary(args: [String: JSONValue], dbClient: ShikkiDBClientProtocol) async -> JSONValue {
         let dateString = args["date"]?.stringValue ?? todayISO8601()
         let projectIds = args["projectIds"]?.arrayValue?.compactMap(\.stringValue)
 
         // Validate date format
         guard isValidDateString(dateString) else {
-            return WriteTools.errorResult("Invalid date format '\(dateString)'. Expected YYYY-MM-DD.")
+            return ToolResult.error("Invalid date format '\(dateString)'. Expected YYYY-MM-DD.")
         }
 
         // Fetch decisions, plans, reports, and events for the day
@@ -129,12 +129,12 @@ enum AnalyticsTools: Sendable {
         sections.append(formatSection("Events", result: eventsResult))
 
         let summary = sections.joined(separator: "\n\n")
-        return WriteTools.successResult(summary)
+        return ToolResult.success(summary)
     }
 
-    private static func executeDecisionChain(args: [String: JSONValue], dbClient: ShikiDBClientProtocol) async -> JSONValue {
+    private static func executeDecisionChain(args: [String: JSONValue], dbClient: ShikkiDBClientProtocol) async -> JSONValue {
         guard let decisionId = args["decisionId"]?.stringValue, !decisionId.isEmpty else {
-            return WriteTools.errorResult("Missing required field: decisionId")
+            return ToolResult.error("Missing required field: decisionId")
         }
 
         // Search for the root decision and any linked decisions
@@ -160,20 +160,20 @@ enum AnalyticsTools: Sendable {
                 "children": childrenResult,
             ])
 
-            return WriteTools.successResult("Decision chain for \(decisionId)", data: chain)
-        } catch let error as ShikiDBError {
-            return WriteTools.errorResult("ShikiDB error: \(error.description)")
+            return ToolResult.success("Decision chain for \(decisionId)", data: chain)
+        } catch let error as ShikkiDBError {
+            return ToolResult.error("ShikkiDB error: \(error.description)")
         } catch {
-            return WriteTools.errorResult("Unexpected error: \(error)")
+            return ToolResult.error("Unexpected error: \(error)")
         }
     }
 
-    private static func executeAgentEffectiveness(args: [String: JSONValue], dbClient: ShikiDBClientProtocol) async -> JSONValue {
+    private static func executeAgentEffectiveness(args: [String: JSONValue], dbClient: ShikkiDBClientProtocol) async -> JSONValue {
         let since = args["since"]?.stringValue
         let projectIds = args["projectIds"]?.arrayValue?.compactMap(\.stringValue)
 
         if let since = since, !isValidDateString(since) {
-            return WriteTools.errorResult("Invalid date format '\(since)'. Expected YYYY-MM-DD.")
+            return ToolResult.error("Invalid date format '\(since)'. Expected YYYY-MM-DD.")
         }
 
         var query = "agent report effectiveness"
@@ -188,11 +188,11 @@ enum AnalyticsTools: Sendable {
                 types: ["agent_report", "report"],
                 limit: 100
             )
-            return WriteTools.successResult("Agent effectiveness data", data: result)
-        } catch let error as ShikiDBError {
-            return WriteTools.errorResult("ShikiDB error: \(error.description)")
+            return ToolResult.success("Agent effectiveness data", data: result)
+        } catch let error as ShikkiDBError {
+            return ToolResult.error("ShikkiDB error: \(error.description)")
         } catch {
-            return WriteTools.errorResult("Unexpected error: \(error)")
+            return ToolResult.error("Unexpected error: \(error)")
         }
     }
 
@@ -222,8 +222,8 @@ enum AnalyticsTools: Sendable {
         query: String,
         types: [String],
         projectIds: [String]?,
-        dbClient: ShikiDBClientProtocol
-    ) async -> Result<JSONValue, ShikiDBError> {
+        dbClient: ShikkiDBClientProtocol
+    ) async -> Result<JSONValue, ShikkiDBError> {
         do {
             let result = try await dbClient.memoriesSearch(
                 query: query,
@@ -232,14 +232,14 @@ enum AnalyticsTools: Sendable {
                 limit: 50
             )
             return .success(result)
-        } catch let error as ShikiDBError {
+        } catch let error as ShikkiDBError {
             return .failure(error)
         } catch {
             return .failure(.unexpectedError("\(error)"))
         }
     }
 
-    private static func formatSection(_ title: String, result: Result<JSONValue, ShikiDBError>) -> String {
+    private static func formatSection(_ title: String, result: Result<JSONValue, ShikkiDBError>) -> String {
         switch result {
         case .success(let value):
             let count: Int

@@ -6,7 +6,7 @@ enum ReadTools: Sendable {
 
     static let search = MCPToolDefinition(
         name: "shiki_search",
-        description: "Search ShikiDB memories by query. Returns ranked results across all types.",
+        description: "Search ShikkiDB memories by query. Returns ranked results across all types.",
         inputSchema: .object([
             "type": .string("object"),
             "required": .array([.string("query")]),
@@ -27,7 +27,7 @@ enum ReadTools: Sendable {
                 ]),
                 "limit": .object([
                     "type": .string("integer"),
-                    "description": .string("Maximum results to return (default 10)"),
+                    "description": .string("Maximum results to return (default 10, max 100)"),
                 ]),
             ]),
         ])
@@ -35,7 +35,7 @@ enum ReadTools: Sendable {
 
     static let getDecisions = MCPToolDefinition(
         name: "shiki_get_decisions",
-        description: "Get architecture/implementation decisions from ShikiDB",
+        description: "Get architecture/implementation decisions from ShikkiDB",
         inputSchema: .object([
             "type": .string("object"),
             "properties": .object([
@@ -58,7 +58,7 @@ enum ReadTools: Sendable {
 
     static let getReports = MCPToolDefinition(
         name: "shiki_get_reports",
-        description: "Get weekly/session reports from ShikiDB",
+        description: "Get weekly/session reports from ShikkiDB",
         inputSchema: .object([
             "type": .string("object"),
             "properties": .object([
@@ -98,7 +98,7 @@ enum ReadTools: Sendable {
 
     static let getPlans = MCPToolDefinition(
         name: "shiki_get_plans",
-        description: "Get saved plans from ShikiDB",
+        description: "Get saved plans from ShikkiDB",
         inputSchema: .object([
             "type": .string("object"),
             "properties": .object([
@@ -123,7 +123,7 @@ enum ReadTools: Sendable {
 
     // MARK: - Execution
 
-    static func execute(toolName: String, params: JSONValue?, dbClient: ShikiDBClientProtocol) async -> JSONValue {
+    static func execute(toolName: String, params: JSONValue?, dbClient: ShikkiDBClientProtocol) async -> JSONValue {
         let args = params?.objectValue ?? [:]
 
         switch toolName {
@@ -138,25 +138,26 @@ enum ReadTools: Sendable {
         case "shiki_get_plans":
             return await executeGetPlans(args: args, dbClient: dbClient)
         default:
-            return WriteTools.errorResult("Unknown read tool: \(toolName)")
+            return ToolResult.error("Unknown read tool: \(toolName)")
         }
     }
 
     // MARK: - Individual handlers
 
-    private static func executeSearch(args: [String: JSONValue], dbClient: ShikiDBClientProtocol) async -> JSONValue {
+    private static func executeSearch(args: [String: JSONValue], dbClient: ShikkiDBClientProtocol) async -> JSONValue {
         guard let query = args["query"]?.stringValue, !query.isEmpty else {
-            return WriteTools.errorResult("Missing required field: query")
+            return ToolResult.error("Missing required field: query")
         }
 
         let projectIds = args["projectIds"]?.arrayValue?.compactMap(\.stringValue)
         let types = args["types"]?.arrayValue?.compactMap(\.stringValue)
-        let limit = args["limit"]?.intValue ?? 10
+        let rawLimit = args["limit"]?.intValue ?? 10
+        let limit = max(1, min(rawLimit, 100))
 
         return await searchDB(query: query, projectIds: projectIds, types: types, limit: limit, dbClient: dbClient)
     }
 
-    private static func executeGetDecisions(args: [String: JSONValue], dbClient: ShikiDBClientProtocol) async -> JSONValue {
+    private static func executeGetDecisions(args: [String: JSONValue], dbClient: ShikkiDBClientProtocol) async -> JSONValue {
         let query = args["query"]?.stringValue ?? "decision"
         let projectIds = args["projectIds"]?.arrayValue?.compactMap(\.stringValue)
         let limit = args["limit"]?.intValue ?? 10
@@ -164,14 +165,14 @@ enum ReadTools: Sendable {
         return await searchDB(query: query, projectIds: projectIds, types: ["decision"], limit: limit, dbClient: dbClient)
     }
 
-    private static func executeGetReports(args: [String: JSONValue], dbClient: ShikiDBClientProtocol) async -> JSONValue {
+    private static func executeGetReports(args: [String: JSONValue], dbClient: ShikkiDBClientProtocol) async -> JSONValue {
         let query = args["query"]?.stringValue ?? "report"
         let limit = args["limit"]?.intValue ?? 5
 
         return await searchDB(query: query, projectIds: nil, types: ["report"], limit: limit, dbClient: dbClient)
     }
 
-    private static func executeGetContext(args: [String: JSONValue], dbClient: ShikiDBClientProtocol) async -> JSONValue {
+    private static func executeGetContext(args: [String: JSONValue], dbClient: ShikkiDBClientProtocol) async -> JSONValue {
         var query = args["query"]?.stringValue ?? "context"
         if let sessionId = args["sessionId"]?.stringValue {
             query = "sessionId:\(sessionId) \(query)"
@@ -181,7 +182,7 @@ enum ReadTools: Sendable {
         return await searchDB(query: query, projectIds: nil, types: ["context_compaction"], limit: limit, dbClient: dbClient)
     }
 
-    private static func executeGetPlans(args: [String: JSONValue], dbClient: ShikiDBClientProtocol) async -> JSONValue {
+    private static func executeGetPlans(args: [String: JSONValue], dbClient: ShikkiDBClientProtocol) async -> JSONValue {
         var query = args["query"]?.stringValue ?? "plan"
         if let status = args["status"]?.stringValue {
             query = "status:\(status) \(query)"
@@ -193,14 +194,14 @@ enum ReadTools: Sendable {
 
     // MARK: - Helpers
 
-    private static func searchDB(query: String, projectIds: [String]?, types: [String]?, limit: Int, dbClient: ShikiDBClientProtocol) async -> JSONValue {
+    private static func searchDB(query: String, projectIds: [String]?, types: [String]?, limit: Int, dbClient: ShikkiDBClientProtocol) async -> JSONValue {
         do {
             let result = try await dbClient.memoriesSearch(query: query, projectIds: projectIds, types: types, limit: limit)
-            return WriteTools.successResult("Search results", data: result)
-        } catch let error as ShikiDBError {
-            return WriteTools.errorResult("ShikiDB error: \(error.description)")
+            return ToolResult.success("Search results", data: result)
+        } catch let error as ShikkiDBError {
+            return ToolResult.error("ShikkiDB error: \(error.description)")
         } catch {
-            return WriteTools.errorResult("Unexpected error: \(error)")
+            return ToolResult.error("Unexpected error: \(error)")
         }
     }
 }

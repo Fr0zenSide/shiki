@@ -2,15 +2,17 @@ import Foundation
 import Logging
 
 actor MCPServer {
-    private let dbClient: ShikiDBClientProtocol
-    private let logger = Logger(label: "shiki.mcp.server")
+    private let dbClient: ShikkiDBClientProtocol
+    private let logger = Logger(label: "shikki.mcp.server")
 
     private let allTools: [MCPToolDefinition]
     private let writeToolNames: Set<String>
     private let readToolNames: Set<String>
     private let analyticsToolNames: Set<String>
 
-    init(dbClient: ShikiDBClientProtocol) {
+    private var requestCount: Int = 0
+
+    init(dbClient: ShikkiDBClientProtocol) {
         self.dbClient = dbClient
         self.allTools = WriteTools.allDefinitions + ReadTools.allDefinitions + AnalyticsTools.allDefinitions + [HealthTool.definition]
         self.writeToolNames = Set(WriteTools.allDefinitions.map(\.name))
@@ -21,7 +23,7 @@ actor MCPServer {
     // MARK: - Main loop
 
     func run() async {
-        logger.info("ShikiMCP server starting")
+        logger.info("ShikkiMCP server starting")
 
         let stdout = FileHandle.standardOutput
 
@@ -37,13 +39,17 @@ actor MCPServer {
             }
         }
 
-        logger.info("ShikiMCP server shutting down")
+        logger.info("ShikkiMCP server shutting down (processed \(requestCount) requests)")
     }
 
     // MARK: - Message handling (also used by tests)
 
     func handleMessage(_ message: String) async -> String {
+        requestCount += 1
+        let reqNum = requestCount
+
         guard let data = message.data(using: .utf8) else {
+            logger.error("[req-\(reqNum)] Invalid UTF-8 input")
             return encodeResponse(JSONRPCResponse(id: nil, error: MCPError(code: MCPError.parseError, message: "Invalid UTF-8")))
         }
 
@@ -51,11 +57,19 @@ actor MCPServer {
         do {
             request = try JSONDecoder().decode(JSONRPCRequest.self, from: data)
         } catch {
+            logger.error("[req-\(reqNum)] Parse error: \(error.localizedDescription)")
             return encodeResponse(JSONRPCResponse(id: nil, error: MCPError(code: MCPError.parseError, message: "Parse error: \(error.localizedDescription)")))
         }
 
+        logger.info("[req-\(reqNum)] \(request.method)")
+
         let response = await dispatch(request)
         return encodeResponse(response)
+    }
+
+    /// Number of requests processed (for diagnostics)
+    var processedRequestCount: Int {
+        requestCount
     }
 
     // MARK: - Dispatch
@@ -88,8 +102,8 @@ actor MCPServer {
                 "tools": .object([:]),
             ]),
             "serverInfo": .object([
-                "name": .string("shiki-mcp"),
-                "version": .string("1.0.0"),
+                "name": .string("shikki-mcp"),
+                "version": .string("1.1.0"),
             ]),
         ])
         return JSONRPCResponse(id: request.id, result: result)

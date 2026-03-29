@@ -8,6 +8,6 @@ LoggingSystem.bootstrap { label in
 }
 
 let dbURL = ProcessInfo.processInfo.environment["SHIKI_DB_URL"] ?? "http://localhost:3900"
-let dbClient = ShikiDBClient(baseURL: dbURL)
+let dbClient = ShikkiDBClient(baseURL: dbURL)
 let server = MCPServer(dbClient: dbClient)
 await server.run()
