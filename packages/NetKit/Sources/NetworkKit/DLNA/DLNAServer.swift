@@ -24,6 +24,9 @@ public final class DLNAServer: @unchecked Sendable {
     private var searchResponder: SSDPSearchResponder?
     private var _port: UInt16 = 0
 
+    /// Called when the server is ready and the port is assigned.
+    public var onReady: ((UInt16) -> Void)?
+
     /// The port the server is listening on (available after `start()`).
     public var port: UInt16 { _port }
 
@@ -57,6 +60,7 @@ public final class DLNAServer: @unchecked Sendable {
                 if let port = nwListener.port?.rawValue {
                     self._port = port
                     self.startAdvertiser()
+                    self.onReady?(port)
                 }
             }
         }
