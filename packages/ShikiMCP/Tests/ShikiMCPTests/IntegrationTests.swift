@@ -37,8 +37,8 @@ struct IntegrationTests {
         let tools = response.result?["tools"]?.arrayValue
         #expect(tools != nil)
 
-        // Should have all write + read + health tools
-        let expectedCount = WriteTools.allDefinitions.count + ReadTools.allDefinitions.count + 1
+        // Should have all write + read + analytics + health tools
+        let expectedCount = WriteTools.allDefinitions.count + ReadTools.allDefinitions.count + AnalyticsTools.allDefinitions.count + 1
         #expect(tools?.count == expectedCount)
 
         // Check tool names are present

@@ -8,12 +8,14 @@ actor MCPServer {
     private let allTools: [MCPToolDefinition]
     private let writeToolNames: Set<String>
     private let readToolNames: Set<String>
+    private let analyticsToolNames: Set<String>
 
     init(dbClient: ShikiDBClientProtocol) {
         self.dbClient = dbClient
-        self.allTools = WriteTools.allDefinitions + ReadTools.allDefinitions + [HealthTool.definition]
+        self.allTools = WriteTools.allDefinitions + ReadTools.allDefinitions + AnalyticsTools.allDefinitions + [HealthTool.definition]
         self.writeToolNames = Set(WriteTools.allDefinitions.map(\.name))
         self.readToolNames = Set(ReadTools.allDefinitions.map(\.name))
+        self.analyticsToolNames = Set(AnalyticsTools.allDefinitions.map(\.name))
     }
 
     // MARK: - Main loop
@@ -120,6 +122,8 @@ actor MCPServer {
             result = await WriteTools.execute(toolName: toolName, params: arguments, dbClient: dbClient)
         } else if readToolNames.contains(toolName) {
             result = await ReadTools.execute(toolName: toolName, params: arguments, dbClient: dbClient)
+        } else if analyticsToolNames.contains(toolName) {
+            result = await AnalyticsTools.execute(toolName: toolName, params: arguments, dbClient: dbClient)
         } else if toolName == "shiki_health" {
             result = await HealthTool.execute(params: arguments, dbClient: dbClient)
         } else {
