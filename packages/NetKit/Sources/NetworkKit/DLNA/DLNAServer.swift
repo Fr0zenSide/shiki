@@ -29,7 +29,8 @@ public final class DLNAServer: @unchecked Sendable {
 
     /// Custom API handler: (method, path, body) → (statusCode, responseBody)?
     /// Return nil to fall through to default routing.
-    public var apiHandler: ((_ method: String, _ path: String, _ body: Data?) -> (status: String, body: String)?)?
+    /// Set BEFORE calling start().
+    public var apiHandler: (@Sendable (_ method: String, _ path: String, _ body: Data?) -> (status: String, body: String)?)?
 
     /// The port the server is listening on (available after `start()`).
     public var port: UInt16 { _port }
@@ -162,15 +163,26 @@ public final class DLNAServer: @unchecked Sendable {
         case ("HEAD", let p) where p.hasPrefix("/media/"):
             handleMediaRequest(path: p, headers: headers, connection: connection, headOnly: true)
 
-        default:
-            // Try custom API handler before 404
-            if let handler = apiHandler {
-                let bodyData = rawData.suffix(from: rawData.firstRange(of: Data("\r\n\r\n".utf8))?.upperBound ?? rawData.endIndex)
-                if let result = handler(method, path, bodyData.isEmpty ? nil : Data(bodyData)) {
-                    sendResponse(connection: connection, status: result.status, contentType: "application/json", body: result.body)
-                    return
-                }
+        case ("GET", "/api/ping"):
+            sendResponse(connection: connection, status: "200 OK", contentType: "application/json", body: "{\"pong\":true,\"hasApiHandler\":\(apiHandler != nil)}")
+
+        case (let m, let p) where apiHandler != nil:
+            // Custom API handler — parse body from raw HTTP data
+            let separator = Data("\r\n\r\n".utf8)
+            let body: Data?
+            if let range = rawData.firstRange(of: separator) {
+                let bodySlice = rawData[range.upperBound...]
+                body = bodySlice.isEmpty ? nil : Data(bodySlice)
+            } else {
+                body = nil
             }
+            if let result = apiHandler?(m, p, body) {
+                sendResponse(connection: connection, status: result.status, contentType: "application/json", body: result.body)
+            } else {
+                sendResponse(connection: connection, status: "404 Not Found", body: "Not Found")
+            }
+
+        default:
             sendResponse(connection: connection, status: "404 Not Found", body: "Not Found")
         }
     }
