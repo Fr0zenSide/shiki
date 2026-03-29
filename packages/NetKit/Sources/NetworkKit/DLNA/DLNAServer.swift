@@ -27,6 +27,10 @@ public final class DLNAServer: @unchecked Sendable {
     /// Called when the server is ready and the port is assigned.
     public var onReady: ((UInt16) -> Void)?
 
+    /// Custom API handler: (method, path, body) → (statusCode, responseBody)?
+    /// Return nil to fall through to default routing.
+    public var apiHandler: ((_ method: String, _ path: String, _ body: Data?) -> (status: String, body: String)?)?
+
     /// The port the server is listening on (available after `start()`).
     public var port: UInt16 { _port }
 
@@ -159,6 +163,14 @@ public final class DLNAServer: @unchecked Sendable {
             handleMediaRequest(path: p, headers: headers, connection: connection, headOnly: true)
 
         default:
+            // Try custom API handler before 404
+            if let handler = apiHandler {
+                let bodyData = rawData.suffix(from: rawData.firstRange(of: Data("\r\n\r\n".utf8))?.upperBound ?? rawData.endIndex)
+                if let result = handler(method, path, bodyData.isEmpty ? nil : Data(bodyData)) {
+                    sendResponse(connection: connection, status: result.status, contentType: "application/json", body: result.body)
+                    return
+                }
+            }
             sendResponse(connection: connection, status: "404 Not Found", body: "Not Found")
         }
     }
