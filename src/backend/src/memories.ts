@@ -8,13 +8,15 @@ export interface Memory {
   content: string;
   category?: string;
   importance?: number;
+  metadata?: Record<string, unknown>;
 }
 
 export async function storeMemory(memory: Memory): Promise<string> {
+  const meta = memory.metadata ?? {};
   // Insert immediately with null embedding
   const [row] = await sql`
-    INSERT INTO agent_memories (project_id, session_id, agent_id, content, category, importance)
-    VALUES (${memory.projectId}, ${memory.sessionId ?? null}, ${memory.agentId ?? null}, ${memory.content}, ${memory.category ?? "general"}, ${memory.importance ?? 1.0})
+    INSERT INTO agent_memories (project_id, session_id, agent_id, content, category, importance, metadata)
+    VALUES (${memory.projectId}, ${memory.sessionId ?? null}, ${memory.agentId ?? null}, ${memory.content}, ${memory.category ?? "general"}, ${memory.importance ?? 1.0}, ${JSON.stringify(meta)})
     RETURNING id
   `;
 
