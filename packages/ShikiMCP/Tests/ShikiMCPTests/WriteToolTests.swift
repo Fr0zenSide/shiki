@@ -103,6 +103,115 @@ struct WriteToolTests {
         #expect(mock.lastWriteScope == "maya")
     }
 
+    @Test("save_agent_report validates required fields — missing persona")
+    func saveAgentReportMissingPersona() async {
+        let mock = MockDBClient()
+        let params: JSONValue = .object([
+            "sessionId": .string("sess-1"),
+            "taskTitle": .string("Fix bug"),
+            "beforeState": .string("broken"),
+            "afterState": .string("fixed"),
+        ])
+        let result = await WriteTools.execute(toolName: "shiki_save_agent_report", params: params, dbClient: mock)
+        let text = extractText(result)
+        #expect(text.contains("Missing required field: persona"))
+        #expect(isError(result))
+    }
+
+    @Test("save_agent_report rejects invalid persona enum")
+    func saveAgentReportInvalidPersona() async {
+        let mock = MockDBClient()
+        let params: JSONValue = .object([
+            "sessionId": .string("sess-1"),
+            "persona": .string("hacker"),
+            "taskTitle": .string("Fix bug"),
+            "beforeState": .string("broken"),
+            "afterState": .string("fixed"),
+        ])
+        let result = await WriteTools.execute(toolName: "shiki_save_agent_report", params: params, dbClient: mock)
+        let text = extractText(result)
+        #expect(text.contains("Invalid persona"))
+        #expect(isError(result))
+    }
+
+    @Test("save_agent_report accepts valid input with all fields")
+    func saveAgentReportValid() async {
+        let mock = MockDBClient()
+        let params: JSONValue = .object([
+            "sessionId": .string("sess-1"),
+            "persona": .string("implement"),
+            "taskTitle": .string("Add MCP tools"),
+            "beforeState": .string("no MCP"),
+            "afterState": .string("MCP working"),
+            "filesChanged": .array([.string("WriteTools.swift")]),
+            "testsAdded": .int(5),
+            "redFlags": .array([]),
+        ])
+        let result = await WriteTools.execute(toolName: "shiki_save_agent_report", params: params, dbClient: mock)
+        #expect(!isError(result))
+        #expect(mock.lastWriteType == "agent_report")
+    }
+
+    @Test("save_agent_report requires sessionId")
+    func saveAgentReportMissingSessionId() async {
+        let mock = MockDBClient()
+        let params: JSONValue = .object([
+            "persona": .string("review"),
+            "taskTitle": .string("Review PR"),
+            "beforeState": .string("pending"),
+            "afterState": .string("approved"),
+        ])
+        let result = await WriteTools.execute(toolName: "shiki_save_agent_report", params: params, dbClient: mock)
+        let text = extractText(result)
+        #expect(text.contains("Missing required field: sessionId"))
+        #expect(isError(result))
+    }
+
+    @Test("save_agent_report requires taskTitle")
+    func saveAgentReportMissingTaskTitle() async {
+        let mock = MockDBClient()
+        let params: JSONValue = .object([
+            "sessionId": .string("sess-1"),
+            "persona": .string("investigate"),
+            "beforeState": .string("unknown"),
+            "afterState": .string("understood"),
+        ])
+        let result = await WriteTools.execute(toolName: "shiki_save_agent_report", params: params, dbClient: mock)
+        let text = extractText(result)
+        #expect(text.contains("Missing required field: taskTitle"))
+        #expect(isError(result))
+    }
+
+    @Test("save_agent_report requires beforeState")
+    func saveAgentReportMissingBeforeState() async {
+        let mock = MockDBClient()
+        let params: JSONValue = .object([
+            "sessionId": .string("sess-1"),
+            "persona": .string("fix"),
+            "taskTitle": .string("Fix crash"),
+            "afterState": .string("stable"),
+        ])
+        let result = await WriteTools.execute(toolName: "shiki_save_agent_report", params: params, dbClient: mock)
+        let text = extractText(result)
+        #expect(text.contains("Missing required field: beforeState"))
+        #expect(isError(result))
+    }
+
+    @Test("save_agent_report requires afterState")
+    func saveAgentReportMissingAfterState() async {
+        let mock = MockDBClient()
+        let params: JSONValue = .object([
+            "sessionId": .string("sess-1"),
+            "persona": .string("critique"),
+            "taskTitle": .string("Review design"),
+            "beforeState": .string("draft"),
+        ])
+        let result = await WriteTools.execute(toolName: "shiki_save_agent_report", params: params, dbClient: mock)
+        let text = extractText(result)
+        #expect(text.contains("Missing required field: afterState"))
+        #expect(isError(result))
+    }
+
     // MARK: - Helpers
 
     private func extractText(_ result: JSONValue) -> String {

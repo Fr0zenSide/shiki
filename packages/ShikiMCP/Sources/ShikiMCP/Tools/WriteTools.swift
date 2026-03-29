@@ -132,7 +132,61 @@ enum WriteTools: Sendable {
         ])
     )
 
-    static let allDefinitions: [MCPToolDefinition] = [saveDecision, savePlan, saveEvent, saveContext]
+    static let saveAgentReport = MCPToolDefinition(
+        name: "shiki_save_agent_report",
+        description: "Save an agent report card to ShikiDB — captures task outcome, files changed, red flags",
+        inputSchema: .object([
+            "type": .string("object"),
+            "required": .array([.string("sessionId"), .string("persona"), .string("taskTitle"), .string("beforeState"), .string("afterState")]),
+            "properties": .object([
+                "sessionId": .object([
+                    "type": .string("string"),
+                    "description": .string("Session identifier"),
+                ]),
+                "persona": .object([
+                    "type": .string("string"),
+                    "enum": .array([
+                        .string("investigate"), .string("implement"), .string("verify"),
+                        .string("critique"), .string("review"), .string("fix"),
+                    ]),
+                    "description": .string("Agent persona that performed the task"),
+                ]),
+                "taskTitle": .object([
+                    "type": .string("string"),
+                    "description": .string("Short description of the task"),
+                ]),
+                "beforeState": .object([
+                    "type": .string("string"),
+                    "description": .string("State before the task started"),
+                ]),
+                "afterState": .object([
+                    "type": .string("string"),
+                    "description": .string("State after the task completed"),
+                ]),
+                "keyDecisions": .object([
+                    "type": .string("array"),
+                    "items": .object(["type": .string("object")]),
+                    "description": .string("Key decisions made during the task"),
+                ]),
+                "filesChanged": .object([
+                    "type": .string("array"),
+                    "items": .object(["type": .string("string")]),
+                    "description": .string("Files modified during the task"),
+                ]),
+                "testsAdded": .object([
+                    "type": .string("integer"),
+                    "description": .string("Number of tests added"),
+                ]),
+                "redFlags": .object([
+                    "type": .string("array"),
+                    "items": .object(["type": .string("string")]),
+                    "description": .string("Issues or concerns discovered"),
+                ]),
+            ]),
+        ])
+    )
+
+    static let allDefinitions: [MCPToolDefinition] = [saveDecision, savePlan, saveEvent, saveContext, saveAgentReport]
 
     // MARK: - Execution
 
@@ -150,6 +204,8 @@ enum WriteTools: Sendable {
             return await executeSaveEvent(args: args, dbClient: dbClient)
         case "shiki_save_context":
             return await executeSaveContext(args: args, dbClient: dbClient)
+        case "shiki_save_agent_report":
+            return await executeSaveAgentReport(args: args, dbClient: dbClient)
         default:
             return errorResult("Unknown write tool: \(toolName)")
         }
@@ -232,6 +288,31 @@ enum WriteTools: Sendable {
         }
 
         return await writeToDB(type: "context_compaction", scope: "shiki", data: args, dbClient: dbClient)
+    }
+
+    private static func executeSaveAgentReport(args: [String: JSONValue], dbClient: ShikiDBClientProtocol) async -> JSONValue {
+        guard args["sessionId"]?.stringValue != nil else {
+            return errorResult("Missing required field: sessionId")
+        }
+        guard let persona = args["persona"]?.stringValue else {
+            return errorResult("Missing required field: persona")
+        }
+        guard args["taskTitle"]?.stringValue != nil else {
+            return errorResult("Missing required field: taskTitle")
+        }
+        guard args["beforeState"]?.stringValue != nil else {
+            return errorResult("Missing required field: beforeState")
+        }
+        guard args["afterState"]?.stringValue != nil else {
+            return errorResult("Missing required field: afterState")
+        }
+
+        let validPersonas = ["investigate", "implement", "verify", "critique", "review", "fix"]
+        guard validPersonas.contains(persona) else {
+            return errorResult("Invalid persona '\(persona)'. Must be one of: \(validPersonas.joined(separator: ", "))")
+        }
+
+        return await writeToDB(type: "agent_report", scope: "shiki", data: args, dbClient: dbClient)
     }
 
     // MARK: - Helpers
