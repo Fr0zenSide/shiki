@@ -176,12 +176,16 @@ public final class SSDPSearchResponder: @unchecked Sendable {
 
 // MARK: - SSDPBrowser
 
-/// Discovers UPnP devices on the local network by sending M-SEARCH and listening for NOTIFY.
+/// Discovers UPnP devices on the local network by sending M-SEARCH and listening for responses.
+///
+/// Uses NWConnectionGroup to join the SSDP multicast group (239.255.255.250:1900)
+/// so we receive both NOTIFY announcements AND unicast M-SEARCH responses.
+/// NWListener alone cannot receive multicast traffic.
 public final class SSDPBrowser: @unchecked Sendable {
     public weak var delegate: SSDPDelegate?
 
     private let searchTarget: String
-    private var listener: NWListener?
+    private var multicastGroup: NWConnectionGroup?
     private var searchConnection: NWConnection?
     private var discoveredUSNs: Set<String> = []
     private let queue = DispatchQueue(label: "net.netkit.ssdp.browser")
@@ -190,28 +194,32 @@ public final class SSDPBrowser: @unchecked Sendable {
         self.searchTarget = searchTarget
     }
 
-    /// Start browsing — listens for SSDP multicast and sends M-SEARCH.
+    /// Start browsing — joins SSDP multicast group and sends M-SEARCH.
     public func start() {
-        startListener()
+        joinMulticastGroup()
         sendSearch()
     }
 
     /// Stop browsing.
     public func stop() {
-        listener?.cancel()
-        listener = nil
+        multicastGroup?.cancel()
+        multicastGroup = nil
         searchConnection?.cancel()
         searchConnection = nil
         discoveredUSNs.removeAll()
     }
 
     /// Send an M-SEARCH request to discover devices.
+    /// Responses arrive as unicast on the same connection.
     public func sendSearch() {
         let host = NWEndpoint.Host(SSDPConstants.multicastAddress)
         let port = NWEndpoint.Port(rawValue: SSDPConstants.multicastPort)!
 
         let params = NWParameters.udp
         params.allowLocalEndpointReuse = true
+
+        // Close previous search connection
+        searchConnection?.cancel()
 
         let conn = NWConnection(host: host, port: port, using: params)
         searchConnection = conn
@@ -221,54 +229,66 @@ public final class SSDPBrowser: @unchecked Sendable {
             if case .ready = state {
                 let data = SSDPMessage.mSearch(searchTarget: self.searchTarget)
                 conn.send(content: data, completion: .contentProcessed { _ in })
+                // Listen for unicast responses on this connection
+                self.receiveSearchResponses(on: conn)
             }
         }
         conn.start(queue: queue)
     }
 
-    private func startListener() {
+    /// Listen for unicast search responses on the M-SEARCH connection.
+    private func receiveSearchResponses(on connection: NWConnection) {
+        connection.receiveMessage { [weak self] data, _, _, error in
+            guard let self, let data, error == nil else { return }
+            self.handleSSDPData(data)
+            // Keep listening for more responses
+            self.receiveSearchResponses(on: connection)
+        }
+    }
+
+    /// Join the SSDP multicast group to receive NOTIFY announcements.
+    private func joinMulticastGroup() {
+        let multicastEndpoint = NWEndpoint.hostPort(
+            host: NWEndpoint.Host(SSDPConstants.multicastAddress),
+            port: NWEndpoint.Port(rawValue: SSDPConstants.multicastPort)!
+        )
+
+        guard let groupDesc = try? NWMulticastGroup(for: [multicastEndpoint]) else { return }
         let params = NWParameters.udp
         params.allowLocalEndpointReuse = true
 
-        // Listen on the SSDP multicast port
-        guard let listener = try? NWListener(using: params, on: NWEndpoint.Port(rawValue: SSDPConstants.multicastPort)!) else {
-            return
-        }
-        self.listener = listener
+        let group = NWConnectionGroup(with: groupDesc, using: params)
+        self.multicastGroup = group
 
-        listener.newConnectionHandler = { [weak self] connection in
-            self?.handleConnection(connection)
+        group.setReceiveHandler(maximumMessageSize: 65536, rejectOversizedMessages: true) { [weak self] message, data, isComplete in
+            guard let self, let data else { return }
+            self.handleSSDPData(data)
         }
-        listener.start(queue: queue)
+
+        group.stateUpdateHandler = { state in
+            // NWConnectionGroup state changes — no action needed
+        }
+
+        group.start(queue: queue)
     }
 
-    private func handleConnection(_ connection: NWConnection) {
-        connection.start(queue: queue)
-        receiveMessage(on: connection)
-    }
+    private func handleSSDPData(_ data: Data) {
+        guard let message = SSDPMessage.parse(data) else { return }
 
-    private func receiveMessage(on connection: NWConnection) {
-        connection.receiveMessage { [weak self] data, _, _, error in
-            guard let self, let data, error == nil else { return }
-
-            if let message = SSDPMessage.parse(data) {
-                self.queue.async {
-                    switch message.type {
-                    case .alive, .searchResponse:
-                        let isNew = self.discoveredUSNs.insert(message.usn).inserted
-                        if isNew {
-                            self.delegate?.ssdpDidDiscover(message: message)
-                        }
-                    case .byebye:
-                        self.discoveredUSNs.remove(message.usn)
-                        self.delegate?.ssdpDidLose(usn: message.usn)
-                    case .search:
-                        break // We don't respond to searches as a browser
-                    }
+        queue.async { [weak self] in
+            guard let self else { return }
+            switch message.type {
+            case .alive, .searchResponse:
+                let isNew = self.discoveredUSNs.insert(message.usn).inserted
+                if isNew {
+                    self.delegate?.ssdpDidDiscover(message: message)
                 }
+            case .byebye:
+                self.discoveredUSNs.remove(message.usn)
+                self.delegate?.ssdpDidLose(usn: message.usn)
+            case .search:
+                break // We don't respond to searches as a browser
             }
-
-            self.receiveMessage(on: connection)
         }
     }
 }
