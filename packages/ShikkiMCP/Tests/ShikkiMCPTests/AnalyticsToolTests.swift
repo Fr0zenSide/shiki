@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import ShikiMCP
+@testable import ShikkiMCP
 
 @Suite("Analytics Tools")
 struct AnalyticsToolTests {
@@ -68,12 +68,38 @@ struct AnalyticsToolTests {
         #expect(mock.lastSearchProjectIds == ["proj-123"])
     }
 
+    @Test("daily_summary shows section counts")
+    func dailySummarySectionCounts() async {
+        let mock = MockDBClient()
+        mock.searchResult = .object(["results": .array([
+            .object(["id": .string("1")]),
+            .object(["id": .string("2")]),
+        ])])
+
+        let params: JSONValue = .object([
+            "date": .string("2026-03-29"),
+        ])
+        let result = await AnalyticsTools.execute(toolName: "shiki_daily_summary", params: params, dbClient: mock)
+        let text = extractText(result)
+        #expect(text.contains("2 found"))
+    }
+
     // MARK: - Decision Chain
 
     @Test("decision_chain requires decisionId")
     func decisionChainMissingId() async {
         let mock = MockDBClient()
         let result = await AnalyticsTools.execute(toolName: "shiki_decision_chain", params: .object([:]), dbClient: mock)
+        let text = extractText(result)
+        #expect(text.contains("Missing required field: decisionId"))
+        #expect(isError(result))
+    }
+
+    @Test("decision_chain rejects empty decisionId")
+    func decisionChainEmptyId() async {
+        let mock = MockDBClient()
+        let params: JSONValue = .object(["decisionId": .string("")])
+        let result = await AnalyticsTools.execute(toolName: "shiki_decision_chain", params: params, dbClient: mock)
         let text = extractText(result)
         #expect(text.contains("Missing required field: decisionId"))
         #expect(isError(result))
@@ -103,7 +129,7 @@ struct AnalyticsToolTests {
         ])
         let result = await AnalyticsTools.execute(toolName: "shiki_decision_chain", params: params, dbClient: mock)
         let text = extractText(result)
-        #expect(text.contains("ShikiDB error"))
+        #expect(text.contains("ShikkiDB error"))
         #expect(isError(result))
     }
 
@@ -182,6 +208,12 @@ struct AnalyticsToolTests {
         #expect(!AnalyticsTools.isValidDateString("2026/03/29"))
         #expect(!AnalyticsTools.isValidDateString(""))
         #expect(!AnalyticsTools.isValidDateString("29-03-2026"))
+    }
+
+    @Test("isValidDateString rejects impossible dates")
+    func impossibleDates() {
+        #expect(!AnalyticsTools.isValidDateString("2026-02-30"))
+        #expect(!AnalyticsTools.isValidDateString("2026-13-01"))
     }
 
     // MARK: - Unknown tool

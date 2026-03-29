@@ -3,46 +3,82 @@ import Logging
 
 // MARK: - Errors
 
-enum ShikiDBError: Error, Sendable, CustomStringConvertible {
+enum ShikkiDBError: Error, Sendable, CustomStringConvertible {
     case httpError(statusCode: Int, body: String)
     case connectionRefused(underlying: String)
     case invalidURL(String)
     case decodingError(String)
     case unexpectedError(String)
+    case retriesExhausted(lastError: String, attempts: Int)
 
     var description: String {
         switch self {
         case .httpError(let code, let body):
             return "HTTP \(code): \(body)"
         case .connectionRefused(let underlying):
-            return "Connection refused — is ShikiDB running? (\(underlying))"
+            return "Connection refused — is ShikkiDB running? (\(underlying))"
         case .invalidURL(let url):
             return "Invalid URL: \(url)"
         case .decodingError(let detail):
             return "Decoding error: \(detail)"
         case .unexpectedError(let detail):
             return "Unexpected error: \(detail)"
+        case .retriesExhausted(let lastError, let attempts):
+            return "Retries exhausted after \(attempts) attempts — last error: \(lastError)"
+        }
+    }
+
+    /// Whether this error is transient and can be retried
+    var isTransient: Bool {
+        switch self {
+        case .connectionRefused:
+            return true
+        case .httpError(let code, _):
+            return code >= 500 || code == 429
+        case .retriesExhausted:
+            return false
+        case .invalidURL, .decodingError, .unexpectedError:
+            return false
         }
     }
 }
 
 // MARK: - Protocol for testability
 
-protocol ShikiDBClientProtocol: Sendable {
+protocol ShikkiDBClientProtocol: Sendable {
     func dataSyncWrite(type: String, scope: String, data: [String: JSONValue], projectId: String?) async throws -> JSONValue
     func memoriesSearch(query: String, projectIds: [String]?, types: [String]?, limit: Int) async throws -> JSONValue
     func healthCheck() async throws -> Bool
 }
 
-// MARK: - ShikiDBClient
+// MARK: - Retry Configuration
 
-actor ShikiDBClient: ShikiDBClientProtocol {
+struct RetryConfig: Sendable {
+    let maxAttempts: Int
+    let baseDelayMs: UInt64
+    let maxDelayMs: UInt64
+
+    static let `default` = RetryConfig(maxAttempts: 3, baseDelayMs: 200, maxDelayMs: 2000)
+    static let none = RetryConfig(maxAttempts: 1, baseDelayMs: 0, maxDelayMs: 0)
+
+    func delay(forAttempt attempt: Int) -> UInt64 {
+        guard attempt > 0 else { return 0 }
+        let exponential = baseDelayMs * UInt64(1 << min(attempt - 1, 5))
+        return min(exponential, maxDelayMs)
+    }
+}
+
+// MARK: - ShikkiDBClient
+
+actor ShikkiDBClient: ShikkiDBClientProtocol {
     let baseURL: String
-    private let logger = Logger(label: "shiki.mcp.db-client")
+    let retryConfig: RetryConfig
+    private let logger = Logger(label: "shikki.mcp.db-client")
     private let session: URLSession
 
-    init(baseURL: String = "http://localhost:3900") {
+    init(baseURL: String = "http://localhost:3900", retryConfig: RetryConfig = .default) {
         self.baseURL = baseURL
+        self.retryConfig = retryConfig
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 10
         self.session = URLSession(configuration: config)
@@ -61,7 +97,7 @@ actor ShikiDBClient: ShikiDBClientProtocol {
         }
         let payload: JSONValue = .object(payloadDict)
 
-        let responseData = try await post(url: url, body: payload)
+        let responseData = try await postWithRetry(url: url, body: payload)
         return try decodeJSON(responseData)
     }
 
@@ -81,7 +117,7 @@ actor ShikiDBClient: ShikiDBClientProtocol {
             body["types"] = .array(types.map { .string($0) })
         }
 
-        let responseData = try await post(url: url, body: .object(body))
+        let responseData = try await postWithRetry(url: url, body: .object(body))
         return try decodeJSON(responseData)
     }
 
@@ -117,11 +153,45 @@ actor ShikiDBClient: ShikiDBClientProtocol {
         return knownProjects[projectName.lowercased()]
     }
 
+    // MARK: - Retry Logic
+
+    private func postWithRetry(url: URL, body: JSONValue) async throws -> Data {
+        var lastError: ShikkiDBError?
+
+        for attempt in 0..<retryConfig.maxAttempts {
+            if attempt > 0 {
+                let delayMs = retryConfig.delay(forAttempt: attempt)
+                logger.info("Retrying request (attempt \(attempt + 1)/\(retryConfig.maxAttempts)) after \(delayMs)ms")
+                try await Task.sleep(nanoseconds: delayMs * 1_000_000)
+            }
+
+            do {
+                return try await post(url: url, body: body)
+            } catch let error as ShikkiDBError {
+                lastError = error
+                if !error.isTransient {
+                    throw error
+                }
+                logger.warning("Transient error on attempt \(attempt + 1): \(error.description)")
+            }
+        }
+
+        // If only 1 attempt was configured, re-throw the original error directly
+        if retryConfig.maxAttempts <= 1, let lastError {
+            throw lastError
+        }
+
+        throw ShikkiDBError.retriesExhausted(
+            lastError: lastError?.description ?? "unknown",
+            attempts: retryConfig.maxAttempts
+        )
+    }
+
     // MARK: - Private
 
     private func buildURL(_ path: String) throws -> URL {
         guard let url = URL(string: baseURL + path) else {
-            throw ShikiDBError.invalidURL(baseURL + path)
+            throw ShikkiDBError.invalidURL(baseURL + path)
         }
         return url
     }
@@ -141,18 +211,18 @@ actor ShikiDBClient: ShikiDBClientProtocol {
             (data, response) = try await session.data(for: request)
         } catch let urlError as URLError {
             if urlError.code == .cannotConnectToHost || urlError.code == .networkConnectionLost || urlError.code == .timedOut {
-                throw ShikiDBError.connectionRefused(underlying: urlError.localizedDescription)
+                throw ShikkiDBError.connectionRefused(underlying: urlError.localizedDescription)
             }
-            throw ShikiDBError.unexpectedError(urlError.localizedDescription)
+            throw ShikkiDBError.unexpectedError(urlError.localizedDescription)
         }
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw ShikiDBError.unexpectedError("Non-HTTP response")
+            throw ShikkiDBError.unexpectedError("Non-HTTP response")
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
             let bodyString = String(data: data, encoding: .utf8) ?? "<undecodable>"
-            throw ShikiDBError.httpError(statusCode: httpResponse.statusCode, body: bodyString)
+            throw ShikkiDBError.httpError(statusCode: httpResponse.statusCode, body: bodyString)
         }
 
         return data
@@ -163,7 +233,7 @@ actor ShikiDBClient: ShikiDBClientProtocol {
         do {
             return try decoder.decode(JSONValue.self, from: data)
         } catch {
-            throw ShikiDBError.decodingError(error.localizedDescription)
+            throw ShikkiDBError.decodingError(error.localizedDescription)
         }
     }
 }

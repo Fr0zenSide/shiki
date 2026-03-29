@@ -1,13 +1,13 @@
-import Testing
 import Foundation
-@testable import ShikiMCP
+import Testing
+@testable import ShikkiMCP
 
-@Suite("ShikiDBClient Contract Tests")
-struct ShikiDBClientContractTests {
+@Suite("ShikkiDBClient Contract Tests")
+struct ShikkiDBClientContractTests {
 
     /// Port 1 is always refused — gives us a real client against an unreachable host.
-    private func unreachableClient() -> ShikiDBClient {
-        ShikiDBClient(baseURL: "http://127.0.0.1:1")
+    private func unreachableClient() -> ShikkiDBClient {
+        ShikkiDBClient(baseURL: "http://127.0.0.1:1", retryConfig: .none)
     }
 
     @Test("Real client throws connectionRefused for unreachable host")
@@ -16,7 +16,7 @@ struct ShikiDBClientContractTests {
         do {
             _ = try await client.dataSyncWrite(type: "test", scope: "test", data: [:])
             Issue.record("Should have thrown")
-        } catch let error as ShikiDBError {
+        } catch let error as ShikkiDBError {
             switch error {
             case .connectionRefused:
                 break // expected
@@ -45,7 +45,7 @@ struct ShikiDBClientContractTests {
         do {
             _ = try await client.memoriesSearch(query: "test", projectIds: nil, types: nil, limit: 5)
             Issue.record("Should have thrown")
-        } catch let error as ShikiDBError {
+        } catch let error as ShikkiDBError {
             switch error {
             case .connectionRefused:
                 break // correct — connection refused is NOT an HTTP error
