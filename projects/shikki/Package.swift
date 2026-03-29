@@ -1,0 +1,47 @@
+// swift-tools-version: 6.0
+
+import PackageDescription
+
+let package = Package(
+    name: "shikki",
+    platforms: [.macOS(.v14)],
+    products: [
+        .executable(name: "shikki", targets: ["shikki"]),
+        .library(name: "ShikkiKit", targets: ["ShikkiKit"]),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
+    ],
+    targets: [
+        .target(
+            name: "ShikkiKit",
+            dependencies: [
+                .product(name: "Logging", package: "swift-log"),
+            ],
+            resources: [
+                .process("Resources"),
+            ]
+        ),
+        .executableTarget(
+            name: "shikki",
+            dependencies: [
+                "ShikkiKit",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "Logging", package: "swift-log"),
+            ]
+        ),
+        .testTarget(
+            name: "ShikkiKitTests",
+            dependencies: ["ShikkiKit"]
+        ),
+        .testTarget(
+            name: "ShikkiTests",
+            dependencies: [
+                "shikki",
+                "ShikkiKit",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ]
+        ),
+    ]
+)
