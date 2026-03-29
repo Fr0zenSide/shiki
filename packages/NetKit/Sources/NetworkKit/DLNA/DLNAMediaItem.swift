@@ -51,8 +51,11 @@ extension DLNAMediaItem {
     var fileExtension: String {
         switch mimeType {
         case "video/mp4": return "mp4"
+        case "video/mp2t": return "ts"
         case "video/x-matroska": return "mkv"
         case "video/webm": return "webm"
+        case "video/quicktime": return "mov"
+        case "video/x-msvideo": return "avi"
         case "image/jpeg": return "jpg"
         case "image/png": return "png"
         default: return "bin"
