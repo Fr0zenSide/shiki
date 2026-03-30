@@ -290,7 +290,7 @@ struct RestartPolicyTests {
         #expect(allIDs.contains(.dispatchService))
         #expect(allIDs.contains(.sessionSupervisor))
         #expect(allIDs.contains(.staleCompanyDetector))
-        #expect(allIDs.count >= 8)
+        #expect(allIDs.count >= 9)
     }
 
     @Test("Default canRun blocks non-critical when unhealthy")

@@ -12,6 +12,7 @@ public enum ServiceID: String, Sendable, Hashable, CaseIterable {
     case staleCompanyDetector
     case eventPersister
     case recovery
+    case natsServer
 }
 
 // MARK: - ServiceQoS
