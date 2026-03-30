@@ -46,6 +46,7 @@ export const MemorySchema = z.object({
   content: z.string().min(1).max(50000),
   category: z.string().min(1).max(100).optional().default("general"),
   importance: z.number().min(0).max(10).optional().default(1.0),
+  metadata: z.record(z.unknown()).optional().default({}),
 });
 export type MemoryInput = z.infer<typeof MemorySchema>;
 
