@@ -30,6 +30,7 @@ actor SpyService: ManagedService {
     private var _tickCount: Int = 0
     private var _tickTimestamps: [Date] = []
     private var _shouldThrow: Bool = false
+    private var _alwaysThrow: Bool = false
 
     var tickCount: Int { _tickCount }
     var tickTimestamps: [Date] { _tickTimestamps }
@@ -49,6 +50,9 @@ actor SpyService: ManagedService {
     }
 
     func tick(snapshot: KernelSnapshot) async throws {
+        if _alwaysThrow {
+            throw ServiceError.testFailure
+        }
         if _shouldThrow {
             _shouldThrow = false
             throw ServiceError.testFailure
@@ -67,13 +71,17 @@ actor SpyService: ManagedService {
     func setThrowOnNextTick() {
         _shouldThrow = true
     }
+
+    func setAlwaysThrow(_ value: Bool) {
+        _alwaysThrow = value
+    }
 }
 
 enum ServiceError: Error {
     case testFailure
 }
 
-// MARK: - Tests
+// MARK: - Tests — Core
 
 @Suite("ShikkiKernel — Core")
 struct ShikkiKernelCoreTests {
@@ -150,7 +158,39 @@ struct ShikkiKernelCoreTests {
         #expect(ServiceQoS.default < ServiceQoS.utility)
         #expect(ServiceQoS.utility < ServiceQoS.background)
     }
+
+    @Test("Register adds service at runtime")
+    func test_register_adds_service() async throws {
+        let kernel = ShikkiKernel(
+            services: [],
+            snapshotProvider: MockSnapshotProvider()
+        )
+
+        let service = SpyService(id: .healthMonitor, qos: .critical, interval: .seconds(10))
+        await kernel.register(service)
+
+        let ids = await kernel.serviceIDs
+        #expect(ids.contains(.healthMonitor))
+        #expect(ids.count == 1)
+    }
+
+    @Test("Unregister removes service at runtime")
+    func test_unregister_removes_service() async throws {
+        let service = SpyService(id: .healthMonitor, qos: .critical, interval: .seconds(10))
+        let kernel = ShikkiKernel(
+            services: [service],
+            snapshotProvider: MockSnapshotProvider()
+        )
+
+        await kernel.unregister(.healthMonitor)
+
+        let ids = await kernel.serviceIDs
+        #expect(!ids.contains(.healthMonitor))
+        #expect(ids.isEmpty)
+    }
 }
+
+// MARK: - Tests — Timer Coalescing
 
 @Suite("ShikkiKernel — Timer Coalescing")
 struct ShikkiKernelTimerTests {
@@ -217,6 +257,8 @@ struct ShikkiKernelTimerTests {
     }
 }
 
+// MARK: - Tests — Service Intervals
+
 @Suite("ShikkiKernel — Service Intervals")
 struct ShikkiKernelServiceIntervalTests {
 
@@ -246,7 +288,29 @@ struct ShikkiKernelServiceIntervalTests {
         #expect(await service.qos == .default)
         #expect(await service.id == .dispatchService)
     }
+
+    @Test("DecisionMonitorService interval is 30s")
+    func test_decisionMonitor_interval_is_30s() async throws {
+        let notifier = MockNotificationSender()
+        let service = DecisionMonitorService(notifier: notifier)
+
+        #expect(await service.interval == .seconds(30))
+        #expect(await service.qos == .userInitiated)
+        #expect(await service.id == .decisionMonitor)
+    }
+
+    @Test("StaleCompanyDetector interval is 300s")
+    func test_staleDetector_interval_is_300s() async throws {
+        let client = MockBackendClient()
+        let service = StaleCompanyDetectorService(client: client)
+
+        #expect(await service.interval == .seconds(300))
+        #expect(await service.qos == .background)
+        #expect(await service.id == .staleCompanyDetector)
+    }
 }
+
+// MARK: - Tests — Snapshot
 
 @Suite("ShikkiKernel — Snapshot")
 struct KernelSnapshotTests {
@@ -280,6 +344,8 @@ struct KernelSnapshotTests {
     }
 }
 
+// MARK: - Tests — RestartPolicy
+
 @Suite("ShikkiKernel — RestartPolicy")
 struct RestartPolicyTests {
 
@@ -287,6 +353,7 @@ struct RestartPolicyTests {
     func serviceIDCases() {
         let allIDs = ServiceID.allCases
         #expect(allIDs.contains(.healthMonitor))
+        #expect(allIDs.contains(.decisionMonitor))
         #expect(allIDs.contains(.dispatchService))
         #expect(allIDs.contains(.sessionSupervisor))
         #expect(allIDs.contains(.staleCompanyDetector))
@@ -315,6 +382,8 @@ struct RestartPolicyTests {
     }
 }
 
+// MARK: - Tests — Wake Signal
+
 @Suite("ShikkiKernel — Wake Signal")
 struct ShikkiKernelWakeTests {
 
@@ -340,18 +409,14 @@ struct ShikkiKernelWakeTests {
         // Now kernel is sleeping for ~60s. Wake it.
         await kernel.wake(.taskCreated("test-task"))
 
-        // Wait a bit for the wake to process — should tick again despite 60s interval
+        // Wait a bit for the wake to process
         try await Task.sleep(for: .milliseconds(300))
 
         task.cancel()
         await kernel.shutdown()
 
+        // The kernel did NOT sleep for 60s — we prove it completed within 1s total
         let ticksAfterWake = await service.tickCount
-        // Service has 60s interval but HealthMonitor has 0 leeway,
-        // so it won't be due yet. The kernel wakes and recomputes,
-        // but only collects services that are actually due.
-        // The key assertion: the kernel did NOT sleep for 60s.
-        // We prove this by checking total elapsed time < 1s.
         #expect(ticksAfterWake >= 1)
     }
 
@@ -427,5 +492,94 @@ struct ShikkiKernelWakeTests {
         // Wake after shutdown should not crash (continuation is finished)
         try await Task.sleep(for: .milliseconds(100))
         task.cancel()
+    }
+}
+
+// MARK: - Tests — 3-Failure Escalation
+
+@Suite("ShikkiKernel — Failure Escalation")
+struct ShikkiKernelEscalationTests {
+
+    @Test("3 consecutive failures escalates and removes service")
+    func test_3_failures_escalates() async throws {
+        // Service that always throws, with short interval for quick iteration
+        let failing = SpyService(
+            id: .dispatchService,
+            qos: .default,
+            interval: .milliseconds(50),
+            restartPolicy: .always(maxRestarts: 10, backoff: .milliseconds(10))
+        )
+        await failing.setAlwaysThrow(true)
+
+        let kernel = ShikkiKernel(
+            services: [failing],
+            snapshotProvider: MockSnapshotProvider()
+        )
+
+        let task = Task {
+            await kernel.run()
+        }
+
+        // Wait enough for 3+ tick attempts
+        try await Task.sleep(for: .milliseconds(500))
+        task.cancel()
+        await kernel.shutdown()
+
+        // Service should have been removed after 3 failures
+        let ids = await kernel.serviceIDs
+        #expect(!ids.contains(.dispatchService))
+
+        // Escalation event should have been recorded
+        let escalations = await kernel.escalations
+        #expect(escalations.count == 1)
+        #expect(escalations.first?.serviceId == .dispatchService)
+        #expect(escalations.first?.failureCount == 3)
+    }
+
+    @Test("Successful tick resets consecutive failure count")
+    func test_success_resets_failure_count() async throws {
+        let service = SpyService(
+            id: .healthMonitor,
+            qos: .critical,
+            interval: .milliseconds(50),
+            restartPolicy: .always(maxRestarts: 10, backoff: .milliseconds(10))
+        )
+        // Fail once, then succeed
+        await service.setThrowOnNextTick()
+
+        let kernel = ShikkiKernel(
+            services: [service],
+            snapshotProvider: MockSnapshotProvider()
+        )
+
+        let task = Task {
+            await kernel.run()
+        }
+
+        // Wait for fail + recover
+        try await Task.sleep(for: .milliseconds(300))
+        task.cancel()
+        await kernel.shutdown()
+
+        // Service should still be registered (recovered before escalation)
+        let ids = await kernel.serviceIDs
+        #expect(ids.contains(.healthMonitor))
+
+        // No escalation
+        let escalations = await kernel.escalations
+        #expect(escalations.isEmpty)
+    }
+
+    @Test("EscalationEvent captures context")
+    func test_escalation_event_context() {
+        let event = EscalationEvent(
+            serviceId: .dispatchService,
+            failureCount: 3,
+            lastError: "connection refused"
+        )
+
+        #expect(event.serviceId == .dispatchService)
+        #expect(event.failureCount == 3)
+        #expect(event.lastError == "connection refused")
     }
 }
