@@ -109,15 +109,6 @@ public struct ANSIEventRenderer: EventRenderer {
         case .scheduledTaskCompleted: return "scheduler"
         case .scheduledTaskFailed: return "scheduler"
         case .corroborationSweep: return "scheduler"
-        case .decisionMade: return "decision"
-        case .architectureChoice: return "decision"
-        case .tradeOffEvaluated: return "decision"
-        case .blockerHit: return "blocker"
-        case .blockerResolved: return "blocker"
-        case .milestoneReached: return "milestone"
-        case .redFlag: return "red-flag"
-        case .contextSaved: return "context"
-        case .agentReportGenerated: return "report"
         case .custom(let name): return name
         }
     }

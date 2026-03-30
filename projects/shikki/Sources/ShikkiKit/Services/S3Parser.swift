@@ -240,10 +240,7 @@ public enum S3Parser {
                 flushConcern()
                 let context = String(trimmed.dropFirst(5).dropLast()) // remove "when " and ":"
 
-                // Inside a for-each: indented sub-when is a condition,
-                // but a line with no leading whitespace is a new top-level scenario.
-                let isIndented = line.first?.isWhitespace == true
-                if currentScenario?.loopVariable != nil && isIndented {
+                if currentScenario?.loopVariable != nil {
                     // Inside a for-each — this is a sub-scenario, treat as condition
                     flushCondition()
                     currentCondition = S3Condition(condition: context)
