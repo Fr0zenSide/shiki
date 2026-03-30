@@ -28,3 +28,28 @@ public enum DurationParseError: Error, CustomStringConvertible, Equatable {
         }
     }
 }
+
+// MARK: - DurationParser Recovery Extension
+
+extension DurationParser {
+    /// Default recovery window: 1 hour.
+    public static let defaultRecoveryDuration: TimeInterval = 3600
+    /// Maximum: 7 days.
+    private static let maxRecoveryDuration: TimeInterval = 7 * 24 * 3600
+
+    /// Parse a duration string for recovery. Clamps to 7 days.
+    public static func parseForRecovery(_ input: String) throws -> ParsedDuration {
+        let trimmed = input.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !trimmed.isEmpty else { throw DurationParseError.invalidFormat(input) }
+
+        guard let seconds = parse(trimmed) else {
+            // Try with 'd' suffix (not in base parse)
+            if trimmed.hasSuffix("d"), let value = Double(trimmed.dropLast()) {
+                let secs = value * 86400
+                return ParsedDuration(seconds: min(secs, maxRecoveryDuration), clamped: secs > maxRecoveryDuration)
+            }
+            throw DurationParseError.invalidFormat(input)
+        }
+        return ParsedDuration(seconds: min(seconds, maxRecoveryDuration), clamped: seconds > maxRecoveryDuration)
+    }
+}

@@ -66,7 +66,7 @@ struct NodeCommand: AsyncParsableCommand {
             } else {
                 renderTable(response.nodes)
             }
-        } catch let error as NATSError where error == .timeout {
+        } catch let error as NATSClientError where error == .timeout {
             print("No response from discovery service (timeout after \(timeout)s).")
             print("Is nats-server running? Is a Shikki node active?")
             throw ExitCode.failure

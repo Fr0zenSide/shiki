@@ -6,6 +6,9 @@ import ShikkiKit
 /// local checkpoints, and git for humans and agents.
 /// Also accessible as `shikki doctor --context`.
 struct DiagnosticCommand: AsyncParsableCommand {
+    /// Default recovery window when no checkpoint or --from is specified.
+    static let defaultRecoveryWindowSeconds: TimeInterval = 3600 // 1 hour
+
     static let configuration = CommandConfiguration(
         commandName: "diagnostic",
         abstract: "Recover recent work context from DB, checkpoints, and git"
@@ -96,7 +99,7 @@ struct DiagnosticCommand: AsyncParsableCommand {
                 return TimeWindow(since: since)
             }
         }
-        return TimeWindow.lookback(seconds: 3600) // 1 hour default recovery window
+        return TimeWindow.lookback(seconds: Self.defaultRecoveryWindowSeconds)
     }
 
     /// BR-23: Copy to clipboard or fallback file.
