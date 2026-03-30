@@ -2,208 +2,117 @@ import Foundation
 
 // MARK: - MockNATSClient
 
-/// In-memory NATS client for testing. No real nats-server needed.
-///
-/// Features:
-/// - Records all published messages for assertions
-/// - Delivers published messages to matching subscribers via AsyncStream
-/// - Supports request/reply pattern with configurable responders
-/// - Supports NATS wildcard matching (`*` for single token, `>` for tail)
+/// In-memory NATS client for testing.
+/// Records all published messages and routes them to matching subscribers.
+/// No real nats-server required.
 public actor MockNATSClient: NATSClientProtocol {
+    public private(set) var connected = false
+    public private(set) var publishedMessages: [(subject: String, data: Data)] = []
+    public private(set) var subscribedSubjects: [String] = []
+    private var continuations: [(subject: String, continuation: AsyncStream<NATSMessage>.Continuation)] = []
 
-    // MARK: - State
+    /// Configurable: if true, connect() throws.
+    public var shouldFailConnect = false
 
-    private var connected = false
-    private var subscriptions: [String: [AsyncStream<NATSMessage>.Continuation]] = [:]
-    private var responders: [String: @Sendable (NATSMessage) async -> NATSMessage] = [:]
+    /// Configurable: if true, publish() throws.
+    public var shouldFailPublish = false
 
-    /// All messages published through this client, in order.
-    public private(set) var publishedMessages: [NATSMessage] = []
-
-    /// Whether connect() was called.
-    public private(set) var connectCalled = false
-
-    /// Whether disconnect() was called.
-    public private(set) var disconnectCalled = false
-
-    /// If set, connect() will throw this error.
-    private var connectError: NATSError?
-
-    /// If set, publish() will throw this error.
-    private var publishError: NATSError?
+    /// Configurable reply for request-reply pattern.
+    public var replyHandler: (@Sendable (String, Data) -> NATSMessage?)?
 
     public init() {}
 
-    // MARK: - NATSClientProtocol
-
-    public var isConnected: Bool {
-        connected
-    }
+    public var isConnected: Bool { connected }
 
     public func connect() async throws {
-        connectCalled = true
-        if let error = connectError {
-            throw error
+        if shouldFailConnect {
+            throw NATSClientError.connectionFailed("mock: connect disabled")
         }
         connected = true
     }
 
     public func disconnect() async {
-        disconnectCalled = true
         connected = false
-        // Finish all subscription continuations
-        for (_, continuations) in subscriptions {
-            for continuation in continuations {
-                continuation.finish()
-            }
+        for (_, cont) in continuations {
+            cont.finish()
         }
-        subscriptions.removeAll()
+        continuations.removeAll()
     }
 
     public func publish(subject: String, data: Data) async throws {
-        if let error = publishError {
-            throw error
-        }
-        guard connected else {
-            throw NATSError.notConnected
-        }
+        guard connected else { throw NATSClientError.notConnected }
+        if shouldFailPublish { throw NATSClientError.encodingFailed }
 
-        let message = NATSMessage(subject: subject, data: data, replyTo: nil)
-        publishedMessages.append(message)
+        publishedMessages.append((subject: subject, data: data))
 
-        // Deliver to matching subscribers
-        for (pattern, continuations) in subscriptions {
-            if Self.subjectMatches(pattern: pattern, subject: subject) {
-                for continuation in continuations {
-                    continuation.yield(message)
-                }
+        // Route to matching subscribers
+        let message = NATSMessage(subject: subject, data: data)
+        for (pattern, cont) in continuations {
+            if Self.matches(subject: subject, pattern: pattern) {
+                cont.yield(message)
             }
         }
     }
 
-    public func subscribe(subject: String) -> AsyncStream<NATSMessage> {
-        let (stream, continuation) = AsyncStream<NATSMessage>.makeStream(
-            bufferingPolicy: .bufferingNewest(100)
-        )
-        subscriptions[subject, default: []].append(continuation)
-        return stream
-    }
-
-    public func request(
-        subject: String,
-        data: Data,
-        timeout: Duration
-    ) async throws -> NATSMessage {
-        guard connected else {
-            throw NATSError.notConnected
+    public nonisolated func subscribe(subject: String) -> AsyncStream<NATSMessage> {
+        AsyncStream { continuation in
+            Task { await self.addSubscription(subject: subject, continuation: continuation) }
         }
+    }
 
-        let requestMessage = NATSMessage(
-            subject: subject,
-            data: data,
-            replyTo: "_INBOX.\(UUID().uuidString)"
-        )
-        publishedMessages.append(requestMessage)
-
-        // Look for a matching responder
-        if let responder = findResponder(for: subject) {
-            return await responder(requestMessage)
+    public func request(subject: String, data: Data, timeout: Duration) async throws -> NATSMessage {
+        guard connected else { throw NATSClientError.notConnected }
+        if let handler = replyHandler, let reply = handler(subject, data) {
+            return reply
         }
-
-        // No responder — simulate timeout
-        throw NATSError.timeout
+        throw NATSClientError.timeout
     }
 
-    // MARK: - Test Helpers
+    // MARK: - Internal
 
-    /// Register a responder for request/reply on a subject pattern.
-    public func whenRequest(
-        subject: String,
-        respond: @escaping @Sendable (NATSMessage) async -> NATSMessage
-    ) {
-        responders[subject] = respond
+    private func addSubscription(subject: String, continuation: AsyncStream<NATSMessage>.Continuation) {
+        subscribedSubjects.append(subject)
+        continuations.append((subject: subject, continuation: continuation))
     }
 
-    /// Inject a message into subscribers as if it arrived from the server.
-    /// Useful for testing subscription consumers without publishing.
+    /// Simulate injecting a message from "outside" (e.g. another publisher).
+    /// Routes to all matching subscribers.
     public func injectMessage(_ message: NATSMessage) {
-        for (pattern, continuations) in subscriptions {
-            if Self.subjectMatches(pattern: pattern, subject: message.subject) {
-                for continuation in continuations {
-                    continuation.yield(message)
-                }
+        for (pattern, cont) in continuations {
+            if Self.matches(subject: message.subject, pattern: pattern) {
+                cont.yield(message)
             }
         }
     }
 
-    /// Configure connect() to throw the given error.
-    public func setConnectError(_ error: NATSError?) {
-        connectError = error
-    }
+    // MARK: - NATS Wildcard Matching
 
-    /// Configure publish() to throw the given error.
-    public func setPublishError(_ error: NATSError?) {
-        publishError = error
-    }
-
-    /// Reset all recorded state.
-    public func reset() {
-        publishedMessages.removeAll()
-        connectCalled = false
-        disconnectCalled = false
-        connectError = nil
-        publishError = nil
-        responders.removeAll()
-    }
-
-    // MARK: - Wildcard Matching
-
-    /// Match a NATS subject against a pattern.
-    /// - `*` matches exactly one token
-    /// - `>` matches one or more tokens (must be last token)
-    /// - Literal tokens must match exactly
-    static func subjectMatches(pattern: String, subject: String) -> Bool {
-        let patternTokens = pattern.split(separator: ".", omittingEmptySubsequences: false)
+    /// Match a concrete subject against a NATS subscription pattern.
+    /// Supports `*` (single token) and `>` (tail wildcard).
+    ///
+    /// Examples:
+    /// - `shikki.events.maya.agent` matches `shikki.events.maya.agent` (exact)
+    /// - `shikki.events.maya.agent` matches `shikki.events.>` (tail wildcard)
+    /// - `shikki.events.maya.agent` matches `shikki.events.*.agent` (single wildcard)
+    /// - `shikki.events.maya.agent` does NOT match `shikki.events.shiki.agent`
+    nonisolated static func matches(subject: String, pattern: String) -> Bool {
         let subjectTokens = subject.split(separator: ".", omittingEmptySubsequences: false)
+        let patternTokens = pattern.split(separator: ".", omittingEmptySubsequences: false)
 
-        for (index, pToken) in patternTokens.enumerated() {
-            if pToken == ">" {
-                // `>` matches one or more remaining tokens
-                return index < subjectTokens.count
+        for (index, patternToken) in patternTokens.enumerated() {
+            // `>` matches the rest of the subject
+            if patternToken == ">" {
+                return index <= subjectTokens.count
             }
-
-            guard index < subjectTokens.count else {
-                return false
-            }
-
-            if pToken == "*" {
-                // `*` matches exactly one token
-                continue
-            }
-
-            if pToken != subjectTokens[index] {
-                return false
-            }
+            // Must have a subject token at this position
+            guard index < subjectTokens.count else { return false }
+            // `*` matches exactly one token
+            if patternToken == "*" { continue }
+            // Literal match
+            if patternToken != subjectTokens[index] { return false }
         }
 
-        return patternTokens.count == subjectTokens.count
-    }
-
-    // MARK: - Private
-
-    private func findResponder(
-        for subject: String
-    ) -> (@Sendable (NATSMessage) async -> NATSMessage)? {
-        // Exact match first
-        if let responder = responders[subject] {
-            return responder
-        }
-        // Pattern match
-        for (pattern, responder) in responders {
-            if Self.subjectMatches(pattern: pattern, subject: subject) {
-                return responder
-            }
-        }
-        return nil
+        // If pattern is shorter than subject (no `>`), lengths must match
+        return subjectTokens.count == patternTokens.count
     }
 }

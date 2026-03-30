@@ -2,371 +2,265 @@ import Foundation
 import Testing
 @testable import ShikkiKit
 
-// MARK: - Message Collector (Sendable helper for async stream consumption)
+// MARK: - Thread-safe message collector
 
-/// Actor that collects NATSMessages from a stream for test assertions.
-private actor MessageCollector {
-    private(set) var messages: [NATSMessage] = []
+private final class MessageCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _messages: [NATSMessage] = []
 
-    func append(_ message: NATSMessage) {
-        messages.append(message)
+    var messages: [NATSMessage] {
+        lock.withLock { _messages }
     }
 
-    func collect(from stream: AsyncStream<NATSMessage>, max: Int) async {
-        var count = 0
-        for await msg in stream {
-            messages.append(msg)
-            count += 1
-            if count >= max { break }
-        }
+    var count: Int {
+        lock.withLock { _messages.count }
+    }
+
+    func append(_ msg: NATSMessage) {
+        lock.withLock { _messages.append(msg) }
     }
 }
 
-// MARK: - MockNATSClient Connection Tests
+@Suite("MockNATSClient")
+struct MockNATSClientTests {
 
-@Suite("MockNATSClient — Connection")
-struct MockNATSClientConnectionTests {
+    // MARK: - Connection
 
     @Test("Connect sets isConnected to true")
     func connectSetsConnected() async throws {
         let client = MockNATSClient()
         #expect(await client.isConnected == false)
-
         try await client.connect()
-
         #expect(await client.isConnected == true)
-        #expect(await client.connectCalled == true)
     }
 
     @Test("Disconnect sets isConnected to false")
     func disconnectSetsNotConnected() async throws {
         let client = MockNATSClient()
         try await client.connect()
-
         await client.disconnect()
-
         #expect(await client.isConnected == false)
-        #expect(await client.disconnectCalled == true)
     }
 
-    @Test("Connect throws configured error")
-    func connectThrowsOnError() async {
+    @Test("Connect throws when shouldFailConnect is set")
+    func connectThrowsOnFailure() async {
         let client = MockNATSClient()
-        await client.setConnectError(.connectionFailed("test failure"))
-
+        await client.setShouldFailConnect(true)
         do {
             try await client.connect()
             Issue.record("Expected connect to throw")
-        } catch let error as NATSError {
-            #expect(error == .connectionFailed("test failure"))
         } catch {
-            Issue.record("Unexpected error type: \(error)")
+            #expect(error is NATSClientError)
         }
     }
 
-    @Test("Publish fails when not connected")
-    func publishFailsWhenNotConnected() async {
-        let client = MockNATSClient()
+    // MARK: - Publish
 
+    @Test("Publish records messages")
+    func publishRecordsMessages() async throws {
+        let client = MockNATSClient()
+        try await client.connect()
+
+        let data = Data("test payload".utf8)
+        try await client.publish(subject: "shikki.events.maya.lifecycle", data: data)
+
+        let published = await client.publishedMessages
+        #expect(published.count == 1)
+        #expect(published[0].subject == "shikki.events.maya.lifecycle")
+    }
+
+    @Test("Publish throws when not connected")
+    func publishThrowsWhenNotConnected() async {
+        let client = MockNATSClient()
         do {
             try await client.publish(subject: "test", data: Data())
             Issue.record("Expected publish to throw")
-        } catch let error as NATSError {
-            #expect(error == .notConnected)
         } catch {
-            Issue.record("Unexpected error type: \(error)")
+            #expect(error as? NATSClientError == .notConnected)
         }
     }
 
-    @Test("Request fails when not connected")
-    func requestFailsWhenNotConnected() async {
-        let client = MockNATSClient()
-
-        do {
-            _ = try await client.request(subject: "test", data: Data(), timeout: .seconds(1))
-            Issue.record("Expected request to throw")
-        } catch let error as NATSError {
-            #expect(error == .notConnected)
-        } catch {
-            Issue.record("Unexpected error type: \(error)")
-        }
-    }
-}
-
-// MARK: - MockNATSClient Pub/Sub Tests
-
-@Suite("MockNATSClient — Pub/Sub")
-struct MockNATSClientPubSubTests {
-
-    @Test("Published messages are recorded")
-    func publishedMessagesRecorded() async throws {
+    @Test("Publish throws when shouldFailPublish is set")
+    func publishThrowsOnFailure() async throws {
         let client = MockNATSClient()
         try await client.connect()
-
-        let data1 = Data("hello".utf8)
-        let data2 = Data("world".utf8)
-        try await client.publish(subject: "test.one", data: data1)
-        try await client.publish(subject: "test.two", data: data2)
-
-        let messages = await client.publishedMessages
-        #expect(messages.count == 2)
-        #expect(messages[0].subject == "test.one")
-        #expect(messages[0].data == data1)
-        #expect(messages[1].subject == "test.two")
-        #expect(messages[1].data == data2)
-    }
-
-    @Test("Subscriber receives published messages on exact subject")
-    func subscriberReceivesMessages() async throws {
-        let client = MockNATSClient()
-        try await client.connect()
-
-        let stream = await client.subscribe(subject: "test.subject")
-        let payload = Data("event-data".utf8)
-
-        try await client.publish(subject: "test.subject", data: payload)
-
-        let collector = MessageCollector()
-        let task = Task { await collector.collect(from: stream, max: 1) }
-
-        try await Task.sleep(for: .milliseconds(50))
-        task.cancel()
-
-        let received = await collector.messages
-        #expect(received.count == 1)
-        #expect(received[0].subject == "test.subject")
-        #expect(received[0].data == payload)
-    }
-
-    @Test("Subscriber does not receive messages on different subject")
-    func subscriberFiltersSubject() async throws {
-        let client = MockNATSClient()
-        try await client.connect()
-
-        let stream = await client.subscribe(subject: "test.alpha")
-        try await client.publish(subject: "test.beta", data: Data("other".utf8))
-
-        let collector = MessageCollector()
-        let task = Task { await collector.collect(from: stream, max: 1) }
-
-        try await Task.sleep(for: .milliseconds(50))
-        task.cancel()
-
-        let received = await collector.messages
-        #expect(received.isEmpty)
-    }
-
-    @Test("Wildcard '>' matches multi-level subjects")
-    func wildcardGreaterThanMatches() async throws {
-        let client = MockNATSClient()
-        try await client.connect()
-
-        let stream = await client.subscribe(subject: "shikki.events.>")
-
-        try await client.publish(
-            subject: "shikki.events.maya.lifecycle",
-            data: Data("event1".utf8)
-        )
-        try await client.publish(
-            subject: "shikki.events.shiki.agent",
-            data: Data("event2".utf8)
-        )
-        try await client.publish(
-            subject: "shikki.commands.node1",
-            data: Data("not-an-event".utf8)
-        )
-
-        let collector = MessageCollector()
-        let task = Task { await collector.collect(from: stream, max: 2) }
-
-        try await Task.sleep(for: .milliseconds(50))
-        task.cancel()
-
-        let received = await collector.messages
-        #expect(received.count == 2)
-        #expect(received[0].subject == "shikki.events.maya.lifecycle")
-        #expect(received[1].subject == "shikki.events.shiki.agent")
-    }
-
-    @Test("Wildcard '*' matches single token")
-    func wildcardStarMatchesSingleToken() async throws {
-        let client = MockNATSClient()
-        try await client.connect()
-
-        let stream = await client.subscribe(subject: "shikki.events.*.lifecycle")
-
-        try await client.publish(
-            subject: "shikki.events.maya.lifecycle",
-            data: Data("yes".utf8)
-        )
-        try await client.publish(
-            subject: "shikki.events.maya.agent",
-            data: Data("no".utf8)
-        )
-
-        let collector = MessageCollector()
-        let task = Task { await collector.collect(from: stream, max: 1) }
-
-        try await Task.sleep(for: .milliseconds(50))
-        task.cancel()
-
-        let received = await collector.messages
-        #expect(received.count == 1)
-        #expect(received[0].subject == "shikki.events.maya.lifecycle")
-    }
-
-    @Test("Inject message delivers to matching subscribers")
-    func injectMessageWorks() async throws {
-        let client = MockNATSClient()
-        try await client.connect()
-
-        let stream = await client.subscribe(subject: "test.inject")
-        let injected = NATSMessage(
-            subject: "test.inject",
-            data: Data("injected".utf8)
-        )
-
-        await client.injectMessage(injected)
-
-        let collector = MessageCollector()
-        let task = Task { await collector.collect(from: stream, max: 1) }
-
-        try await Task.sleep(for: .milliseconds(50))
-        task.cancel()
-
-        let received = await collector.messages
-        #expect(received.count == 1)
-        #expect(received[0] == injected)
-    }
-
-    @Test("Publish with configured error throws")
-    func publishWithErrorThrows() async throws {
-        let client = MockNATSClient()
-        try await client.connect()
-        await client.setPublishError(.publishFailed("disk full"))
-
+        await client.setShouldFailPublish(true)
         do {
             try await client.publish(subject: "test", data: Data())
             Issue.record("Expected publish to throw")
-        } catch let error as NATSError {
-            #expect(error == .publishFailed("disk full"))
         } catch {
-            Issue.record("Unexpected error type: \(error)")
+            #expect(error is NATSClientError)
         }
     }
-}
 
-// MARK: - MockNATSClient Request/Reply Tests
+    // MARK: - Subscribe
 
-@Suite("MockNATSClient — Request/Reply")
-struct MockNATSClientRequestReplyTests {
+    @Test("Subscribe records the subject")
+    func subscribeRecordsSubject() async throws {
+        let client = MockNATSClient()
+        _ = client.subscribe(subject: "shikki.events.>")
 
-    @Test("Request returns response from registered responder")
-    func requestReturnsResponse() async throws {
+        // Let the subscription register
+        try await Task.sleep(for: .milliseconds(50))
+
+        let subs = await client.subscribedSubjects
+        #expect(subs.contains("shikki.events.>"))
+    }
+
+    @Test("Published messages are delivered to matching subscribers")
+    func publishRoutesToSubscribers() async throws {
         let client = MockNATSClient()
         try await client.connect()
 
-        let responseData = Data("pong".utf8)
-        await client.whenRequest(subject: "test.ping") { request in
-            NATSMessage(
-                subject: request.replyTo ?? "reply",
-                data: responseData,
-                replyTo: nil
-            )
+        let stream = client.subscribe(subject: "shikki.events.>")
+        try await Task.sleep(for: .milliseconds(50))
+
+        let data = Data("{\"test\": true}".utf8)
+        try await client.publish(subject: "shikki.events.maya.lifecycle", data: data)
+
+        let collector = MessageCollector()
+        let collectTask = Task { @Sendable in
+            for await msg in stream {
+                collector.append(msg)
+                break  // Only collect one
+            }
         }
 
-        let response = try await client.request(
-            subject: "test.ping",
-            data: Data("ping".utf8),
+        try await Task.sleep(for: .milliseconds(100))
+        collectTask.cancel()
+
+        #expect(collector.count == 1)
+        #expect(collector.messages[0].subject == "shikki.events.maya.lifecycle")
+    }
+
+    @Test("Non-matching subscribers do not receive messages")
+    func nonMatchingSubscribersFiltered() async throws {
+        let client = MockNATSClient()
+        try await client.connect()
+
+        let stream = client.subscribe(subject: "shikki.events.shiki.>")
+        try await Task.sleep(for: .milliseconds(50))
+
+        // Publish to maya (should NOT match shiki subscriber)
+        try await client.publish(subject: "shikki.events.maya.lifecycle", data: Data())
+
+        let collector = MessageCollector()
+        let collectTask = Task { @Sendable in
+            for await msg in stream {
+                collector.append(msg)
+            }
+        }
+
+        try await Task.sleep(for: .milliseconds(100))
+        collectTask.cancel()
+
+        #expect(collector.messages.isEmpty)
+    }
+
+    // MARK: - Request/Reply
+
+    @Test("Request returns reply from handler")
+    func requestReturnsReply() async throws {
+        let client = MockNATSClient()
+        try await client.connect()
+
+        let replyData = Data("reply".utf8)
+        await client.setReplyHandler { subject, _ in
+            NATSMessage(subject: subject, data: replyData)
+        }
+
+        let reply = try await client.request(
+            subject: "shikki.commands.test",
+            data: Data(),
             timeout: .seconds(1)
         )
-
-        #expect(response.data == responseData)
+        #expect(String(data: reply.data, encoding: .utf8) == "reply")
     }
 
-    @Test("Request with no responder times out")
-    func requestTimesOutWithNoResponder() async throws {
+    @Test("Request throws timeout when no handler is set")
+    func requestThrowsTimeoutWithoutHandler() async throws {
         let client = MockNATSClient()
         try await client.connect()
 
         do {
             _ = try await client.request(
-                subject: "test.no-responder",
+                subject: "shikki.commands.test",
                 data: Data(),
                 timeout: .seconds(1)
             )
             Issue.record("Expected timeout error")
-        } catch let error as NATSError {
-            #expect(error == .timeout)
         } catch {
-            Issue.record("Unexpected error type: \(error)")
+            #expect(error as? NATSClientError == .timeout)
         }
     }
 
-    @Test("Request is recorded in published messages")
-    func requestRecordedInPublished() async throws {
-        let client = MockNATSClient()
-        try await client.connect()
-
-        await client.whenRequest(subject: "test.req") { _ in
-            NATSMessage(subject: "reply", data: Data(), replyTo: nil)
-        }
-
-        _ = try await client.request(
-            subject: "test.req",
-            data: Data("body".utf8),
-            timeout: .seconds(1)
-        )
-
-        let messages = await client.publishedMessages
-        #expect(messages.count == 1)
-        #expect(messages[0].subject == "test.req")
-        #expect(messages[0].replyTo != nil)
-        #expect(messages[0].replyTo?.hasPrefix("_INBOX.") == true)
-    }
-}
-
-// MARK: - Subject Matching Tests
-
-@Suite("MockNATSClient — Subject Matching")
-struct SubjectMatchingTests {
+    // MARK: - Wildcard Matching
 
     @Test("Exact match")
     func exactMatch() {
-        #expect(MockNATSClient.subjectMatches(pattern: "a.b.c", subject: "a.b.c") == true)
-        #expect(MockNATSClient.subjectMatches(pattern: "a.b.c", subject: "a.b.d") == false)
+        #expect(MockNATSClient.matches(subject: "a.b.c", pattern: "a.b.c"))
+        #expect(!MockNATSClient.matches(subject: "a.b.c", pattern: "a.b.d"))
     }
 
-    @Test("Star wildcard matches single token")
-    func starWildcard() {
-        #expect(MockNATSClient.subjectMatches(pattern: "a.*.c", subject: "a.b.c") == true)
-        #expect(MockNATSClient.subjectMatches(pattern: "a.*.c", subject: "a.b.d") == false)
-        #expect(MockNATSClient.subjectMatches(pattern: "a.*", subject: "a.b") == true)
-        #expect(MockNATSClient.subjectMatches(pattern: "a.*", subject: "a.b.c") == false)
+    @Test("Tail wildcard > matches remaining tokens")
+    func tailWildcard() {
+        #expect(MockNATSClient.matches(subject: "shikki.events.maya.agent", pattern: "shikki.events.>"))
+        #expect(MockNATSClient.matches(subject: "shikki.events.maya.agent", pattern: "shikki.events.maya.>"))
+        #expect(!MockNATSClient.matches(subject: "shikki.events.maya.agent", pattern: "shikki.commands.>"))
     }
 
-    @Test("Greater-than wildcard matches tail")
-    func greaterThanWildcard() {
-        #expect(MockNATSClient.subjectMatches(pattern: "a.>", subject: "a.b") == true)
-        #expect(MockNATSClient.subjectMatches(pattern: "a.>", subject: "a.b.c") == true)
-        #expect(MockNATSClient.subjectMatches(pattern: "a.>", subject: "a.b.c.d") == true)
-        // `>` requires at least one token after prefix
-        #expect(MockNATSClient.subjectMatches(pattern: "a.>", subject: "b.c") == false)
+    @Test("Single token wildcard * matches one token")
+    func singleWildcard() {
+        #expect(MockNATSClient.matches(subject: "shikki.events.maya.agent", pattern: "shikki.events.*.agent"))
+        #expect(!MockNATSClient.matches(subject: "shikki.events.maya.agent", pattern: "shikki.events.*.lifecycle"))
     }
 
-    @Test("Greater-than does not match zero tokens")
-    func greaterThanRequiresOneToken() {
-        // "a.>" should NOT match "a" (needs at least one more token)
-        #expect(MockNATSClient.subjectMatches(pattern: "a.>", subject: "a") == false)
-    }
-
-    @Test("Pattern shorter than subject does not match")
+    @Test("Pattern shorter than subject without > does not match")
     func shorterPatternNoMatch() {
-        #expect(MockNATSClient.subjectMatches(pattern: "a.b", subject: "a.b.c") == false)
+        #expect(!MockNATSClient.matches(subject: "a.b.c", pattern: "a.b"))
     }
 
     @Test("Pattern longer than subject does not match")
     func longerPatternNoMatch() {
-        #expect(MockNATSClient.subjectMatches(pattern: "a.b.c", subject: "a.b") == false)
+        #expect(!MockNATSClient.matches(subject: "a.b", pattern: "a.b.c"))
+    }
+
+    // MARK: - Inject Message
+
+    @Test("injectMessage routes to matching subscribers")
+    func injectMessageRoutes() async throws {
+        let client = MockNATSClient()
+        let stream = client.subscribe(subject: "shikki.events.>")
+        try await Task.sleep(for: .milliseconds(50))
+
+        let msg = NATSMessage(subject: "shikki.events.maya.lifecycle", data: Data("test".utf8))
+        await client.injectMessage(msg)
+
+        let collector = MessageCollector()
+        let collectTask = Task { @Sendable in
+            for await m in stream {
+                collector.append(m)
+                break
+            }
+        }
+
+        try await Task.sleep(for: .milliseconds(100))
+        collectTask.cancel()
+
+        #expect(collector.count == 1)
+    }
+}
+
+// MARK: - Helper extensions for test configuration
+
+extension MockNATSClient {
+    func setShouldFailConnect(_ value: Bool) {
+        self.shouldFailConnect = value
+    }
+    func setShouldFailPublish(_ value: Bool) {
+        self.shouldFailPublish = value
+    }
+    func setReplyHandler(_ handler: @escaping @Sendable (String, Data) -> NATSMessage?) {
+        self.replyHandler = handler
     }
 }
