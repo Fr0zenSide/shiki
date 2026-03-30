@@ -9,18 +9,20 @@ enum ShipRenderer {
 
     // MARK: - Preflight Glow
 
-    /// Render the single-screen preflight manifest.
+    /// Render the single-screen preflight manifest for standard ship.
     static func renderPreflight(
         branch: String,
         target: String,
         currentVersion: String,
         nextVersion: String,
         commitCount: Int,
+        gateCount: Int,
         isDryRun: Bool,
-        why: String?
+        why: String?,
+        skipList: [String] = []
     ) {
         let mode = isDryRun ? " \u{1B}[33m[DRY RUN]\u{1B}[0m" : ""
-        let lines = [
+        var lines = [
             "",
             "\u{1B}[1m--- Ship Preflight ---\u{1B}[0m\(mode)",
             "",
@@ -29,10 +31,54 @@ enum ShipRenderer {
             "  Version:  \(currentVersion) -> \u{1B}[1m\(nextVersion)\u{1B}[0m",
             "  Commits:  \(commitCount)",
             why.map { "  Why:      \($0)" } ?? "  Why:      (not provided)",
+        ]
+
+        if !skipList.isEmpty {
+            lines.append("  Skipped:  \u{1B}[33m\(skipList.joined(separator: ", "))\u{1B}[0m")
+        }
+
+        lines += [
             "",
-            "\u{1B}[2m  8 gates will be evaluated\u{1B}[0m",
+            "\u{1B}[2m  \(gateCount) gates will be evaluated\u{1B}[0m",
             "",
         ]
+
+        for line in lines {
+            writeStderr(line)
+        }
+    }
+
+    // MARK: - TestFlight Preflight
+
+    /// Render extended preflight manifest for TestFlight mode (BR-05).
+    static func renderTestFlightPreflight(
+        appConfig: AppConfig,
+        version: String,
+        currentBuild: Int,
+        nextBuild: Int,
+        gateCount: Int,
+        isDryRun: Bool,
+        why: String?
+    ) {
+        let mode = isDryRun ? " \u{1B}[33m[DRY RUN]\u{1B}[0m" : ""
+        let lines = [
+            "",
+            "\u{1B}[1m--- Ship + TestFlight ---\u{1B}[0m\(mode)",
+            "",
+            "  App:        \u{1B}[1m\(appConfig.scheme)\u{1B}[0m",
+            "  Scheme:     \(appConfig.scheme)",
+            "  Team:       \(appConfig.teamID)",
+            "  Bundle:     \(appConfig.bundleID)",
+            "  Version:    \(version) (build \(currentBuild) -> \(nextBuild))",
+            "  Group:      \(appConfig.testflightGroup)",
+            "  API Key:    \(appConfig.asc.map { "AuthKey_\($0.keyID.prefix(4))..." } ?? "not configured")",
+            "  Dest:       TestFlight",
+            why.map { "  Why:        \($0)" } ?? "  Why:        (not provided)",
+            "",
+            "\u{1B}[2m  \(gateCount) gates will be evaluated\u{1B}[0m",
+            "",
+        ]
+
         for line in lines {
             writeStderr(line)
         }
@@ -53,20 +99,25 @@ enum ShipRenderer {
         if let result {
             switch result {
             case .pass(let detail):
-                let suffix = detail.map { " — \($0)" } ?? ""
+                let suffix = detail.map { " -- \($0)" } ?? ""
                 let elapsedStr = elapsed.map { String(format: " (%.1fs)", $0) } ?? ""
-                writeStderr("\r\u{1B}[2K  \(prefix) \(gate)... \u{1B}[32m✓\u{1B}[0m\(elapsedStr)\(suffix)")
+                writeStderr(
+                    "\r\u{1B}[2K  \(prefix) \(gate)... \u{1B}[32m+\u{1B}[0m\(elapsedStr)\(suffix)"
+                )
 
             case .warn(let reason):
                 let elapsedStr = elapsed.map { String(format: " (%.1fs)", $0) } ?? ""
-                writeStderr("\r\u{1B}[2K  \(prefix) \(gate)... \u{1B}[33m⚠\u{1B}[0m\(elapsedStr) — \(reason)")
+                writeStderr(
+                    "\r\u{1B}[2K  \(prefix) \(gate)... \u{1B}[33m!\u{1B}[0m\(elapsedStr) -- \(reason)"
+                )
 
             case .fail(let reason):
                 let elapsedStr = elapsed.map { String(format: " (%.1fs)", $0) } ?? ""
-                writeStderr("\r\u{1B}[2K  \(prefix) \(gate)... \u{1B}[31m✗\u{1B}[0m\(elapsedStr) — \(reason)")
+                writeStderr(
+                    "\r\u{1B}[2K  \(prefix) \(gate)... \u{1B}[31mx\u{1B}[0m\(elapsedStr) -- \(reason)"
+                )
             }
         } else {
-            // In progress
             writeStderr("\r\u{1B}[2K  \(prefix) \(gate)...")
         }
     }
@@ -77,12 +128,16 @@ enum ShipRenderer {
     static func renderSummary(result: ShipResult, elapsed: TimeInterval) {
         writeStderr("")
         if result.success {
-            writeStderr("\u{1B}[1m\u{1B}[32m--- Ship Complete ---\u{1B}[0m \(String(format: "%.1fs", elapsed))")
+            writeStderr(
+                "\u{1B}[1m\u{1B}[32m--- Ship Complete ---\u{1B}[0m \(String(format: "%.1fs", elapsed))"
+            )
             for warning in result.warnings {
-                writeStderr("  \u{1B}[33m⚠ \(warning)\u{1B}[0m")
+                writeStderr("  \u{1B}[33m! \(warning)\u{1B}[0m")
             }
         } else {
-            writeStderr("\u{1B}[1m\u{1B}[31m--- Ship Aborted ---\u{1B}[0m \(String(format: "%.1fs", elapsed))")
+            writeStderr(
+                "\u{1B}[1m\u{1B}[31m--- Ship Aborted ---\u{1B}[0m \(String(format: "%.1fs", elapsed))"
+            )
             if let gate = result.failedGate, let reason = result.failureReason {
                 writeStderr("  Failed at: \(gate)")
                 writeStderr("  Reason: \(reason)")

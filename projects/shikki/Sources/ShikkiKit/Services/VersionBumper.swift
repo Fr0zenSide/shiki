@@ -60,17 +60,14 @@ public struct VersionBumper: Sendable {
         for commit in commits {
             let lowered = commit.lowercased()
 
-            // Check for breaking changes
             if lowered.contains("breaking change") {
                 return .major
             }
 
-            // Check for bang suffix: "feat!:", "fix!:", etc.
             if commit.range(of: #"^\w+!:"#, options: .regularExpression) != nil {
                 return .major
             }
 
-            // Check for feat prefix
             if commit.hasPrefix("feat:") || commit.hasPrefix("feat(") {
                 hasFeature = true
             }

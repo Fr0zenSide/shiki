@@ -5,7 +5,7 @@ import ShikkiKit
 struct ShipCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "ship",
-        abstract: "Pipeline-of-gates release command — quality-gated, event-driven shipping"
+        abstract: "Pipeline-of-gates release command -- quality-gated, event-driven shipping"
     )
 
     @Flag(name: .long, help: "Run all gates without side effects")
@@ -20,14 +20,17 @@ struct ShipCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Manual version override (semver)")
     var version: String?
 
-    @Flag(name: .long, help: "Squash commits into one before PR")
-    var squash: Bool = false
-
     @Flag(name: .long, help: "Show ship history from log")
     var history: Bool = false
 
-    @Option(name: .long, help: "Epic branch name — scopes changelog to epic range instead of last tag")
-    var epic: String?
+    @Flag(name: .long, help: "Ship to TestFlight after quality gates")
+    var testflight: Bool = false
+
+    @Option(name: .long, help: "App slug from apps.toml (required when multiple apps configured)")
+    var app: String?
+
+    @Option(name: .long, help: "Comma-separated list of gates to skip (e.g. lint,changelog)")
+    var skip: String?
 
     func run() async throws {
         // Handle --history mode
@@ -41,10 +44,19 @@ struct ShipCommand: AsyncParsableCommand {
 
         // Validate mandatory --why
         guard let reason = why else {
-            FileHandle.standardError.write(Data("Error: --why is required. Every release needs a reason.\n".utf8))
-            FileHandle.standardError.write(Data("Usage: shiki ship --why \"reason for release\" [--dry-run] [--target develop]\n".utf8))
+            FileHandle.standardError.write(
+                Data("Error: --why is required. Every release needs a reason.\n".utf8)
+            )
+            FileHandle.standardError.write(
+                Data("Usage: shikki ship --why \"reason\" [--dry-run] [--testflight]\n".utf8)
+            )
             throw ExitCode.failure
         }
+
+        // Parse skip list
+        let skipList = (skip ?? "")
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
 
         // Detect project root and current branch
         let projectRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
@@ -54,51 +66,98 @@ struct ShipCommand: AsyncParsableCommand {
         let branchPipe = Pipe()
         branchProcess.standardOutput = branchPipe
         try branchProcess.run()
-        // Read pipe BEFORE waitUntilExit to prevent pipe buffer deadlock (~64KB)
         let branchData = branchPipe.fileHandleForReading.readDataToEndOfFile()
         branchProcess.waitUntilExit()
         let branch = String(data: branchData, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? "unknown"
 
-        // Build context — when --epic is set, target the epic branch for PR creation
-        let resolvedTarget = epic ?? target
+        // Build context
         let context: ShipContext
         if dryRun {
             context = DryRunShipContext(
                 branch: branch,
-                target: resolvedTarget,
+                target: target,
                 projectRoot: projectRoot
             )
         } else {
             context = RealShipContext(
                 branch: branch,
-                target: resolvedTarget,
+                target: target,
                 projectRoot: projectRoot
             )
         }
 
-        // Build gate pipeline
-        let gates: [any ShipGate] = [
-            CleanBranchGate(),
-            TestGate(),
-            CoverageGate(),
-            RiskGate(),
-            ChangelogGate(scopeBranch: epic),
-            VersionBumpGate(versionOverride: version),
-            CommitGate(squash: squash),
-            PRGate(),
-        ]
+        // Build gate pipeline -- core 8 gates
+        let changelogStore = ChangelogStore()
+        var gates: [any ShipGate] = []
+
+        if !skipList.contains("cleanbranch") {
+            gates.append(CleanBranchGate())
+        }
+        if !skipList.contains("test") {
+            gates.append(TestGate())
+        }
+        if !skipList.contains("lint") {
+            gates.append(LintGate())
+        }
+        if !skipList.contains("build") {
+            gates.append(BuildGate())
+        }
+        if !skipList.contains("changelog") {
+            gates.append(ChangelogGate(changelogStore: changelogStore))
+        }
+        if !skipList.contains("versionbump") {
+            gates.append(VersionBumpGate(versionOverride: version))
+        }
+        if !skipList.contains("tag") {
+            gates.append(TagGate(versionOverride: version))
+        }
+        if !skipList.contains("push") {
+            gates.append(PushGate())
+        }
+
+        // TestFlight gates (9-12) -- appended when --testflight
+        let tfContext = TestFlightContext()
+        if testflight {
+            gates.append(AppRegistryGate(appSlug: app, tfContext: tfContext))
+            gates.append(BuildNumberGate(tfContext: tfContext))
+            gates.append(ArchiveGate(
+                tfContext: tfContext,
+                version: version ?? "auto"
+            ))
+            gates.append(UploadGate(tfContext: tfContext))
+        }
+
+        let totalGates = gates.count
 
         // Render preflight
-        ShipRenderer.renderPreflight(
-            branch: branch,
-            target: target,
-            currentVersion: "detecting...",
-            nextVersion: version ?? "auto",
-            commitCount: 0,
-            isDryRun: dryRun,
-            why: reason
-        )
+        if testflight {
+            // TestFlight extended preflight will be rendered after AppRegistryGate loads config
+            // For now show standard preflight
+            ShipRenderer.renderPreflight(
+                branch: branch,
+                target: target,
+                currentVersion: "detecting...",
+                nextVersion: version ?? "auto",
+                commitCount: 0,
+                gateCount: totalGates,
+                isDryRun: dryRun,
+                why: reason,
+                skipList: skipList
+            )
+        } else {
+            ShipRenderer.renderPreflight(
+                branch: branch,
+                target: target,
+                currentVersion: "detecting...",
+                nextVersion: version ?? "auto",
+                commitCount: 0,
+                gateCount: totalGates,
+                isDryRun: dryRun,
+                why: reason,
+                skipList: skipList
+            )
+        }
 
         if !dryRun {
             FileHandle.standardError.write(Data("  Press Enter to proceed (Ctrl-C to abort)...".utf8))
@@ -109,7 +168,6 @@ struct ShipCommand: AsyncParsableCommand {
         let startTime = Date()
         let service = ShipService()
 
-        // Run with progress rendering
         let result = try await service.run(gates: gates, context: context)
 
         // Render gate results
@@ -117,7 +175,7 @@ struct ShipCommand: AsyncParsableCommand {
             ShipRenderer.renderGateProgress(
                 gate: gr.gate,
                 index: index,
-                total: gates.count,
+                total: totalGates,
                 elapsed: nil,
                 result: gr.result
             )
@@ -129,7 +187,7 @@ struct ShipCommand: AsyncParsableCommand {
         // Append to ship log
         if result.success {
             let log = ShipLog()
-            let gateSummary = "\(result.gateResults.count)/\(gates.count) passed" +
+            let gateSummary = "\(result.gateResults.count)/\(totalGates) passed" +
                 (result.warnings.isEmpty ? "" : ", \(result.warnings.count) warnings")
             try? log.append(ShipLogEntry(
                 date: Date(),
@@ -142,12 +200,17 @@ struct ShipCommand: AsyncParsableCommand {
             ))
         }
 
-        // Send ntfy notification (best effort, using Process to avoid shell injection)
+        // Send ntfy notification (best effort, using Process)
         let ntfyPayload: String
         if result.success {
-            ntfyPayload = "Ship complete: \(branch) -> \(target)"
-        } else if let gate = result.failedGate, let reason = result.failureReason {
-            ntfyPayload = "Ship failed at \(gate): \(reason)"
+            if testflight {
+                let buildNum = await tfContext.buildNumber
+                ntfyPayload = "TestFlight: \(app ?? "app") build \(buildNum) shipped"
+            } else {
+                ntfyPayload = "Ship complete: \(branch) -> \(target)"
+            }
+        } else if let gate = result.failedGate, let failReason = result.failureReason {
+            ntfyPayload = "Ship failed at \(gate): \(failReason.prefix(100))"
         } else {
             ntfyPayload = ""
         }
@@ -155,7 +218,11 @@ struct ShipCommand: AsyncParsableCommand {
         if !ntfyPayload.isEmpty {
             let ntfyProcess = Process()
             ntfyProcess.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-            ntfyProcess.arguments = ["curl", "-s", "--max-time", "10", "-d", ntfyPayload, "https://ntfy.sh/shiki-notify"]
+            ntfyProcess.arguments = [
+                "curl", "-s", "--max-time", "10",
+                "-d", ntfyPayload,
+                "https://ntfy.sh/shiki-notify",
+            ]
             ntfyProcess.standardOutput = FileHandle.nullDevice
             ntfyProcess.standardError = FileHandle.nullDevice
             try? ntfyProcess.run()

@@ -45,8 +45,8 @@ public struct ChangelogGenerator: Sendable {
     /// Generate a structured changelog from commit subject lines.
     public func generate(from commits: [String]) -> Changelog {
         var added: [String] = []
-        var fixed: [String] = []
         var changed: [String] = []
+        var fixed: [String] = []
         var maintenance: [String] = []
         var uncategorized: [String] = []
 
@@ -59,7 +59,7 @@ public struct ChangelogGenerator: Sendable {
                     fixed.append(message)
                 case "refactor":
                     changed.append(message)
-                case "chore", "build", "ci", "docs", "style", "perf", "test":
+                case "build", "chore", "ci", "docs", "perf", "style", "test":
                     maintenance.append(message)
                 default:
                     uncategorized.append(commit)
@@ -69,8 +69,7 @@ public struct ChangelogGenerator: Sendable {
             }
         }
 
-        // If no conventional commits found, fall back to raw
-        let hasConventional = !added.isEmpty || !fixed.isEmpty || !changed.isEmpty || !maintenance.isEmpty
+        let hasConventional = !added.isEmpty || !changed.isEmpty || !fixed.isEmpty || !maintenance.isEmpty
         if !hasConventional {
             return Changelog(sections: [
                 ChangelogSection(title: "Changes", entries: uncategorized),
@@ -90,9 +89,7 @@ public struct ChangelogGenerator: Sendable {
     // MARK: - Private
 
     /// Parse a conventional commit: "type(scope): message" or "type: message"
-    /// Returns (type, message) or nil if not conventional.
     private func parseConventionalCommit(_ commit: String) -> (String, String)? {
-        // Pattern: type[(scope)][!]: message
         let pattern = /^(\w+)(?:\([^)]*\))?!?:\s*(.+)$/
         guard let match = commit.firstMatch(of: pattern) else {
             return nil
@@ -101,8 +98,10 @@ public struct ChangelogGenerator: Sendable {
         let type = String(match.1).lowercased()
         let message = String(match.2)
 
-        // Only accept known conventional commit types
-        let knownTypes: Set<String> = ["feat", "fix", "refactor", "chore", "build", "ci", "docs", "style", "perf", "test"]
+        let knownTypes: Set<String> = [
+            "build", "chore", "ci", "docs", "feat", "fix",
+            "perf", "refactor", "style", "test",
+        ]
         guard knownTypes.contains(type) else {
             return nil
         }

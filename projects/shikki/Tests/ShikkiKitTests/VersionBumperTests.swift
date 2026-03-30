@@ -60,4 +60,27 @@ struct VersionBumperTests {
         let result = bumper.bump(from: "1.2.3", commits: commits, override: "5.0.0")
         #expect(result == "5.0.0")
     }
+
+    @Test("Version string with v prefix parsed correctly")
+    func vPrefixParsed() {
+        let bumper = VersionBumper()
+        let commits = ["fix: typo"]
+        let result = bumper.bump(from: "v2.1.0", commits: commits)
+        #expect(result == "2.1.1")
+    }
+
+    @Test("Empty commits triggers patch bump")
+    func emptyCommitsPatch() {
+        let bumper = VersionBumper()
+        let result = bumper.bump(from: "1.0.0", commits: [])
+        #expect(result == "1.0.1")
+    }
+
+    @Test("Zero version bumps correctly")
+    func zeroVersionBumps() {
+        let bumper = VersionBumper()
+        let commits = ["feat: initial"]
+        let result = bumper.bump(from: "0.0.0", commits: commits)
+        #expect(result == "0.1.0")
+    }
 }

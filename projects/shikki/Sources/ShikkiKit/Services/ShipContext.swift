@@ -25,7 +25,7 @@ public struct ShellResult: Sendable {
 
 // MARK: - ShipContext Protocol
 
-/// Injected context for ship pipeline — real or dry-run.
+/// Injected context for ship pipeline -- real or dry-run.
 /// Gates call shell() for subprocess execution and emit() for event bus integration.
 public protocol ShipContext: Sendable {
     var isDryRun: Bool { get }
@@ -80,7 +80,12 @@ public final class RealShipContext: ShipContext, @unchecked Sendable {
     public let projectRoot: URL
     private let eventBus: InProcessEventBus?
 
-    public init(branch: String, target: String, projectRoot: URL, eventBus: InProcessEventBus? = nil) {
+    public init(
+        branch: String,
+        target: String,
+        projectRoot: URL,
+        eventBus: InProcessEventBus? = nil
+    ) {
         self.branch = branch
         self.target = target
         self.projectRoot = projectRoot
@@ -132,7 +137,12 @@ public actor DryRunShipContext: ShipContext {
         _capturedCommands
     }
 
-    public init(branch: String, target: String, projectRoot: URL, eventBus: InProcessEventBus? = nil) {
+    public init(
+        branch: String,
+        target: String,
+        projectRoot: URL,
+        eventBus: InProcessEventBus? = nil
+    ) {
         self.branch = branch
         self.target = target
         self.projectRoot = projectRoot
