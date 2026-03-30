@@ -14,6 +14,7 @@ struct ShikkiCommand: AsyncParsableCommand {
             ShikkiStopCommand.self,
             // Retained subcommands
             AgentReportsCommand.self,
+            AuditCommand.self,
             BacklogCommand.self,
             BoardCommand.self,
             DashboardCommand.self,
