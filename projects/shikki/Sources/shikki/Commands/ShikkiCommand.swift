@@ -39,6 +39,7 @@ struct ShikkiCommand: AsyncParsableCommand {
             ShipCommand.self,
             SpecCommand.self,
             StatusCommand.self,
+            TemplatesCommand.self,
             WakeCommand.self,
             WaveCommand.self,
             // Legacy: StartupCommand kept — ShikkiCommand delegates to it for layout creation
