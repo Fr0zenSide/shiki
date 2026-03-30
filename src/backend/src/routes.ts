@@ -159,8 +159,8 @@ export async function handleRequest(req: Request): Promise<Response> {
       const projectId = url.searchParams.get("project_id");
       const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50"), 500);
       const memories = projectId
-        ? await sql`SELECT id, project_id, session_id, agent_id, content, category, importance, created_at FROM agent_memories WHERE project_id = ${projectId} ORDER BY created_at DESC LIMIT ${limit}`
-        : await sql`SELECT id, project_id, session_id, agent_id, content, category, importance, created_at FROM agent_memories ORDER BY created_at DESC LIMIT ${limit}`;
+        ? await sql`SELECT id, project_id, session_id, agent_id, content, category, importance, metadata, created_at FROM agent_memories WHERE project_id = ${projectId} ORDER BY created_at DESC LIMIT ${limit}`
+        : await sql`SELECT id, project_id, session_id, agent_id, content, category, importance, metadata, created_at FROM agent_memories ORDER BY created_at DESC LIMIT ${limit}`;
       return json(memories);
     }
 
@@ -205,6 +205,17 @@ export async function handleRequest(req: Request): Promise<Response> {
             ORDER BY MAX(created_at) DESC
           `;
       return json(sources);
+    }
+
+    // ── Memory Migration Check ────────────────────────────────────
+    if (path === "/api/memories/migrated" && method === "GET") {
+      const rows = await sql`
+        SELECT metadata->>'migratedFrom' as migrated_from
+        FROM agent_memories
+        WHERE metadata->>'migratedFrom' IS NOT NULL
+      `;
+      const filenames = rows.map((r: any) => r.migrated_from);
+      return json(filenames);
     }
 
     // ── Chat Messages ─────────────────────────────────────────────
