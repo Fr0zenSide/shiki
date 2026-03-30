@@ -50,4 +50,5 @@ public enum NATSClientError: Error, Sendable, Equatable {
     case timeout
     case encodingFailed
     case connectionFailed(String)
+    case publishFailed(String)
 }

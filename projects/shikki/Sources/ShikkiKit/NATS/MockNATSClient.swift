@@ -41,7 +41,7 @@ public actor MockNATSClient: NATSClientProtocol {
 
     public func publish(subject: String, data: Data) async throws {
         guard connected else { throw NATSClientError.notConnected }
-        if shouldFailPublish { throw NATSClientError.encodingFailed }
+        if shouldFailPublish { throw publishError ?? NATSClientError.encodingFailed }
 
         publishedMessages.append((subject: subject, data: data))
 
@@ -82,6 +82,27 @@ public actor MockNATSClient: NATSClientProtocol {
             if Self.matches(subject: message.subject, pattern: pattern) {
                 cont.yield(message)
             }
+        }
+    }
+
+    // MARK: - Convenience for Tests
+
+    /// Set a specific publish error (used by W3/W5 tests).
+    public func setPublishError(_ error: NATSClientError) {
+        shouldFailPublish = true
+        publishError = error
+    }
+
+    /// Store a custom publish error.
+    private var publishError: NATSClientError?
+
+    /// Register a request handler for a specific subject pattern (used by W5 tests).
+    public func whenRequest(subject: String, respond: @escaping @Sendable (Data) -> NATSMessage) {
+        replyHandler = { reqSubject, reqData in
+            if Self.matches(subject: reqSubject, pattern: subject) {
+                return respond(reqData)
+            }
+            return nil
         }
     }
 

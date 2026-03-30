@@ -35,7 +35,7 @@ extension DurationParser {
     /// Default recovery window: 1 hour.
     public static let defaultRecoveryDuration: TimeInterval = 3600
     /// Maximum: 7 days.
-    private static let maxRecoveryDuration: TimeInterval = 7 * 24 * 3600
+    public static let maxRecoveryDuration: TimeInterval = 7 * 24 * 3600
 
     /// Parse a duration string for recovery. Clamps to 7 days.
     public static func parseForRecovery(_ input: String) throws -> ParsedDuration {

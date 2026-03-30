@@ -251,7 +251,7 @@ struct NodeHeartbeatTests {
     @Test("NATS publish failure does not crash heartbeat")
     func publishFailureHandled() async throws {
         let nats = MockNATSClient()
-        await nats.setPublishError(.publishFailed("test"))
+        nats.shouldFailPublish = true
         let registry = NodeRegistry()
         let identity = makeIdentity()
 

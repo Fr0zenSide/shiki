@@ -30,7 +30,7 @@ struct MemoryFileScannerTests {
             toFile: "\(tmpDir)/readme.txt", atomically: true, encoding: .utf8
         )
 
-        let cleanup = { try? fm.removeItem(atPath: tmpDir) }
+        let cleanup = { let _ = try? fm.removeItem(atPath: tmpDir) }
         return (tmpDir, cleanup)
     }
 
