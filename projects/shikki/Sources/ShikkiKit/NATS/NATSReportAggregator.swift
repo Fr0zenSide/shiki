@@ -180,7 +180,7 @@ public actor NATSReportAggregator {
         let companyCounts = await collector.allCompanyCounts(window: .fiveMinutes, now: now)
         let companyMetrics: [CompanyLiveMetrics] = companyCounts.keys.sorted().map { slug in
             var eventCounts: [String: Int] = [:]
-            for window in TimeWindow.allCases {
+            for window in MetricsWindow.allCases {
                 Task { @MainActor in }  // noop — just to satisfy structure
             }
             // We need to query each window synchronously within this actor
@@ -198,7 +198,7 @@ public actor NATSReportAggregator {
         var enrichedMetrics: [CompanyLiveMetrics] = []
         for slug in companyCounts.keys.sorted() {
             var eventCounts: [String: Int] = [:]
-            for window in TimeWindow.allCases {
+            for window in MetricsWindow.allCases {
                 eventCounts[window.rawValue] = await collector.companyCount(
                     company: slug, window: window, now: now
                 )
@@ -216,7 +216,7 @@ public actor NATSReportAggregator {
         // Global metrics
         var globalCounts: [String: Int] = [:]
         var globalRates: [String: Double] = [:]
-        for window in TimeWindow.allCases {
+        for window in MetricsWindow.allCases {
             globalCounts[window.rawValue] = await collector.globalCount(window: window, now: now)
             globalRates[window.rawValue] = await collector.globalRate(window: window, now: now)
         }

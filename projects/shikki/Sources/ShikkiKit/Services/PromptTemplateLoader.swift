@@ -53,9 +53,11 @@ public final class PromptTemplateLoader: Sendable {
             return result
         }
 
-        // Check bundled resource
-        if let bundledURL = Bundle.module.url(forResource: "autopilot-prompt", withExtension: "md"),
-           let content = try? String(contentsOf: bundledURL, encoding: .utf8) {
+        // Check bundled resource (relative to executable)
+        let execDir = ProcessInfo.processInfo.arguments.first.flatMap { URL(fileURLWithPath: $0).deletingLastPathComponent().path } ?? "."
+        let bundledPath = (execDir as NSString).appendingPathComponent("autopilot-prompt.md")
+        if FileManager.default.fileExists(atPath: bundledPath),
+           let content = try? String(contentsOfFile: bundledPath, encoding: .utf8) {
             return (content, .bundled)
         }
 

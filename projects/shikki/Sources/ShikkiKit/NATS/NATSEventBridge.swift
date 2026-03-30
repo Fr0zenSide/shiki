@@ -77,7 +77,15 @@ public actor NATSEventBridge {
     /// Emit an event, deriving the company from the event scope.
     /// Falls back to "global" if no company can be extracted.
     public func emit(_ event: ShikkiEvent) async {
-        let company = NATSSubjectMapper.companySlug(from: event.scope) ?? "global"
+        let scopeString: String
+        switch event.scope {
+        case .project(let slug): scopeString = slug
+        case .session(let id): scopeString = id
+        case .pr(let num): scopeString = "pr-\(num)"
+        case .file(let path): scopeString = path
+        case .global: scopeString = "global"
+        }
+        let company = scopeString
         await emit(event, company: company)
     }
 

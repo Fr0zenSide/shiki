@@ -1,9 +1,9 @@
 import Foundation
 
-// MARK: - TimeWindow
+// MARK: - MetricsWindow
 
 /// Predefined time windows for sliding-window counters.
-public enum TimeWindow: String, Sendable, CaseIterable, Codable {
+public enum MetricsWindow: String, Sendable, CaseIterable, Codable {
     case oneMinute = "1m"
     case fiveMinutes = "5m"
     case oneHour = "1h"
@@ -38,20 +38,20 @@ public struct WindowedCounter: Sendable {
     }
 
     /// Count of events within the window ending at `now`.
-    public func count(window: TimeWindow, now: Date = Date()) -> Int {
+    public func count(window: MetricsWindow, now: Date = Date()) -> Int {
         let cutoff = now.addingTimeInterval(-window.seconds)
         return timestamps.filter { $0 >= cutoff }.count
     }
 
     /// Rate (events per second) within the window.
-    public func rate(window: TimeWindow, now: Date = Date()) -> Double {
+    public func rate(window: MetricsWindow, now: Date = Date()) -> Double {
         let c = count(window: window, now: now)
         return Double(c) / window.seconds
     }
 
     /// Prune entries older than the largest window (24h).
     public mutating func prune(now: Date = Date()) {
-        let cutoff = now.addingTimeInterval(-TimeWindow.twentyFourHours.seconds)
+        let cutoff = now.addingTimeInterval(-MetricsWindow.twentyFourHours.seconds)
         timestamps.removeAll { $0 < cutoff }
     }
 
@@ -197,7 +197,7 @@ public actor NATSMetricsCollector {
         subjectCounters.map { subject, counter in
             var rates: [String: Double] = [:]
             var counts: [String: Int] = [:]
-            for window in TimeWindow.allCases {
+            for window in MetricsWindow.allCases {
                 rates[window.rawValue] = counter.rate(window: window, now: now)
                 counts[window.rawValue] = counter.count(window: window, now: now)
             }
@@ -207,12 +207,12 @@ public actor NATSMetricsCollector {
     }
 
     /// Get event count for a specific company in a specific window.
-    public func companyCount(company: String, window: TimeWindow, now: Date = Date()) -> Int {
+    public func companyCount(company: String, window: MetricsWindow, now: Date = Date()) -> Int {
         companyCounters[company]?.count(window: window, now: now) ?? 0
     }
 
     /// Get event counts for all companies in a specific window.
-    public func allCompanyCounts(window: TimeWindow, now: Date = Date()) -> [String: Int] {
+    public func allCompanyCounts(window: MetricsWindow, now: Date = Date()) -> [String: Int] {
         var result: [String: Int] = [:]
         for (company, counter) in companyCounters {
             result[company] = counter.count(window: window, now: now)
@@ -221,12 +221,12 @@ public actor NATSMetricsCollector {
     }
 
     /// Get global event rate for a window.
-    public func globalRate(window: TimeWindow, now: Date = Date()) -> Double {
+    public func globalRate(window: MetricsWindow, now: Date = Date()) -> Double {
         globalCounter.rate(window: window, now: now)
     }
 
     /// Get global event count for a window.
-    public func globalCount(window: TimeWindow, now: Date = Date()) -> Int {
+    public func globalCount(window: MetricsWindow, now: Date = Date()) -> Int {
         globalCounter.count(window: window, now: now)
     }
 

@@ -96,7 +96,7 @@ struct DiagnosticCommand: AsyncParsableCommand {
                 return TimeWindow(since: since)
             }
         }
-        return TimeWindow.lookback(seconds: DurationParser.defaultRecoveryDuration)
+        return TimeWindow.lookback(seconds: 3600) // 1 hour default recovery window
     }
 
     /// BR-23: Copy to clipboard or fallback file.

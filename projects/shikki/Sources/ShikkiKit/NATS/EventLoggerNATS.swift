@@ -163,4 +163,40 @@ public enum NATSSubjectMapper {
             return "custom"
         }
     }
+
+    // MARK: - Infrastructure Subjects (from W1 foundation)
+
+    /// Discovery announce subject for node heartbeats.
+    public static var discoveryAnnounce: String { "shikki.discovery.announce" }
+
+    /// Discovery query subject for node lookup.
+    public static var discoveryQuery: String { "shikki.discovery.query" }
+
+    /// Discovery query reply subject.
+    public static var discoveryQueryReply: String { "shikki.discovery.query.reply" }
+
+    /// Commands subject for a specific node.
+    public static func commands(nodeId: String) -> String {
+        "shikki.commands.\(nodeId)"
+    }
+
+    /// Tasks available subject for a workspace.
+    public static func tasksAvailable(workspace: String) -> String {
+        "shikki.tasks.\(workspace).available"
+    }
+
+    /// Tasks claimed subject for a workspace.
+    public static func tasksClaimed(workspace: String) -> String {
+        "shikki.tasks.\(workspace).claimed"
+    }
+
+    /// Pending decisions subject.
+    public static var decisionsPending: String { "shikki.decisions.pending" }
+
+    /// Extract company slug from a NATS subject.
+    public static func companySlug(from subject: String) -> String? {
+        let parts = subject.split(separator: ".")
+        guard parts.count >= 3, parts[0] == "shikki", parts[1] == "events" else { return nil }
+        return String(parts[2])
+    }
 }
