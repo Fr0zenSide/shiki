@@ -107,6 +107,17 @@ public enum EventType: Codable, Sendable, Hashable {
     case scheduledTaskFailed
     case corroborationSweep
 
+    // Observatory — strategic moment events
+    case decisionMade          // architecture choice, trade-off evaluation
+    case architectureChoice    // specific technical decision with rationale
+    case tradeOffEvaluated     // considered X vs Y, chose X because Z
+    case blockerHit            // something stopped progress
+    case blockerResolved       // blocker was resolved (how?)
+    case milestoneReached      // significant progress checkpoint
+    case redFlag               // something looks wrong, needs attention
+    case contextSaved          // pre-compaction context snapshot
+    case agentReportGenerated  // agent report card produced
+
     // Generic
     case custom(String)
 }
