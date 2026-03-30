@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - ShikkiEvent
 
-/// A single observable event in the Shikki data stream.
+/// A single observable event in the Shiki data stream.
 /// Every action in the system produces one or more of these.
 public struct ShikkiEvent: Codable, Sendable, Identifiable {
     public let id: UUID
@@ -48,6 +48,36 @@ public enum EventType: Codable, Sendable, Hashable {
     // Lifecycle
     case sessionStart
     case sessionEnd
+    case sessionTransition
+    case contextCompaction
+
+    // Orchestration
+    case heartbeat
+    case companyDispatched
+    case companyStale
+    case companyRelaunched
+    case budgetExhausted
+
+    // Decisions
+    case decisionPending
+    case decisionAnswered
+    case decisionUnblocked
+
+    // Code
+    case codeChange
+    case testRun
+    case buildResult
+
+    // PR Review
+    case prCacheBuilt
+    case prRiskAssessed
+    case prVerdictSet
+    case prFixSpawned
+    case prFixCompleted
+
+    // Notifications
+    case notificationSent
+    case notificationActioned
 
     // Ship
     case shipStarted
@@ -57,11 +87,36 @@ public enum EventType: Codable, Sendable, Hashable {
     case shipCompleted
     case shipAborted
 
-    // TestFlight
-    case testflightArchive
-    case testflightExport
-    case testflightUpload
-    case testflightDistribute
+    // CodeGen
+    case codeGenStarted
+    case codeGenSpecParsed
+    case codeGenContractVerified
+    case codeGenPlanCreated
+    case codeGenAgentDispatched
+    case codeGenAgentCompleted
+    case codeGenMergeStarted
+    case codeGenMergeCompleted
+    case codeGenFixStarted
+    case codeGenFixCompleted
+    case codeGenPipelineCompleted
+    case codeGenPipelineFailed
+
+    // Scheduler (Wave 2)
+    case scheduledTaskFired
+    case scheduledTaskCompleted
+    case scheduledTaskFailed
+    case corroborationSweep
+
+    // Observatory — strategic moment events
+    case decisionMade          // architecture choice, trade-off evaluation
+    case architectureChoice    // specific technical decision with rationale
+    case tradeOffEvaluated     // considered X vs Y, chose X because Z
+    case blockerHit            // something stopped progress
+    case blockerResolved       // blocker was resolved (how?)
+    case milestoneReached      // significant progress checkpoint
+    case redFlag               // something looks wrong, needs attention
+    case contextSaved          // pre-compaction context snapshot
+    case agentReportGenerated  // agent report card produced
 
     // Generic
     case custom(String)
@@ -89,10 +144,8 @@ public struct EventMetadata: Codable, Sendable {
     public var tags: [String]?
 
     public init(
-        branch: String? = nil,
-        file: String? = nil,
-        commitHash: String? = nil,
-        duration: TimeInterval? = nil,
+        branch: String? = nil, file: String? = nil,
+        commitHash: String? = nil, duration: TimeInterval? = nil,
         tags: [String]? = nil
     ) {
         self.branch = branch
@@ -103,9 +156,10 @@ public struct EventMetadata: Codable, Sendable {
     }
 }
 
-// MARK: - EventValue
+// MARK: - EventValue (type-safe payload values)
 
 /// A type-safe, Codable value for event payloads.
+/// Replaces AnyCodable with explicit variants.
 public enum EventValue: Codable, Sendable, Equatable {
     case string(String)
     case int(Int)

@@ -107,6 +107,32 @@ public enum FlameEmotionResolver: Sendable {
         case .prFixSpawned:
             return .focused
 
+        // Scheduler
+        case .scheduledTaskFired:
+            return .focused
+        case .scheduledTaskCompleted:
+            return .excited
+        case .scheduledTaskFailed:
+            return .alarmed
+        case .corroborationSweep:
+            return .calm
+
+        // Observatory
+        case .decisionMade, .architectureChoice, .tradeOffEvaluated:
+            return .focused
+        case .blockerHit:
+            return .alarmed
+        case .blockerResolved:
+            return .excited
+        case .milestoneReached:
+            return .celebrating
+        case .redFlag:
+            return .alarmed
+        case .contextSaved:
+            return .calm
+        case .agentReportGenerated:
+            return .calm
+
         // Custom — default to calm
         case .custom:
             return .calm

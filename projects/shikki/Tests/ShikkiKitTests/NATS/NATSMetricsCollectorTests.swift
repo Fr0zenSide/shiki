@@ -218,14 +218,14 @@ struct NATSMetricsCollectorTests {
         #expect(util.completionRate == 0)
     }
 
-    // MARK: - TimeWindow
+    // MARK: - MetricsWindow
 
-    @Test("TimeWindow seconds are correct")
+    @Test("MetricsWindow seconds are correct")
     func timeWindowSeconds() {
-        #expect(TimeWindow.oneMinute.seconds == 60)
-        #expect(TimeWindow.fiveMinutes.seconds == 300)
-        #expect(TimeWindow.oneHour.seconds == 3_600)
-        #expect(TimeWindow.twentyFourHours.seconds == 86_400)
+        #expect(MetricsWindow.oneMinute.seconds == 60)
+        #expect(MetricsWindow.fiveMinutes.seconds == 300)
+        #expect(MetricsWindow.oneHour.seconds == 3_600)
+        #expect(MetricsWindow.twentyFourHours.seconds == 86_400)
     }
 
     // MARK: - GateResultCounts
