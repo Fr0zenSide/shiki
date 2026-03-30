@@ -213,6 +213,29 @@ struct TaskSchedulerTests {
         #expect(corroboration?.nextRunAt != nil)
     }
 
+    @Test func addTask_wakes_kernel() async {
+        let service = TaskSchedulerService(nodeId: nodeId)
+
+        // Create a kernel with this service
+        let kernel = ShikkiKernel(
+            services: [],
+            snapshotProvider: MockSnapshotProvider()
+        )
+        await service.setKernel(kernel)
+
+        let newTask = ScheduledTask(
+            name: "urgent-task",
+            cronExpression: "0 * * * *",
+            command: "urgent-run"
+        )
+
+        // addTask is now async and wakes the kernel
+        await service.addTask(newTask)
+
+        let retrieved = await service.task(for: newTask.id)
+        #expect(retrieved?.name == "urgent-task")
+    }
+
     @Test func builtinTasks_cannot_be_deleted() async {
         let service = TaskSchedulerService(nodeId: nodeId)
         await service.seedBuiltinTasks()

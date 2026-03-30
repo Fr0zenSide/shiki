@@ -17,6 +17,9 @@ public actor TaskSchedulerService {
     private let nodeId: String
     private let cronParser: CronParser
 
+    /// Weak reference to the kernel for wake-on-create signaling.
+    private weak var _kernel: ShikkiKernel?
+
     public init(
         initialTasks: [ScheduledTask] = [],
         nodeId: String = ProcessInfo.processInfo.hostName
@@ -30,11 +33,20 @@ public actor TaskSchedulerService {
         self.cronParser = CronParser()
     }
 
+    /// Link this service to its managing kernel for wake signaling.
+    /// Called once during kernel boot, after both are initialized.
+    public func setKernel(_ kernel: ShikkiKernel) {
+        self._kernel = kernel
+    }
+
     // MARK: - Task Management
 
     /// Add a new task to the scheduler.
-    public func addTask(_ task: ScheduledTask) {
+    /// Wakes the kernel so it picks up the new task immediately
+    /// instead of waiting for the next scheduled tick.
+    public func addTask(_ task: ScheduledTask) async {
         tasks[task.id] = task
+        await _kernel?.wake(.taskCreated(task.name))
     }
 
     /// Remove a task. Built-in tasks cannot be removed (BR-37), only disabled.

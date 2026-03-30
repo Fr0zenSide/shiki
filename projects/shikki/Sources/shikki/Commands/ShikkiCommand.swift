@@ -22,6 +22,7 @@ struct ShikkiCommand: AsyncParsableCommand {
             DiagnosticCommand.self,
             DoctorCommand.self,
             InboxCommand.self,
+            InitCommand.self,
             HeartbeatCommand.self,
             HistoryCommand.self,
             IngestCommand.self,
@@ -43,6 +44,7 @@ struct ShikkiCommand: AsyncParsableCommand {
             SpecCommand.self,
             SpecCheckCommand.self,
             StatusCommand.self,
+            TemplatesCommand.self,
             WakeCommand.self,
             WaveCommand.self,
             // Legacy: StartupCommand kept — ShikkiCommand delegates to it for layout creation
