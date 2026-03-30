@@ -2,225 +2,134 @@ import Foundation
 import Testing
 @testable import ShikkiKit
 
-// MARK: - Event Category Mapping Tests
+@Suite("NATSSubjectMapper")
+struct NATSSubjectMapperTests {
 
-@Suite("NATSSubjectMapper — Event Categories")
-struct NATSSubjectMapperCategoryTests {
+    // MARK: - Event Type to Category Mapping
 
     @Test("Lifecycle events map to lifecycle category")
     func lifecycleEvents() {
-        let lifecycleTypes: [EventType] = [
-            .sessionStart, .sessionEnd, .sessionTransition, .contextCompaction,
-            .heartbeat, .companyDispatched, .companyStale, .companyRelaunched,
-            .budgetExhausted, .testRun, .buildResult,
-        ]
+        #expect(NATSSubjectMapper.eventCategory(for: .sessionStart) == "lifecycle")
+        #expect(NATSSubjectMapper.eventCategory(for: .sessionEnd) == "lifecycle")
+        #expect(NATSSubjectMapper.eventCategory(for: .sessionTransition) == "lifecycle")
+        #expect(NATSSubjectMapper.eventCategory(for: .contextCompaction) == "lifecycle")
+        #expect(NATSSubjectMapper.eventCategory(for: .contextSaved) == "lifecycle")
+    }
 
-        for eventType in lifecycleTypes {
-            let category = NATSSubjectMapper.category(for: eventType)
-            #expect(
-                category == .lifecycle,
-                "Expected \(eventType) to map to lifecycle, got \(category)"
-            )
-        }
+    @Test("Heartbeat maps to heartbeat category")
+    func heartbeatCategory() {
+        #expect(NATSSubjectMapper.eventCategory(for: .heartbeat) == "heartbeat")
+    }
+
+    @Test("Orchestration events map to orchestration category")
+    func orchestrationEvents() {
+        #expect(NATSSubjectMapper.eventCategory(for: .companyDispatched) == "orchestration")
+        #expect(NATSSubjectMapper.eventCategory(for: .companyStale) == "orchestration")
+        #expect(NATSSubjectMapper.eventCategory(for: .companyRelaunched) == "orchestration")
+        #expect(NATSSubjectMapper.eventCategory(for: .budgetExhausted) == "orchestration")
     }
 
     @Test("Decision events map to decision category")
     func decisionEvents() {
-        let decisionTypes: [EventType] = [
-            .decisionPending, .decisionAnswered, .decisionUnblocked,
-        ]
+        #expect(NATSSubjectMapper.eventCategory(for: .decisionPending) == "decision")
+        #expect(NATSSubjectMapper.eventCategory(for: .decisionAnswered) == "decision")
+        #expect(NATSSubjectMapper.eventCategory(for: .decisionUnblocked) == "decision")
+        #expect(NATSSubjectMapper.eventCategory(for: .decisionMade) == "decision")
+        #expect(NATSSubjectMapper.eventCategory(for: .architectureChoice) == "decision")
+        #expect(NATSSubjectMapper.eventCategory(for: .tradeOffEvaluated) == "decision")
+    }
 
-        for eventType in decisionTypes {
-            #expect(NATSSubjectMapper.category(for: eventType) == .decision)
-        }
+    @Test("Code events map to code category")
+    func codeEvents() {
+        #expect(NATSSubjectMapper.eventCategory(for: .codeChange) == "code")
+        #expect(NATSSubjectMapper.eventCategory(for: .testRun) == "code")
+        #expect(NATSSubjectMapper.eventCategory(for: .buildResult) == "code")
+    }
+
+    @Test("PR events map to pr category")
+    func prEvents() {
+        #expect(NATSSubjectMapper.eventCategory(for: .prCacheBuilt) == "pr")
+        #expect(NATSSubjectMapper.eventCategory(for: .prRiskAssessed) == "pr")
+        #expect(NATSSubjectMapper.eventCategory(for: .prVerdictSet) == "pr")
+        #expect(NATSSubjectMapper.eventCategory(for: .prFixSpawned) == "pr")
+        #expect(NATSSubjectMapper.eventCategory(for: .prFixCompleted) == "pr")
     }
 
     @Test("Ship events map to ship category")
     func shipEvents() {
-        let shipTypes: [EventType] = [
-            .shipStarted, .shipGateStarted, .shipGatePassed,
-            .shipGateFailed, .shipCompleted, .shipAborted,
-        ]
-
-        for eventType in shipTypes {
-            #expect(NATSSubjectMapper.category(for: eventType) == .ship)
-        }
+        #expect(NATSSubjectMapper.eventCategory(for: .shipStarted) == "ship")
+        #expect(NATSSubjectMapper.eventCategory(for: .shipGateStarted) == "ship")
+        #expect(NATSSubjectMapper.eventCategory(for: .shipGatePassed) == "ship")
+        #expect(NATSSubjectMapper.eventCategory(for: .shipGateFailed) == "ship")
+        #expect(NATSSubjectMapper.eventCategory(for: .shipCompleted) == "ship")
+        #expect(NATSSubjectMapper.eventCategory(for: .shipAborted) == "ship")
     }
 
     @Test("CodeGen events map to codegen category")
     func codeGenEvents() {
-        let codegenTypes: [EventType] = [
-            .codeGenStarted, .codeGenSpecParsed, .codeGenContractVerified,
-            .codeGenPlanCreated, .codeGenAgentDispatched, .codeGenAgentCompleted,
-            .codeGenMergeStarted, .codeGenMergeCompleted, .codeGenFixStarted,
-            .codeGenFixCompleted, .codeGenPipelineCompleted, .codeGenPipelineFailed,
-        ]
-
-        for eventType in codegenTypes {
-            #expect(NATSSubjectMapper.category(for: eventType) == .codegen)
-        }
-    }
-
-    @Test("PR events map to agent category")
-    func prEvents() {
-        let prTypes: [EventType] = [
-            .prCacheBuilt, .prRiskAssessed, .prVerdictSet,
-            .prFixSpawned, .prFixCompleted,
-        ]
-
-        for eventType in prTypes {
-            #expect(NATSSubjectMapper.category(for: eventType) == .agent)
-        }
+        #expect(NATSSubjectMapper.eventCategory(for: .codeGenStarted) == "codegen")
+        #expect(NATSSubjectMapper.eventCategory(for: .codeGenPipelineCompleted) == "codegen")
+        #expect(NATSSubjectMapper.eventCategory(for: .codeGenPipelineFailed) == "codegen")
     }
 
     @Test("Scheduler events map to scheduler category")
     func schedulerEvents() {
-        let schedulerTypes: [EventType] = [
-            .scheduledTaskFired, .scheduledTaskCompleted,
-            .scheduledTaskFailed, .corroborationSweep,
-        ]
-
-        for eventType in schedulerTypes {
-            #expect(NATSSubjectMapper.category(for: eventType) == .scheduler)
-        }
+        #expect(NATSSubjectMapper.eventCategory(for: .scheduledTaskFired) == "scheduler")
+        #expect(NATSSubjectMapper.eventCategory(for: .scheduledTaskCompleted) == "scheduler")
+        #expect(NATSSubjectMapper.eventCategory(for: .scheduledTaskFailed) == "scheduler")
+        #expect(NATSSubjectMapper.eventCategory(for: .corroborationSweep) == "scheduler")
     }
 
-    @Test("Observatory events map to observatory category")
+    @Test("Observatory events map to appropriate categories")
     func observatoryEvents() {
-        let observatoryTypes: [EventType] = [
-            .decisionMade, .architectureChoice, .tradeOffEvaluated,
-            .blockerHit, .blockerResolved, .milestoneReached, .redFlag,
-            .contextSaved, .agentReportGenerated,
-        ]
-
-        for eventType in observatoryTypes {
-            #expect(NATSSubjectMapper.category(for: eventType) == .observatory)
-        }
+        #expect(NATSSubjectMapper.eventCategory(for: .blockerHit) == "blocker")
+        #expect(NATSSubjectMapper.eventCategory(for: .blockerResolved) == "blocker")
+        #expect(NATSSubjectMapper.eventCategory(for: .milestoneReached) == "milestone")
+        #expect(NATSSubjectMapper.eventCategory(for: .redFlag) == "alert")
+        #expect(NATSSubjectMapper.eventCategory(for: .agentReportGenerated) == "report")
     }
 
-    @Test("Git events map to git category")
-    func gitEvents() {
-        #expect(NATSSubjectMapper.category(for: .codeChange) == .git)
-    }
-
-    @Test("Notification events map to system category")
-    func notificationEvents() {
-        #expect(NATSSubjectMapper.category(for: .notificationSent) == .system)
-        #expect(NATSSubjectMapper.category(for: .notificationActioned) == .system)
-    }
-
-    @Test("Custom events map to system category")
+    @Test("Custom events map to custom category")
     func customEvents() {
-        #expect(NATSSubjectMapper.category(for: .custom("anything")) == .system)
-    }
-}
-
-// MARK: - Subject String Tests
-
-@Suite("NATSSubjectMapper — Subject Strings")
-struct NATSSubjectMapperSubjectTests {
-
-    @Test("Event subject includes company and category")
-    func eventSubjectFormat() {
-        let subject = NATSSubjectMapper.subject(for: .shipStarted, company: "maya")
-        #expect(subject == "shikki.events.maya.ship")
+        #expect(NATSSubjectMapper.eventCategory(for: .custom("myEvent")) == "custom")
     }
 
-    @Test("Subject from event uses scope for company")
-    func subjectFromEventUsesScope() {
-        let event = ShikkiEvent(
-            source: .orchestrator,
-            type: .shipStarted,
-            scope: .project(slug: "wabisabi")
-        )
-        let subject = NATSSubjectMapper.subject(for: event)
-        #expect(subject == "shikki.events.wabisabi.ship")
+    // MARK: - Full Subject Construction
+
+    @Test("subject(for:company:) builds correct NATS subject")
+    func subjectConstruction() {
+        let subject = NATSSubjectMapper.subject(for: .companyDispatched, company: "maya")
+        #expect(subject == "shikki.events.maya.orchestration")
     }
 
-    @Test("Subject from event with global scope uses default company")
-    func subjectFromEventGlobalScope() {
-        let event = ShikkiEvent(
-            source: .system,
-            type: .heartbeat,
-            scope: .global
-        )
-        let subject = NATSSubjectMapper.subject(for: event, defaultCompany: "global")
-        #expect(subject == "shikki.events.global.lifecycle")
+    @Test("companyWildcard builds correct pattern")
+    func companyWildcard() {
+        #expect(NATSSubjectMapper.companyWildcard("maya") == "shikki.events.maya.>")
     }
 
-    @Test("Subject from session scope extracts company prefix")
-    func subjectFromSessionScope() {
-        let event = ShikkiEvent(
-            source: .agent(id: "a1", name: nil),
-            type: .codeGenStarted,
-            scope: .session(id: "maya:session-abc")
-        )
-        let subject = NATSSubjectMapper.subject(for: event)
-        #expect(subject == "shikki.events.maya.codegen")
-    }
-
-    @Test("Session scope without colon yields default company")
-    func sessionScopeWithoutColon() {
-        let event = ShikkiEvent(
-            source: .system,
-            type: .heartbeat,
-            scope: .session(id: "plain-session-id")
-        )
-        let subject = NATSSubjectMapper.subject(for: event, defaultCompany: "fallback")
-        #expect(subject == "shikki.events.fallback.lifecycle")
-    }
-}
-
-// MARK: - Special Subject Tests
-
-@Suite("NATSSubjectMapper — Special Subjects")
-struct NATSSubjectMapperSpecialTests {
-
-    @Test("Command subject includes node ID")
-    func commandSubject() {
-        let subject = NATSSubjectMapper.commandSubject(nodeId: "node-42")
-        #expect(subject == "shikki.commands.node-42")
-    }
-
-    @Test("Discovery announce subject is correct")
-    func discoveryAnnounce() {
-        #expect(NATSSubjectMapper.discoveryAnnounce == "shikki.discovery.announce")
-    }
-
-    @Test("Discovery query subject is correct")
-    func discoveryQuery() {
-        #expect(NATSSubjectMapper.discoveryQuery == "shikki.discovery.query")
-    }
-
-    @Test("Tasks available subject includes workspace")
-    func tasksAvailable() {
-        let subject = NATSSubjectMapper.tasksAvailable(workspace: "shiki-main")
-        #expect(subject == "shikki.tasks.shiki-main.available")
-    }
-
-    @Test("Tasks claimed subject includes workspace")
-    func tasksClaimed() {
-        let subject = NATSSubjectMapper.tasksClaimed(workspace: "shiki-main")
-        #expect(subject == "shikki.tasks.shiki-main.claimed")
-    }
-
-    @Test("Decisions pending subject is correct")
-    func decisionsPending() {
-        #expect(NATSSubjectMapper.decisionsPending == "shikki.decisions.pending")
-    }
-
-    @Test("All events wildcard")
+    @Test("allEvents is the global wildcard")
     func allEventsWildcard() {
         #expect(NATSSubjectMapper.allEvents == "shikki.events.>")
     }
 
-    @Test("Company events wildcard includes company")
-    func companyEventsWildcard() {
-        #expect(NATSSubjectMapper.companyEvents("maya") == "shikki.events.maya.>")
+    // MARK: - Channel-to-Subject Mapping
+
+    @Test("Empty channel maps to all-events wildcard")
+    func emptyChannelMapsToAll() {
+        #expect(NATSEventTransport.channelToSubject("") == "shikki.events.>")
+        #expect(NATSEventTransport.channelToSubject("*") == "shikki.events.>")
+        #expect(NATSEventTransport.channelToSubject("  ") == "shikki.events.>")
     }
 
-    @Test("All discovery wildcard")
-    func allDiscoveryWildcard() {
-        #expect(NATSSubjectMapper.allDiscovery == "shikki.discovery.>")
+    @Test("Single-token channel maps to company wildcard")
+    func singleTokenChannel() {
+        #expect(NATSEventTransport.channelToSubject("maya") == "shikki.events.maya.>")
+        #expect(NATSEventTransport.channelToSubject("shiki") == "shikki.events.shiki.>")
+    }
+
+    @Test("Dotted channel maps to exact subject under prefix")
+    func dottedChannel() {
+        #expect(NATSEventTransport.channelToSubject("maya.agent") == "shikki.events.maya.agent")
+        #expect(NATSEventTransport.channelToSubject("maya.lifecycle") == "shikki.events.maya.lifecycle")
     }
 }

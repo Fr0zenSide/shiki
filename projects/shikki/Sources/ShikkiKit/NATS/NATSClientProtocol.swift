@@ -2,9 +2,9 @@ import Foundation
 
 // MARK: - NATSMessage
 
-/// A message received from or sent to NATS.
-/// Thin struct wrapping subject, payload data, and optional reply-to for request/reply.
-public struct NATSMessage: Sendable, Equatable {
+/// Lightweight message envelope from NATS.
+/// Subject identifies the topic, data carries the JSON payload.
+public struct NATSMessage: Sendable {
     public let subject: String
     public let data: Data
     public let replyTo: String?
@@ -16,37 +16,38 @@ public struct NATSMessage: Sendable, Equatable {
     }
 }
 
-// MARK: - NATSError
-
-/// Errors produced by NATSClient operations.
-public enum NATSError: Error, Sendable, Equatable {
-    case notConnected
-    case connectionFailed(String)
-    case timeout
-    case publishFailed(String)
-}
-
 // MARK: - NATSClientProtocol
 
-/// Protocol abstracting a NATS client connection.
-/// Concrete implementation wraps nats-io/nats.swift (added in a later wave).
-/// Tests inject MockNATSClient — no real nats-server needed for unit tests.
+/// Transport-agnostic NATS client interface.
+/// Concrete implementation wraps `nats-io/nats.swift`.
+/// Tests inject `MockNATSClient` — no real nats-server in unit tests.
 public protocol NATSClientProtocol: Sendable {
     /// Connect to the NATS server.
     func connect() async throws
 
-    /// Disconnect from the NATS server.
+    /// Disconnect and clean up.
     func disconnect() async
 
     /// Publish data to a subject.
     func publish(subject: String, data: Data) async throws
 
-    /// Subscribe to a subject and receive messages as an AsyncStream.
-    func subscribe(subject: String) async -> AsyncStream<NATSMessage>
+    /// Subscribe to a subject pattern (supports NATS wildcards: `*`, `>`).
+    /// Returns an AsyncStream that yields messages until unsubscribed or disconnected.
+    func subscribe(subject: String) -> AsyncStream<NATSMessage>
 
-    /// Send a request and wait for a reply, with timeout.
+    /// Request-reply: publish and wait for a single response within the timeout.
     func request(subject: String, data: Data, timeout: Duration) async throws -> NATSMessage
 
     /// Whether the client is currently connected.
     var isConnected: Bool { get async }
+}
+
+// MARK: - NATSClientError
+
+/// Errors from the NATS client layer.
+public enum NATSClientError: Error, Sendable, Equatable {
+    case notConnected
+    case timeout
+    case encodingFailed
+    case connectionFailed(String)
 }
