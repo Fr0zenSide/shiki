@@ -6,180 +6,155 @@ import Testing
 @Suite("CommunityBenchmark")
 struct CommunityBenchmarkTests {
 
-    // MARK: - BenchmarkComparison
+    // MARK: - BenchmarkMetric
 
-    @Test("BenchmarkComparison computes delta")
-    func comparisonDelta() {
-        let comparison = BenchmarkComparison(
-            metric: "Success Rate",
-            localValue: 0.85,
-            communityBaseline: 0.80
-        )
-        #expect(abs(comparison.delta - 0.05) < 0.001)
+    @Test("BenchmarkMetric stores fields")
+    func metricFields() {
+        let metric = BenchmarkMetric(name: "Accuracy", value: 0.85, unit: "%")
+        #expect(metric.name == "Accuracy")
+        #expect(metric.value == 0.85)
+        #expect(metric.unit == "%")
+        #expect(metric.percentile == nil)
     }
 
-    @Test("BenchmarkComparison percentile for above average")
-    func percentileAboveAverage() {
-        let comparison = BenchmarkComparison(
-            metric: "Test",
-            localValue: 1.3,
-            communityBaseline: 1.0
-        )
-        #expect(comparison.percentile == .aboveAverage)
+    @Test("BenchmarkMetric with percentile")
+    func metricPercentile() {
+        let metric = BenchmarkMetric(name: "MAE", value: 0.1, unit: "score", percentile: 0.75)
+        #expect(metric.percentile == 0.75)
     }
 
-    @Test("BenchmarkComparison percentile for top 25%")
-    func percentileTop25() {
-        let comparison = BenchmarkComparison(
-            metric: "Test",
-            localValue: 2.0,
-            communityBaseline: 1.0
-        )
-        #expect(comparison.percentile == .top25)
+    @Test("BenchmarkMetric Codable round-trip")
+    func metricCodable() throws {
+        let metric = BenchmarkMetric(name: "Test", value: 42.0, unit: "ms", percentile: 0.5)
+        let data = try JSONEncoder().encode(metric)
+        let decoded = try JSONDecoder().decode(BenchmarkMetric.self, from: data)
+        #expect(decoded == metric)
     }
 
-    @Test("BenchmarkComparison percentile for average")
-    func percentileAverage() {
-        let comparison = BenchmarkComparison(
-            metric: "Test",
-            localValue: 1.0,
-            communityBaseline: 1.0
-        )
-        #expect(comparison.percentile == .average)
+    // MARK: - CommunityBaseline
+
+    @Test("CommunityBaseline empty has zero samples")
+    func emptyBaseline() {
+        let baseline = CommunityBaseline.empty
+        #expect(baseline.sampleSize == 0)
     }
 
-    @Test("BenchmarkComparison percentile for below average")
-    func percentileBelowAverage() {
-        let comparison = BenchmarkComparison(
-            metric: "Test",
-            localValue: 0.6,
-            communityBaseline: 1.0
+    @Test("CommunityBaseline Codable round-trip")
+    func baselineCodable() throws {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let baseline = CommunityBaseline(
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            sampleSize: 500,
+            medianRiskAccuracy: 0.8,
+            medianBugRate: 0.05,
+            medianTimeToMerge: 3600,
+            riskWeights: nil
         )
-        #expect(comparison.percentile == .belowAverage)
+        let data = try encoder.encode(baseline)
+        let decoded = try decoder.decode(CommunityBaseline.self, from: data)
+        #expect(decoded.sampleSize == baseline.sampleSize)
+        #expect(decoded.medianRiskAccuracy == baseline.medianRiskAccuracy)
     }
 
-    @Test("BenchmarkComparison percentile for bottom 25%")
-    func percentileBottom25() {
-        let comparison = BenchmarkComparison(
-            metric: "Test",
-            localValue: 0.3,
-            communityBaseline: 1.0
-        )
-        #expect(comparison.percentile == .bottom25)
-    }
+    // MARK: - RecommendationPriority
 
-    @Test("BenchmarkComparison percentile unknown when no baseline")
-    func percentileUnknown() {
-        let comparison = BenchmarkComparison(
-            metric: "Test",
-            localValue: 0.5,
-            communityBaseline: 0.0
-        )
-        #expect(comparison.percentile == .unknown)
+    @Test("RecommendationPriority raw values")
+    func priorityRawValues() {
+        #expect(RecommendationPriority.info.rawValue == "info")
+        #expect(RecommendationPriority.suggestion.rawValue == "suggestion")
+        #expect(RecommendationPriority.warning.rawValue == "warning")
+        #expect(RecommendationPriority.critical.rawValue == "critical")
     }
 
     // MARK: - BenchmarkReport
 
-    @Test("BenchmarkReport health score all good")
-    func healthScoreAllGood() {
+    @Test("BenchmarkReport with empty metrics")
+    func emptyReport() {
         let report = BenchmarkReport(
-            comparisons: [
-                BenchmarkComparison(metric: "A", localValue: 1.0, communityBaseline: 1.0),
-                BenchmarkComparison(metric: "B", localValue: 1.5, communityBaseline: 1.0),
-            ],
-            localSampleCount: 10,
-            communitySampleCount: 1000
+            recordCount: 0,
+            metrics: [],
+            riskAccuracy: nil,
+            recommendations: []
         )
-        #expect(report.healthScore == 1.0)
+        #expect(report.metrics.isEmpty)
+        #expect(report.recommendations.isEmpty)
+        #expect(report.recordCount == 0)
     }
 
-    @Test("BenchmarkReport health score mixed")
-    func healthScoreMixed() {
+    @Test("BenchmarkReport with data")
+    func fullReport() {
         let report = BenchmarkReport(
-            comparisons: [
-                BenchmarkComparison(metric: "A", localValue: 1.0, communityBaseline: 1.0),  // average
-                BenchmarkComparison(metric: "B", localValue: 0.3, communityBaseline: 1.0),  // bottom 25%
+            recordCount: 50,
+            metrics: [
+                BenchmarkMetric(name: "Accuracy", value: 0.85, unit: "%"),
             ],
-            localSampleCount: 10,
-            communitySampleCount: 1000
+            riskAccuracy: nil,
+            recommendations: [
+                BenchmarkRecommendation(priority: .suggestion, area: "Testing", message: "Add more tests"),
+            ]
         )
-        #expect(report.healthScore == 0.5)
-    }
-
-    @Test("BenchmarkReport health score empty")
-    func healthScoreEmpty() {
-        let report = BenchmarkReport(
-            comparisons: [],
-            localSampleCount: 0,
-            communitySampleCount: 0
-        )
-        #expect(report.healthScore == 0.0)
+        #expect(report.metrics.count == 1)
+        #expect(report.recommendations.count == 1)
+        #expect(report.recommendations[0].priority == .suggestion)
     }
 
     // MARK: - CommunityBenchmark Generate
 
-    @Test("Benchmark report with no baselines returns empty comparisons")
-    func reportNoBaselines() async {
-        let telemetryPath = NSTemporaryDirectory() + "shikki-bench-\(UUID().uuidString).json"
-        let calibrationPath = NSTemporaryDirectory() + "shikki-bench-cal-\(UUID().uuidString).json"
-
-        let telemetryStore = TelemetryConfigStore(filePath: telemetryPath)
-        let calibrationStore = CalibrationStore(filePath: calibrationPath)
-        let collector = OutcomeCollector(telemetryStore: telemetryStore)
-        let benchmark = CommunityBenchmark(
-            calibrationStore: calibrationStore,
-            outcomeCollector: collector
-        )
-
-        let report = await benchmark.generateReport()
-        #expect(report.comparisons.isEmpty)
-        #expect(report.communitySampleCount == 0)
+    @Test("Benchmark from empty records")
+    func emptyRecords() {
+        let benchmark = CommunityBenchmark()
+        let report = benchmark.generateReport(from: [])
+        #expect(report.metrics.isEmpty)
+        #expect(report.recordCount == 0)
     }
 
-    @Test("Benchmark report with baselines generates comparisons")
-    func reportWithBaselines() async throws {
-        let telemetryPath = NSTemporaryDirectory() + "shikki-bench2-\(UUID().uuidString).json"
-        let calibrationPath = NSTemporaryDirectory() + "shikki-bench2-cal-\(UUID().uuidString).json"
+    @Test("Benchmark from records produces metrics")
+    func recordsProduceMetrics() {
+        let records = [
+            CalibrationRecord(
+                predictedScore: 0.2,
+                predictedTier: .low,
+                actualOutcome: .clean,
+                fileExtension: "swift",
+                linesChanged: 50
+            ),
+            CalibrationRecord(
+                predictedScore: 0.6,
+                predictedTier: .medium,
+                actualOutcome: .majorBug,
+                fileExtension: "swift",
+                linesChanged: 200
+            ),
+        ]
+        let benchmark = CommunityBenchmark()
+        let report = benchmark.generateReport(from: records)
+        #expect(report.recordCount == 2)
+    }
 
-        let telemetryStore = TelemetryConfigStore(filePath: telemetryPath)
-        let calibrationStore = CalibrationStore(filePath: calibrationPath)
-
-        // Set baselines
-        try await calibrationStore.updateBenchmarkBaselines(BenchmarkBaselines(
-            riskScoreAccuracy: 0.7,
-            taskSuccessRate: 0.8,
-            avgContextResetsPerSession: 2.0,
-            sampleCount: 5000
-        ))
-
-        let collector = OutcomeCollector(telemetryStore: telemetryStore)
-
-        // Add some local outcomes
-        for i in 0..<10 {
-            let record = OutcomeRecord(
-                category: .taskOutcomes,
-                outcome: i < 7 ? .success : .failure,
-                metrics: OutcomeMetrics(
-                    predictedRiskScore: Double(i) / 10.0,
-                    contextResets: i % 3
-                )
-            )
-            await collector.record(record)
-        }
-
-        let benchmark = CommunityBenchmark(
-            calibrationStore: calibrationStore,
-            outcomeCollector: collector
+    @Test("Benchmark with baseline")
+    func withBaseline() {
+        let baseline = CommunityBaseline(
+            updatedAt: Date(),
+            sampleSize: 1000,
+            medianRiskAccuracy: 0.8,
+            medianBugRate: 0.05,
+            medianTimeToMerge: 3600,
+            riskWeights: nil
         )
-
-        let report = await benchmark.generateReport()
-        #expect(!report.comparisons.isEmpty)
-        #expect(report.localSampleCount == 10)
-        #expect(report.communitySampleCount == 5000)
-
-        // Should have task success rate comparison
-        let successComparison = report.comparisons.first { $0.metric == "Task Success Rate" }
-        #expect(successComparison != nil)
-        #expect(abs(successComparison!.localValue - 0.7) < 0.01)
+        let benchmark = CommunityBenchmark(baseline: baseline)
+        let records = [
+            CalibrationRecord(
+                predictedScore: 0.2,
+                predictedTier: .low,
+                actualOutcome: .clean,
+                fileExtension: "swift",
+                linesChanged: 30
+            ),
+        ]
+        let report = benchmark.generateReport(from: records)
+        #expect(report.recordCount == 1)
     }
 }

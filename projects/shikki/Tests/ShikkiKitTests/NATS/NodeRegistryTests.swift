@@ -261,8 +261,8 @@ struct NodeRegistryTests {
         decoder.dateDecodingStrategy = .iso8601
 
         // Set up reply handler that simulates what the query responder does
-        await nats.whenRequest(subject: NATSSubjectMapper.discoveryQuery) { message in
-            let query = (try? decoder.decode(DiscoveryQuery.self, from: message.data)) ?? DiscoveryQuery()
+        await nats.whenRequest(subject: NATSSubjectMapper.discoveryQuery) { data in
+            let query = (try? decoder.decode(DiscoveryQuery.self, from: data)) ?? DiscoveryQuery()
             let nodes = [
                 NodeIdentity(
                     nodeId: "node-1", binaryVersion: "0.3.0-pre", role: .primary,
@@ -276,7 +276,7 @@ struct NodeRegistryTests {
 
             let response = DiscoveryResponse(nodes: nodes)
             let responseData = (try? encoder.encode(response)) ?? Data()
-            return NATSMessage(subject: message.subject, data: responseData)
+            return NATSMessage(subject: NATSSubjectMapper.discoveryQuery, data: responseData)
         }
 
         // Query with no filter
