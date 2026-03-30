@@ -38,46 +38,6 @@ public enum DurationParser {
         return nil
     }
 
-    /// Maximum allowed duration for recovery windows: 7 days.
-    /// BR-01: Values above 7d are clamped with warning.
-    public static let maxRecoveryDuration: TimeInterval = 7 * 24 * 3600
-
-    /// Default recovery time window: 2 hours.
-    public static let defaultRecoveryDuration: TimeInterval = 2 * 3600
-
-    /// Parse a duration string with validation and clamping for recovery windows.
-    /// BR-06: Supports Nh, Nm, Ns, Nd. Invalid formats throw with examples.
-    /// BR-01: Values above 7d are clamped.
-    public static func parseForRecovery(_ input: String) throws -> ParsedDuration {
-        let trimmed = input.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else {
-            throw DurationParseError.invalidFormat(trimmed)
-        }
-
-        guard let seconds = parse(trimmed) else {
-            // Check for 'd' suffix (days) not supported by base parse
-            let lower = trimmed.lowercased()
-            if lower.hasSuffix("d"), let value = Double(lower.dropLast()), value > 0 {
-                let total = value * 86400
-                if total > maxRecoveryDuration {
-                    return ParsedDuration(seconds: maxRecoveryDuration, clamped: true)
-                }
-                return ParsedDuration(seconds: total, clamped: false)
-            }
-            throw DurationParseError.invalidFormat(trimmed)
-        }
-
-        guard seconds > 0 else {
-            throw DurationParseError.invalidFormat(trimmed)
-        }
-
-        if seconds > maxRecoveryDuration {
-            return ParsedDuration(seconds: maxRecoveryDuration, clamped: true)
-        }
-
-        return ParsedDuration(seconds: seconds, clamped: false)
-    }
-
     /// Human-readable representation of a duration in seconds.
     public static func format(_ seconds: Double) -> String {
         let s = Int(seconds)

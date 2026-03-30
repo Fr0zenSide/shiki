@@ -177,22 +177,6 @@ public enum EventClassifier {
         case .corroborationSweep:
             return .background
 
-        // Observatory
-        case .decisionMade, .architectureChoice, .tradeOffEvaluated:
-            return .decision
-        case .blockerHit:
-            return .alert
-        case .blockerResolved:
-            return .milestone
-        case .milestoneReached:
-            return .milestone
-        case .redFlag:
-            return .critical
-        case .contextSaved:
-            return .alert
-        case .agentReportGenerated:
-            return .progress
-
         // Custom
         case .custom(let name):
             if name == "redFlag" { return .critical }
