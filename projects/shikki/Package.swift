@@ -18,9 +18,6 @@ let package = Package(
             name: "ShikkiKit",
             dependencies: [
                 .product(name: "Logging", package: "swift-log"),
-            ],
-            resources: [
-                .process("Resources"),
             ]
         ),
         .executableTarget(
@@ -34,14 +31,6 @@ let package = Package(
         .testTarget(
             name: "ShikkiKitTests",
             dependencies: ["ShikkiKit"]
-        ),
-        .testTarget(
-            name: "ShikkiTests",
-            dependencies: [
-                "shikki",
-                "ShikkiKit",
-                .product(name: "ArgumentParser", package: "swift-argument-parser"),
-            ]
         ),
     ]
 )

@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - ShipLogEntry
 
-/// A single entry in the ship log — records "why" for every release.
+/// A single entry in the ship log -- records "why" for every release.
 public struct ShipLogEntry: Sendable {
     public let date: Date
     public let version: String
@@ -33,7 +33,7 @@ public struct ShipLogEntry: Sendable {
 
 // MARK: - ShipLog
 
-/// Append-only ship log at ~/.shiki/ship-log.md.
+/// Append-only ship log at ~/.shikki/ship-log.md.
 /// Records every release with a mandatory "why" field.
 public struct ShipLog: Sendable {
     let path: String
@@ -43,17 +43,19 @@ public struct ShipLog: Sendable {
             self.path = path
         } else {
             let home = FileManager.default.homeDirectoryForCurrentUser.path
-            self.path = "\(home)/.shiki/ship-log.md"
+            self.path = "\(home)/.shikki/ship-log.md"
         }
     }
 
     /// Append an entry to the ship log file.
     public func append(_ entry: ShipLogEntry) throws {
-        let dateStr = entry.date.shortDisplay
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        let dateStr = formatter.string(from: entry.date)
 
         let markdown = """
 
-        ## \(entry.version) — \(dateStr)
+        ## \(entry.version) -- \(dateStr)
         - **Project**: \(entry.project)
         - **Branch**: \(entry.branch)
         - **Why**: \(entry.why)

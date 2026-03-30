@@ -3,7 +3,7 @@ import Foundation
 // MARK: - ShipService
 
 /// Pipeline-of-gates orchestrator. Runs gates sequentially, aborts on failure.
-/// Emits ShipEvents at each step for event bus integration.
+/// Emits ShikkiEvents at each step for event bus integration.
 public actor ShipService {
 
     public init() {}
@@ -50,7 +50,6 @@ public actor ShipService {
             do {
                 result = try await gate.evaluate(context: context)
             } catch {
-                // Gate threw an error — treat as failure
                 let reason = "Gate '\(gate.name)' threw error: \(error.localizedDescription)"
                 await emitGateFailed(gate: gate, reason: reason, context: context)
                 await emitShipAborted(gate: gate, reason: reason, context: context)
@@ -82,7 +81,6 @@ public actor ShipService {
 
             case .warn(let reason):
                 warnings.append("\(gate.name): \(reason)")
-                // Warn still counts as passed
                 await context.emit(ShikkiEvent(
                     source: .process(name: "ship"),
                     type: .shipGatePassed,
@@ -108,7 +106,7 @@ public actor ShipService {
             }
         }
 
-        // All gates passed — emit shipCompleted
+        // All gates passed
         let totalDuration = Date().timeIntervalSince(startTime)
         await context.emit(ShikkiEvent(
             source: .process(name: "ship"),

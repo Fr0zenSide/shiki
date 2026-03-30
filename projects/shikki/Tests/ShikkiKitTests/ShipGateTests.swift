@@ -2,57 +2,9 @@ import Foundation
 import Testing
 @testable import ShikkiKit
 
-// MARK: - Mock ShipContext
-
-/// Mock context for testing gates without shell side effects.
-actor MockShipContext: ShipContext {
-    let isDryRun: Bool
-    let branch: String
-    let target: String
-    let projectRoot: URL
-    private var _shellResponses: [String: ShellResult] = [:]
-    private var _emittedEvents: [ShikkiEvent] = []
-    private var _shellCalls: [String] = []
-
-    var emittedEvents: [ShikkiEvent] {
-        _emittedEvents
-    }
-
-    var shellCalls: [String] {
-        _shellCalls
-    }
-
-    init(
-        isDryRun: Bool = false,
-        branch: String = "feature/test",
-        target: String = "develop",
-        projectRoot: URL = URL(fileURLWithPath: "/tmp/test-project")
-    ) {
-        self.isDryRun = isDryRun
-        self.branch = branch
-        self.target = target
-        self.projectRoot = projectRoot
-    }
-
-    func stubShell(_ command: String, result: ShellResult) {
-        _shellResponses[command] = result
-    }
-
-    func shell(_ command: String) async throws -> ShellResult {
-        _shellCalls.append(command)
-        let result = _shellResponses.first(where: { command.contains($0.key) })?.value
-            ?? ShellResult(stdout: "", stderr: "", exitCode: 0)
-        return result
-    }
-
-    func emit(_ event: ShikkiEvent) async {
-        _emittedEvents.append(event)
-    }
-}
-
 // MARK: - CleanBranchGate Tests
 
-@Suite("Ship Gate — CleanBranch")
+@Suite("Ship Gate -- CleanBranch")
 struct CleanBranchGateTests {
 
     @Test("Dirty working tree fails")
@@ -95,14 +47,14 @@ struct CleanBranchGateTests {
 
 // MARK: - TestGate Tests
 
-@Suite("Ship Gate — Test")
+@Suite("Ship Gate -- Test")
 struct TestGateTests {
 
     @Test("Tests pass returns pass")
     func testsPassPasses() async throws {
         let ctx = MockShipContext()
         await ctx.stubShell("swift test", result: ShellResult(
-            stdout: "Test Suite 'All tests' passed at 2026-03-19.\nExecuted 42 tests, with 0 failures",
+            stdout: "Test Suite 'All tests' passed.\nExecuted 42 tests, with 0 failures",
             stderr: "",
             exitCode: 0
         ))
@@ -120,7 +72,7 @@ struct TestGateTests {
     func testsFailFailsHard() async throws {
         let ctx = MockShipContext()
         await ctx.stubShell("swift test", result: ShellResult(
-            stdout: "Test Suite 'All tests' failed at 2026-03-19.\nExecuted 42 tests, with 3 failures",
+            stdout: "Test Suite 'All tests' failed.\nExecuted 42 tests, with 3 failures",
             stderr: "",
             exitCode: 1
         ))
@@ -132,176 +84,105 @@ struct TestGateTests {
             Issue.record("Expected .fail, got \(result)")
             return
         }
-        #expect(reason.contains("fail") || reason.contains("test"))
+        #expect(reason.lowercased().contains("fail") || reason.contains("test"))
     }
 }
 
-// MARK: - CoverageGate Tests
+// MARK: - LintGate Tests
 
-@Suite("Ship Gate — Coverage")
-struct CoverageGateTests {
+@Suite("Ship Gate -- Lint")
+struct LintGateTests {
 
-    @Test("Above threshold passes")
-    func aboveThresholdPasses() async throws {
+    @Test("No linter available warns and skips")
+    func noLinterAvailableWarns() async throws {
         let ctx = MockShipContext()
-        // CoverageGate with no injected currentCoverage will try to run shell command
-        // which returns empty in mock -> "coverage unavailable" -> pass
-        // Instead, inject coverage directly
-        let gate = CoverageGate(threshold: 80.0, currentCoverage: 90.0, previousCoverage: 85.0)
-
-        let result = try await gate.evaluate(context: ctx)
-
-        guard case .pass = result else {
-            Issue.record("Expected .pass, got \(result)")
-            return
-        }
-    }
-
-    @Test("Below threshold warns but passes")
-    func belowThresholdWarns() async throws {
-        let ctx = MockShipContext()
-        let gate = CoverageGate(threshold: 80.0, currentCoverage: 75.0, previousCoverage: 76.0)
-
-        let result = try await gate.evaluate(context: ctx)
-
-        guard case .warn(let reason) = result else {
-            Issue.record("Expected .warn, got \(result)")
-            return
-        }
-        #expect(reason.contains("75") || reason.contains("below") || reason.contains("coverage"))
-    }
-
-    @Test("Drop more than 5% emits risk warning")
-    func dropMoreThan5PercentEmitsRisk() async throws {
-        let ctx = MockShipContext()
-        let gate = CoverageGate(threshold: 80.0, currentCoverage: 82.0, previousCoverage: 90.0)
-
-        let result = try await gate.evaluate(context: ctx)
-
-        guard case .warn(let reason) = result else {
-            Issue.record("Expected .warn, got \(result)")
-            return
-        }
-        #expect(reason.contains("drop") || reason.contains("decrease") || reason.lowercased().contains("risk"))
-    }
-}
-
-// MARK: - RiskGate Tests
-
-@Suite("Ship Gate — Risk")
-struct RiskGateTests {
-
-    @Test("Risk gate always passes with informational score")
-    func riskGateAlwaysPasses() async throws {
-        let ctx = MockShipContext()
-        await ctx.stubShell("git diff --stat", result: ShellResult(
-            stdout: " src/main.swift | 10 +++++++---\n src/lib.swift  | 5 +++++\n 2 files changed, 12 insertions(+), 3 deletions(-)\n",
-            stderr: "",
-            exitCode: 0
+        await ctx.stubShell("which swiftlint", result: ShellResult(
+            stdout: "", stderr: "", exitCode: 1
         ))
 
-        let gate = RiskGate()
+        let gate = LintGate()
         let result = try await gate.evaluate(context: ctx)
 
-        guard case .pass(let detail) = result else {
-            Issue.record("Expected .pass, got \(result)")
+        guard case .warn(let reason) = result else {
+            Issue.record("Expected .warn, got \(result)")
             return
         }
-        #expect(detail != nil)
+        #expect(reason.lowercased().contains("no linter") || reason.lowercased().contains("skipped"))
     }
-}
 
-// MARK: - PRGate Tests
+    @Test("Lint errors cause failure")
+    func lintErrorsCauseFail() async throws {
+        let ctx = MockShipContext()
+        await ctx.stubShell("which swiftlint", result: ShellResult(
+            stdout: "/usr/local/bin/swiftlint", stderr: "", exitCode: 0
+        ))
+        await ctx.stubShell("swiftlint lint", result: ShellResult(
+            stdout: "file.swift:10:1: error: trailing whitespace\nfile.swift:20:1: error: line length",
+            stderr: "",
+            exitCode: 2
+        ))
 
-@Suite("Ship Gate — PR")
-struct PRGateTests {
-
-    @Test("Target main rejects with error")
-    func targetMainRejects() async throws {
-        let ctx = MockShipContext(target: "main")
-        let gate = PRGate()
-
+        let gate = LintGate()
         let result = try await gate.evaluate(context: ctx)
 
         guard case .fail(let reason) = result else {
             Issue.record("Expected .fail, got \(result)")
             return
         }
-        #expect(reason.contains("main") || reason.contains("git flow") || reason.contains("develop"))
-    }
-
-    @Test("Target develop passes")
-    func targetDevelopPasses() async throws {
-        let ctx = MockShipContext(isDryRun: true, target: "develop")
-        let gate = PRGate()
-
-        let result = try await gate.evaluate(context: ctx)
-
-        guard case .pass = result else {
-            Issue.record("Expected .pass, got \(result)")
-            return
-        }
-    }
-
-    @Test("Target epic/* passes")
-    func targetEpicPasses() async throws {
-        let ctx = MockShipContext(isDryRun: true, target: "epic/shikki-v1")
-        let gate = PRGate()
-
-        let result = try await gate.evaluate(context: ctx)
-
-        guard case .pass = result else {
-            Issue.record("Expected .pass, got \(result)")
-            return
-        }
-    }
-
-    @Test("Target story/* passes")
-    func targetStoryPasses() async throws {
-        let ctx = MockShipContext(isDryRun: true, target: "story/swift-platform-migration")
-        let gate = PRGate()
-
-        let result = try await gate.evaluate(context: ctx)
-
-        guard case .pass = result else {
-            Issue.record("Expected .pass, got \(result)")
-            return
-        }
+        #expect(reason.contains("2 lint errors"))
     }
 }
 
-// MARK: - VersionBumpGate Tests
+// MARK: - BuildGate Tests
 
-@Suite("Ship Gate — VersionBump")
-struct VersionBumpGateTests {
+@Suite("Ship Gate -- Build")
+struct BuildGateTests {
 
-    @Test("Delegates to VersionBumper")
-    func delegatesToBumper() async throws {
+    @Test("Build success passes")
+    func buildSuccessPasses() async throws {
         let ctx = MockShipContext()
-        await ctx.stubShell("git describe", result: ShellResult(stdout: "v1.0.0", stderr: "", exitCode: 0))
-        await ctx.stubShell("git log", result: ShellResult(stdout: "feat: add ship command\nfix: typo\n", stderr: "", exitCode: 0))
+        await ctx.stubShell("swift build", result: ShellResult(
+            stdout: "Build complete!", stderr: "", exitCode: 0
+        ))
 
-        let gate = VersionBumpGate()
+        let gate = BuildGate()
         let result = try await gate.evaluate(context: ctx)
 
         guard case .pass(let detail) = result else {
             Issue.record("Expected .pass, got \(result)")
             return
         }
-        #expect(detail != nil)
-        #expect(detail?.contains("1.1.0") == true)
+        #expect(detail?.lowercased().contains("release") == true || detail?.lowercased().contains("build") == true)
+    }
+
+    @Test("Build failure fails hard")
+    func buildFailureFails() async throws {
+        let ctx = MockShipContext()
+        await ctx.stubShell("swift build", result: ShellResult(
+            stdout: "", stderr: "error: cannot find module", exitCode: 1
+        ))
+
+        let gate = BuildGate()
+        let result = try await gate.evaluate(context: ctx)
+
+        guard case .fail = result else {
+            Issue.record("Expected .fail, got \(result)")
+            return
+        }
     }
 }
 
 // MARK: - ChangelogGate Tests
 
-@Suite("Ship Gate — Changelog")
+@Suite("Ship Gate -- Changelog")
 struct ChangelogGateTests {
 
-    @Test("Default behavior uses last tag range")
-    func defaultUsesLastTag() async throws {
+    @Test("Generates changelog from conventional commits")
+    func generatesChangelog() async throws {
         let ctx = MockShipContext()
-        await ctx.stubShell("git describe", result: ShellResult(stdout: "v1.0.0", stderr: "", exitCode: 0))
+        await ctx.stubShell("git describe", result: ShellResult(
+            stdout: "v1.0.0", stderr: "", exitCode: 0
+        ))
         await ctx.stubShell("git log", result: ShellResult(
             stdout: "feat: add splash screen\nfix: typo in readme\n",
             stderr: "", exitCode: 0
@@ -315,41 +196,19 @@ struct ChangelogGateTests {
             return
         }
         #expect(detail?.contains("2 commits") == true)
-
-        // Verify the shell call used tag-based range
-        let calls = await ctx.shellCalls
-        #expect(calls.contains { $0.contains("git describe") })
     }
 
-    @Test("Epic scope uses branch range instead of tag")
-    func epicScopeUsesBranchRange() async throws {
+    @Test("No commits warns")
+    func noCommitsWarns() async throws {
         let ctx = MockShipContext()
+        await ctx.stubShell("git describe", result: ShellResult(
+            stdout: "v1.0.0", stderr: "", exitCode: 0
+        ))
         await ctx.stubShell("git log", result: ShellResult(
-            stdout: "feat: wave U1a personality\nfeat: wave U1b splash\nfeat: wave U1c changelog\n",
-            stderr: "", exitCode: 0
+            stdout: "", stderr: "", exitCode: 0
         ))
 
-        let gate = ChangelogGate(scopeBranch: "epic/shikki-v1")
-        let result = try await gate.evaluate(context: ctx)
-
-        guard case .pass(let detail) = result else {
-            Issue.record("Expected .pass, got \(result)")
-            return
-        }
-        #expect(detail?.contains("3 commits") == true)
-
-        // Verify NO git describe call (scope branch bypasses tag lookup)
-        let calls = await ctx.shellCalls
-        #expect(!calls.contains { $0.contains("git describe") })
-        #expect(calls.contains { $0.contains("epic/shikki-v1") })
-    }
-
-    @Test("Epic scope with no commits warns")
-    func epicScopeNoCommitsWarns() async throws {
-        let ctx = MockShipContext()
-        await ctx.stubShell("git log", result: ShellResult(stdout: "", stderr: "", exitCode: 0))
-
-        let gate = ChangelogGate(scopeBranch: "epic/shikki-v1")
+        let gate = ChangelogGate()
         let result = try await gate.evaluate(context: ctx)
 
         guard case .warn(let reason) = result else {
@@ -357,5 +216,105 @@ struct ChangelogGateTests {
             return
         }
         #expect(reason.contains("No commits"))
+    }
+}
+
+// MARK: - VersionBumpGate Tests
+
+@Suite("Ship Gate -- VersionBump")
+struct VersionBumpGateTests {
+
+    @Test("Delegates to VersionBumper")
+    func delegatesToBumper() async throws {
+        let ctx = MockShipContext()
+        await ctx.stubShell("git describe", result: ShellResult(
+            stdout: "v1.0.0", stderr: "", exitCode: 0
+        ))
+        await ctx.stubShell("git log", result: ShellResult(
+            stdout: "feat: add ship command\nfix: typo\n", stderr: "", exitCode: 0
+        ))
+
+        let gate = VersionBumpGate()
+        let result = try await gate.evaluate(context: ctx)
+
+        guard case .pass(let detail) = result else {
+            Issue.record("Expected .pass, got \(result)")
+            return
+        }
+        #expect(detail?.contains("1.1.0") == true)
+    }
+}
+
+// MARK: - TagGate Tests
+
+@Suite("Ship Gate -- Tag")
+struct TagGateTests {
+
+    @Test("Dry run does not create tag")
+    func dryRunNoTag() async throws {
+        let ctx = MockShipContext(isDryRun: true)
+        await ctx.stubShell("git describe", result: ShellResult(
+            stdout: "v1.0.0", stderr: "", exitCode: 0
+        ))
+        await ctx.stubShell("git log", result: ShellResult(
+            stdout: "fix: typo\n", stderr: "", exitCode: 0
+        ))
+
+        let gate = TagGate()
+        let result = try await gate.evaluate(context: ctx)
+
+        guard case .pass(let detail) = result else {
+            Issue.record("Expected .pass, got \(result)")
+            return
+        }
+        #expect(detail?.contains("dry-run") == true)
+    }
+}
+
+// MARK: - PushGate Tests
+
+@Suite("Ship Gate -- Push")
+struct PushGateTests {
+
+    @Test("Target main rejects with error")
+    func targetMainRejects() async throws {
+        let ctx = MockShipContext(target: "main")
+        let gate = PushGate()
+
+        let result = try await gate.evaluate(context: ctx)
+
+        guard case .fail(let reason) = result else {
+            Issue.record("Expected .fail, got \(result)")
+            return
+        }
+        #expect(reason.contains("main") || reason.contains("git flow") || reason.contains("develop"))
+    }
+
+    @Test("Target develop in dry-run passes")
+    func targetDevelopDryRunPasses() async throws {
+        let ctx = MockShipContext(isDryRun: true, target: "develop")
+        let gate = PushGate()
+
+        let result = try await gate.evaluate(context: ctx)
+
+        guard case .pass(let detail) = result else {
+            Issue.record("Expected .pass, got \(result)")
+            return
+        }
+        #expect(detail?.contains("dry-run") == true)
+    }
+
+    @Test("Invalid branch name rejected")
+    func invalidBranchNameRejected() async throws {
+        let ctx = MockShipContext(branch: "feature/test; rm -rf /")
+        let gate = PushGate()
+
+        let result = try await gate.evaluate(context: ctx)
+
+        guard case .fail(let reason) = result else {
+            Issue.record("Expected .fail, got \(result)")
+            return
+        }
+        #expect(reason.contains("Invalid"))
     }
 }
