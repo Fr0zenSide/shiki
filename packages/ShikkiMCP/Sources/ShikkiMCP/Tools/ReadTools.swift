@@ -27,7 +27,7 @@ enum ReadTools: Sendable {
                 ]),
                 "limit": .object([
                     "type": .string("integer"),
-                    "description": .string("Maximum results to return (default 10)"),
+                    "description": .string("Maximum results to return (default 10, max 100)"),
                 ]),
             ]),
         ])
@@ -138,7 +138,7 @@ enum ReadTools: Sendable {
         case "shiki_get_plans":
             return await executeGetPlans(args: args, dbClient: dbClient)
         default:
-            return WriteTools.errorResult("Unknown read tool: \(toolName)")
+            return ToolResult.error("Unknown read tool: \(toolName)")
         }
     }
 
@@ -146,12 +146,13 @@ enum ReadTools: Sendable {
 
     private static func executeSearch(args: [String: JSONValue], dbClient: ShikkiDBClientProtocol) async -> JSONValue {
         guard let query = args["query"]?.stringValue, !query.isEmpty else {
-            return WriteTools.errorResult("Missing required field: query")
+            return ToolResult.error("Missing required field: query")
         }
 
         let projectIds = args["projectIds"]?.arrayValue?.compactMap(\.stringValue)
         let types = args["types"]?.arrayValue?.compactMap(\.stringValue)
-        let limit = args["limit"]?.intValue ?? 10
+        let rawLimit = args["limit"]?.intValue ?? 10
+        let limit = max(1, min(rawLimit, 100))
 
         return await searchDB(query: query, projectIds: projectIds, types: types, limit: limit, dbClient: dbClient)
     }
@@ -196,11 +197,11 @@ enum ReadTools: Sendable {
     private static func searchDB(query: String, projectIds: [String]?, types: [String]?, limit: Int, dbClient: ShikkiDBClientProtocol) async -> JSONValue {
         do {
             let result = try await dbClient.memoriesSearch(query: query, projectIds: projectIds, types: types, limit: limit)
-            return WriteTools.successResult("Search results", data: result)
+            return ToolResult.success("Search results", data: result)
         } catch let error as ShikkiDBError {
-            return WriteTools.errorResult("ShikkiDB error: \(error.description)")
+            return ToolResult.error("ShikkiDB error: \(error.description)")
         } catch {
-            return WriteTools.errorResult("Unexpected error: \(error)")
+            return ToolResult.error("Unexpected error: \(error)")
         }
     }
 }

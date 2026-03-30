@@ -177,6 +177,18 @@ extension JSONValue {
         return nil
     }
 
+    /// Access a double value or nil
+    var doubleValue: Double? {
+        if case .double(let v) = self { return v }
+        return nil
+    }
+
+    /// Access a bool value or nil
+    var boolValue: Bool? {
+        if case .bool(let v) = self { return v }
+        return nil
+    }
+
     /// Access an object value or nil
     var objectValue: [String: JSONValue]? {
         if case .object(let v) = self { return v }

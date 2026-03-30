@@ -1,5 +1,5 @@
-import Testing
 import Foundation
+import Testing
 @testable import ShikkiMCP
 
 @Suite("ShikkiDBClient Contract Tests")
@@ -7,7 +7,7 @@ struct ShikkiDBClientContractTests {
 
     /// Port 1 is always refused — gives us a real client against an unreachable host.
     private func unreachableClient() -> ShikkiDBClient {
-        ShikkiDBClient(baseURL: "http://127.0.0.1:1")
+        ShikkiDBClient(baseURL: "http://127.0.0.1:1", retryConfig: .none)
     }
 
     @Test("Real client throws connectionRefused for unreachable host")

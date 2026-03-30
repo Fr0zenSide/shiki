@@ -1,5 +1,5 @@
-import Testing
 import Foundation
+import Testing
 @testable import ShikkiMCP
 
 @Suite("ShikkiDB Client")
@@ -12,12 +12,12 @@ struct ShikkiDBClientTests {
 
         let result = try await mock.dataSyncWrite(
             type: "decision",
-            scope: "shiki",
+            scope: "shikki",
             data: ["question": .string("test")]
         )
 
         #expect(mock.lastWriteType == "decision")
-        #expect(mock.lastWriteScope == "shiki")
+        #expect(mock.lastWriteScope == "shikki")
         #expect(result["id"]?.stringValue == "saved-123")
     }
 
@@ -27,7 +27,7 @@ struct ShikkiDBClientTests {
         mock.shouldThrow = .httpError(statusCode: 422, body: "{\"error\":\"Missing field\"}")
 
         do {
-            _ = try await mock.dataSyncWrite(type: "test", scope: "shiki", data: [:])
+            _ = try await mock.dataSyncWrite(type: "test", scope: "shikki", data: [:])
             Issue.record("Should have thrown")
         } catch let error as ShikkiDBError {
             if case .httpError(let code, let body) = error {
@@ -101,10 +101,80 @@ struct ShikkiDBClientTests {
             (.invalidURL("bad://url"), "Invalid URL"),
             (.decodingError("bad json"), "Decoding error"),
             (.unexpectedError("oops"), "Unexpected error"),
+            (.retriesExhausted(lastError: "timeout", attempts: 3), "Retries exhausted"),
         ]
 
         for (error, expected) in errors {
             #expect(error.description.contains(expected))
         }
+    }
+
+    @Test("ShikkiDBError transient classification")
+    func errorTransientClassification() {
+        // Transient errors should be retryable
+        #expect(ShikkiDBError.connectionRefused(underlying: "timeout").isTransient == true)
+        #expect(ShikkiDBError.httpError(statusCode: 500, body: "").isTransient == true)
+        #expect(ShikkiDBError.httpError(statusCode: 502, body: "").isTransient == true)
+        #expect(ShikkiDBError.httpError(statusCode: 503, body: "").isTransient == true)
+        #expect(ShikkiDBError.httpError(statusCode: 429, body: "").isTransient == true)
+
+        // Non-transient errors should NOT be retried
+        #expect(ShikkiDBError.httpError(statusCode: 400, body: "").isTransient == false)
+        #expect(ShikkiDBError.httpError(statusCode: 404, body: "").isTransient == false)
+        #expect(ShikkiDBError.httpError(statusCode: 422, body: "").isTransient == false)
+        #expect(ShikkiDBError.invalidURL("bad").isTransient == false)
+        #expect(ShikkiDBError.decodingError("bad").isTransient == false)
+        #expect(ShikkiDBError.unexpectedError("oops").isTransient == false)
+        #expect(ShikkiDBError.retriesExhausted(lastError: "x", attempts: 3).isTransient == false)
+    }
+
+    @Test("Project ID resolution for known projects")
+    func projectIdResolution() {
+        #expect(ShikkiDBClient.resolveProjectId("shikki") == "80c27043-5282-4814-b79d-5e6d3903cbc9")
+        #expect(ShikkiDBClient.resolveProjectId("shiki") == "80c27043-5282-4814-b79d-5e6d3903cbc9")
+        #expect(ShikkiDBClient.resolveProjectId("maya") == "bb9e4385-f087-4f65-8251-470f14230c3c")
+        #expect(ShikkiDBClient.resolveProjectId("research") == "1b6da95d-6a93-4048-a975-f20e7885e669")
+    }
+
+    @Test("Project ID resolution is case-insensitive")
+    func projectIdResolutionCaseInsensitive() {
+        #expect(ShikkiDBClient.resolveProjectId("SHIKKI") == "80c27043-5282-4814-b79d-5e6d3903cbc9")
+        #expect(ShikkiDBClient.resolveProjectId("Maya") == "bb9e4385-f087-4f65-8251-470f14230c3c")
+    }
+
+    @Test("Project ID resolution returns nil for unknown projects")
+    func projectIdResolutionUnknown() {
+        #expect(ShikkiDBClient.resolveProjectId("unknown_project") == nil)
+        #expect(ShikkiDBClient.resolveProjectId("") == nil)
+    }
+
+    @Test("RetryConfig delay calculation")
+    func retryConfigDelay() {
+        let config = RetryConfig(maxAttempts: 5, baseDelayMs: 100, maxDelayMs: 2000)
+        #expect(config.delay(forAttempt: 0) == 0)
+        #expect(config.delay(forAttempt: 1) == 100)
+        #expect(config.delay(forAttempt: 2) == 200)
+        #expect(config.delay(forAttempt: 3) == 400)
+        #expect(config.delay(forAttempt: 4) == 800)
+    }
+
+    @Test("RetryConfig caps at maxDelay")
+    func retryConfigMaxDelay() {
+        let config = RetryConfig(maxAttempts: 10, baseDelayMs: 500, maxDelayMs: 1000)
+        #expect(config.delay(forAttempt: 5) == 1000)
+        #expect(config.delay(forAttempt: 10) == 1000)
+    }
+
+    @Test("RetryConfig.none has single attempt")
+    func retryConfigNone() {
+        #expect(RetryConfig.none.maxAttempts == 1)
+        #expect(RetryConfig.none.baseDelayMs == 0)
+    }
+
+    @Test("RetryConfig.default has 3 attempts")
+    func retryConfigDefault() {
+        #expect(RetryConfig.default.maxAttempts == 3)
+        #expect(RetryConfig.default.baseDelayMs == 200)
+        #expect(RetryConfig.default.maxDelayMs == 2000)
     }
 }
