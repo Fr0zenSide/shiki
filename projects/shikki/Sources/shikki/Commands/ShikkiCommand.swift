@@ -13,6 +13,7 @@ struct ShikkiCommand: AsyncParsableCommand {
             // New shikki stop with countdown
             ShikkiStopCommand.self,
             // Retained subcommands
+            AgentReportsCommand.self,
             BacklogCommand.self,
             BoardCommand.self,
             DashboardCommand.self,
