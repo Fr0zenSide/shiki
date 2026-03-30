@@ -87,4 +87,67 @@ struct PipelineGateTests {
         let result = try await gate.evaluate(context: context)
         #expect(!result.passed)
     }
+
+    // MARK: - ShipGate
+
+    @Test("ShipGate passes when branch is clean and tests pass")
+    func shipGatePassesCleanAndGreen() async throws {
+        let context = MockContext(
+            featureId: "test-feature",
+            projectRoot: URL(fileURLWithPath: "/tmp"),
+            shellHandler: { command in
+                if command.contains("git status") {
+                    return PipelineShellResult(stdout: "", stderr: "", exitCode: 0)
+                }
+                if command.contains("swift test") {
+                    return PipelineShellResult(stdout: "All tests passed", stderr: "", exitCode: 0)
+                }
+                if command.contains("git diff") {
+                    return PipelineShellResult(stdout: "2 files changed", stderr: "", exitCode: 0)
+                }
+                return PipelineShellResult(stdout: "", stderr: "", exitCode: 0)
+            }
+        )
+        let gate = ShipGate(index: 7, targetBranch: "develop")
+        let result = try await gate.evaluate(context: context)
+        #expect(result.passed)
+    }
+
+    @Test("ShipGate fails when branch has uncommitted changes")
+    func shipGateFailsDirtyBranch() async throws {
+        let context = MockContext(
+            featureId: "test-feature",
+            projectRoot: URL(fileURLWithPath: "/tmp"),
+            shellHandler: { command in
+                if command.contains("git status") {
+                    return PipelineShellResult(stdout: " M src/main.swift\n", stderr: "", exitCode: 0)
+                }
+                return PipelineShellResult(stdout: "", stderr: "", exitCode: 0)
+            }
+        )
+        let gate = ShipGate(index: 7, targetBranch: "develop")
+        let result = try await gate.evaluate(context: context)
+        #expect(!result.passed)
+    }
+
+    @Test("ShipGate rejects main as target branch")
+    func shipGateRejectsMainTarget() async throws {
+        let context = MockContext(
+            featureId: "test-feature",
+            projectRoot: URL(fileURLWithPath: "/tmp"),
+            shellHandler: { command in
+                // Clean branch and passing tests
+                if command.contains("git status") {
+                    return PipelineShellResult(stdout: "", stderr: "", exitCode: 0)
+                }
+                if command.contains("swift test") {
+                    return PipelineShellResult(stdout: "All tests passed", stderr: "", exitCode: 0)
+                }
+                return PipelineShellResult(stdout: "", stderr: "", exitCode: 0)
+            }
+        )
+        let gate = ShipGate(index: 7, targetBranch: "main")
+        let result = try await gate.evaluate(context: context)
+        #expect(!result.passed)
+    }
 }

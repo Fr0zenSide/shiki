@@ -1,94 +1,144 @@
 import Foundation
 import Logging
 
-/// HTTP-based provider for local LLM servers (LM Studio, Ollama).
-/// Connects to an OpenAI-compatible endpoint on localhost.
-/// `currentSessionSpend` is always 0 — local inference is free.
+// MARK: - LocalProvider
+
+/// AgentProvider for on-device inference via MLX or similar local engines.
+/// Stub implementation for future expansion — dispatches prompts to a local
+/// HTTP endpoint (e.g., LM Studio, Ollama, or native MLX server).
 public actor LocalProvider: AgentProvider {
     public nonisolated let name = "local"
 
-    private let baseURL: String
+    private let endpoint: String
+    private let modelName: String
     private let session: URLSession
-    private let logger = Logger(label: "shikki.core.local-provider")
-    private var currentTask: Task<AgentResult, any Error>?
+    private let logger = Logger(label: "shiki.core.local-provider")
+    private var _sessionSpend: Double = 0
 
-    /// Local providers cost nothing.
-    public var currentSessionSpend: Double { 0 }
-
-    /// - Parameters:
-    ///   - baseURL: Local server URL (default: LM Studio at 127.0.0.1:1234).
-    ///   - session: URLSession for dependency injection in tests.
+    /// Initialize with local server endpoint.
+    /// Default: LM Studio at localhost:1234 (per infrastructure config).
     public init(
-        baseURL: String = "http://127.0.0.1:1234",
+        endpoint: String = "http://127.0.0.1:1234",
+        modelName: String = "local-model",
         session: URLSession = .shared
     ) {
-        self.baseURL = baseURL
+        self.endpoint = endpoint
+        self.modelName = modelName
         self.session = session
     }
+
+    /// Local inference has zero monetary cost.
+    public var currentSessionSpend: Double { 0.0 }
 
     public func dispatch(
         prompt: String,
         workingDirectory: URL,
         options: AgentOptions
     ) async throws -> AgentResult {
-        // Health check — fail fast if server is down
-        try await healthCheck()
+        let clock = ContinuousClock()
+        let start = clock.now
 
-        let task = Task { [baseURL, session, name] () -> AgentResult in
-            let clock = ContinuousClock()
-            let start = clock.now
+        let requestBody = LocalCompletionRequest(
+            model: options.model ?? modelName,
+            messages: [.init(role: "user", content: prompt)],
+            maxTokens: options.maxTokens ?? 4096
+        )
 
-            let url = URL(string: "\(baseURL)/v1/chat/completions")!
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let request = try buildRequest(body: requestBody)
+        let (data, response) = try await session.data(for: request)
+        let elapsed = clock.now - start
 
-            let body = OpenRouterProvider.buildRequestBody(prompt: prompt, options: options)
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw LocalProviderError.invalidResponse
+        }
 
-            let (data, response) = try await session.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode) else {
-                throw AgentProviderError.invalidResponse(
-                    provider: name,
-                    detail: "HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1)"
-                )
-            }
-
-            return try OpenRouterProvider.parseResponse(
-                data: data, start: start, clock: clock, provider: name
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorBody = String(data: data, encoding: .utf8) ?? "unknown"
+            throw LocalProviderError.httpError(
+                statusCode: httpResponse.statusCode,
+                body: errorBody
             )
         }
-        currentTask = task
-        let result = try await task.value
-        currentTask = nil
-        return result
+
+        let decoded = try JSONDecoder().decode(LocalCompletionResponse.self, from: data)
+        let output = decoded.choices.first?.message.content ?? ""
+        let tokensUsed = decoded.usage?.totalTokens
+
+        let duration = Duration.nanoseconds(
+            Int64(elapsed.components.seconds) * 1_000_000_000
+                + Int64(elapsed.components.attoseconds / 1_000_000_000)
+        )
+
+        return AgentResult(
+            output: output,
+            exitCode: 0,
+            tokensUsed: tokensUsed,
+            duration: duration
+        )
     }
 
     public func cancel() async {
-        currentTask?.cancel()
-        currentTask = nil
+        // Local inference cancellation not yet supported.
     }
 
-    // MARK: - Health Check
+    // MARK: - Internal
 
-    /// Verify the local server is reachable by hitting GET /v1/models.
-    /// Throws `AgentProviderError.unavailable` if unreachable.
-    public func healthCheck() async throws {
-        let url = URL(string: "\(baseURL)/v1/models")!
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 3
-
-        do {
-            let (_, response) = try await session.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-                throw AgentProviderError.unavailable(provider: name)
-            }
-        } catch is AgentProviderError {
-            throw AgentProviderError.unavailable(provider: name)
-        } catch {
-            throw AgentProviderError.unavailable(provider: name)
+    nonisolated func buildRequest(body: LocalCompletionRequest) throws -> URLRequest {
+        guard let url = URL(string: "\(endpoint)/v1/chat/completions") else {
+            throw LocalProviderError.invalidURL(endpoint)
         }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(body)
+        return request
     }
+}
+
+// MARK: - Request/Response Types
+
+struct LocalCompletionRequest: Codable, Sendable {
+    let model: String
+    let messages: [LocalMessage]
+    let maxTokens: Int
+
+    enum CodingKeys: String, CodingKey {
+        case model, messages
+        case maxTokens = "max_tokens"
+    }
+}
+
+struct LocalMessage: Codable, Sendable {
+    let role: String
+    let content: String
+}
+
+struct LocalCompletionResponse: Codable, Sendable {
+    let choices: [LocalChoice]
+    let usage: LocalUsage?
+}
+
+struct LocalChoice: Codable, Sendable {
+    let message: LocalMessage
+}
+
+struct LocalUsage: Codable, Sendable {
+    let promptTokens: Int?
+    let completionTokens: Int?
+    let totalTokens: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case promptTokens = "prompt_tokens"
+        case completionTokens = "completion_tokens"
+        case totalTokens = "total_tokens"
+    }
+}
+
+// MARK: - Errors
+
+public enum LocalProviderError: Error, Sendable {
+    case invalidURL(String)
+    case invalidResponse
+    case httpError(statusCode: Int, body: String)
 }
