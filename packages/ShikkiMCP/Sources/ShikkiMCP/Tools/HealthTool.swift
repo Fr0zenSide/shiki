@@ -18,7 +18,7 @@ enum HealthTool: Sendable {
                     .object([
                         "type": .string("text"),
                         "text": .string(healthy ? "ShikkiDB is healthy" : "ShikkiDB is not responding"),
-                    ])
+                    ]),
                 ]),
                 "isError": .bool(!healthy),
             ])
@@ -28,7 +28,7 @@ enum HealthTool: Sendable {
                     .object([
                         "type": .string("text"),
                         "text": .string("Health check failed: \(error)"),
-                    ])
+                    ]),
                 ]),
                 "isError": .bool(true),
             ])
