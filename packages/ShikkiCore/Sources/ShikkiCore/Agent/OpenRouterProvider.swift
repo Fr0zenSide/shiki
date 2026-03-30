@@ -1,157 +1,163 @@
 import Foundation
 import Logging
 
-/// HTTP-based provider for OpenRouter (OpenAI-compatible API).
-/// Routes prompts to any model available on OpenRouter — Claude, Gemini, Llama, etc.
+// MARK: - OpenRouterProvider
+
+/// AgentProvider that dispatches prompts to OpenRouter API.
+/// Supports model fallbacks for cost optimization on non-critical agents.
+/// Uses URLSession (NetKit migration planned post-v1).
 public actor OpenRouterProvider: AgentProvider {
     public nonisolated let name = "openrouter"
 
     private let apiKey: String
     private let baseURL: String
+    private let models: [String]
     private let session: URLSession
-    private let logger = Logger(label: "shikki.core.openrouter-provider")
+    private let logger = Logger(label: "shiki.core.openrouter-provider")
     private var _sessionSpend: Double = 0
-    private var currentTask: Task<AgentResult, any Error>?
 
-    public var currentSessionSpend: Double { _sessionSpend }
-
-    /// - Parameters:
-    ///   - apiKey: OpenRouter API key. Falls back to `OPENROUTER_API_KEY` env var.
-    ///   - baseURL: API base URL (default: OpenRouter production).
-    ///   - session: URLSession for dependency injection in tests.
+    /// Initialize with API key and model preference list.
+    /// First model is preferred; fallbacks tried on failure.
     public init(
-        apiKey: String? = nil,
+        apiKey: String,
+        models: [String] = ["anthropic/claude-sonnet-4", "anthropic/claude-haiku-4"],
         baseURL: String = "https://openrouter.ai/api/v1",
         session: URLSession = .shared
     ) {
-        self.apiKey = apiKey ?? ProcessInfo.processInfo.environment["OPENROUTER_API_KEY"] ?? ""
+        self.apiKey = apiKey
+        self.models = models
         self.baseURL = baseURL
         self.session = session
     }
+
+    public var currentSessionSpend: Double { _sessionSpend }
 
     public func dispatch(
         prompt: String,
         workingDirectory: URL,
         options: AgentOptions
     ) async throws -> AgentResult {
-        guard !apiKey.isEmpty else {
-            throw AgentProviderError.authenticationFailed(provider: name)
+        let model = options.model ?? models.first ?? "anthropic/claude-sonnet-4"
+        let clock = ContinuousClock()
+        let start = clock.now
+
+        let requestBody = OpenRouterRequest(
+            model: model,
+            messages: [.init(role: "user", content: prompt)],
+            maxTokens: options.maxTokens
+        )
+
+        let request = try buildRequest(body: requestBody)
+        let (data, response) = try await session.data(for: request)
+        let elapsed = clock.now - start
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw OpenRouterError.invalidResponse
         }
 
-        let task = Task { [apiKey, baseURL, session, name] () -> AgentResult in
-            let clock = ContinuousClock()
-            let start = clock.now
-
-            let url = URL(string: "\(baseURL)/chat/completions")!
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-
-            let body = Self.buildRequestBody(prompt: prompt, options: options)
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-            let (data, response) = try await session.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw AgentProviderError.invalidResponse(provider: name, detail: "Non-HTTP response")
-            }
-
-            switch httpResponse.statusCode {
-            case 200...299:
-                break
-            case 401:
-                throw AgentProviderError.authenticationFailed(provider: name)
-            case 429:
-                let retryAfter = httpResponse.value(forHTTPHeaderField: "Retry-After")
-                    .flatMap(Double.init)
-                throw AgentProviderError.rateLimited(retryAfterSeconds: retryAfter)
-            default:
-                let body = String(data: data, encoding: .utf8) ?? "<binary>"
-                throw AgentProviderError.invalidResponse(
-                    provider: name,
-                    detail: "HTTP \(httpResponse.statusCode): \(body)"
-                )
-            }
-
-            return try Self.parseResponse(data: data, start: start, clock: clock, provider: name)
-        }
-        currentTask = task
-        let result = try await task.value
-        currentTask = nil
-
-        // Accumulate spend from tokens
-        if let tokens = result.tokensUsed {
-            // Rough estimate: $0.001 per 1K tokens (varies by model, but good default)
-            _sessionSpend += Double(tokens) / 1000.0 * 0.001
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorBody = String(data: data, encoding: .utf8) ?? "unknown"
+            throw OpenRouterError.httpError(
+                statusCode: httpResponse.statusCode,
+                body: errorBody
+            )
         }
 
-        return result
+        let decoded = try JSONDecoder().decode(OpenRouterResponse.self, from: data)
+        let output = decoded.choices.first?.message.content ?? ""
+        let tokensUsed = decoded.usage?.totalTokens
+
+        // Track spend
+        if let cost = decoded.usage?.totalCost {
+            _sessionSpend += cost
+        }
+
+        let duration = Duration.nanoseconds(
+            Int64(elapsed.components.seconds) * 1_000_000_000
+                + Int64(elapsed.components.attoseconds / 1_000_000_000)
+        )
+
+        return AgentResult(
+            output: output,
+            exitCode: 0,
+            tokensUsed: tokensUsed,
+            duration: duration
+        )
     }
 
     public func cancel() async {
-        currentTask?.cancel()
-        currentTask = nil
+        // URLSession tasks are not individually cancellable here.
+        // Future: track active URLSessionTask and cancel it.
     }
 
-    // MARK: - Internal Helpers
+    // MARK: - Internal
 
-    nonisolated static func buildRequestBody(prompt: String, options: AgentOptions) -> [String: Any] {
-        var body: [String: Any] = [
-            "messages": [
-                ["role": "user", "content": prompt]
-            ]
-        ]
-
-        body["model"] = options.model ?? "anthropic/claude-sonnet-4"
-
-        if let maxTokens = options.maxTokens {
-            body["max_tokens"] = maxTokens
+    nonisolated func buildRequest(body: OpenRouterRequest) throws -> URLRequest {
+        guard let url = URL(string: "\(baseURL)/chat/completions") else {
+            throw OpenRouterError.invalidURL(baseURL)
         }
 
-        if options.outputFormat == .json {
-            body["response_format"] = ["type": "json_object"]
-        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("shikki/1.0", forHTTPHeaderField: "HTTP-Referer")
+        request.setValue("Shikki", forHTTPHeaderField: "X-Title")
 
-        return body
+        request.httpBody = try JSONEncoder().encode(body)
+        return request
+    }
+}
+
+// MARK: - Request/Response Types
+
+struct OpenRouterRequest: Codable, Sendable {
+    let model: String
+    let messages: [OpenRouterMessage]
+    let maxTokens: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case model, messages
+        case maxTokens = "max_tokens"
+    }
+}
+
+struct OpenRouterMessage: Codable, Sendable {
+    let role: String
+    let content: String
+}
+
+struct OpenRouterResponse: Codable, Sendable {
+    let choices: [OpenRouterChoice]
+    let usage: OpenRouterUsage?
+}
+
+struct OpenRouterChoice: Codable, Sendable {
+    let message: OpenRouterMessage
+}
+
+struct OpenRouterUsage: Codable, Sendable {
+    let promptTokens: Int?
+    let completionTokens: Int?
+    let totalTokens: Int?
+    let totalCost: Double?
+
+    var computedTotalTokens: Int {
+        (promptTokens ?? 0) + (completionTokens ?? 0)
     }
 
-    nonisolated static func parseResponse(
-        data: Data,
-        start: ContinuousClock.Instant,
-        clock: ContinuousClock,
-        provider: String
-    ) throws -> AgentResult {
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw AgentProviderError.invalidResponse(provider: provider, detail: "Invalid JSON")
-        }
-
-        // Extract content from choices[0].message.content
-        let output: String
-        if let choices = json["choices"] as? [[String: Any]],
-           let first = choices.first,
-           let message = first["message"] as? [String: Any],
-           let content = message["content"] as? String {
-            output = content
-        } else {
-            throw AgentProviderError.invalidResponse(provider: provider, detail: "Missing choices[0].message.content")
-        }
-
-        // Extract token usage
-        let tokensUsed: Int?
-        if let usage = json["usage"] as? [String: Any],
-           let total = usage["total_tokens"] as? Int {
-            tokensUsed = total
-        } else {
-            tokensUsed = nil
-        }
-
-        let elapsed = clock.now - start
-        let duration = Duration.nanoseconds(
-            Int64(elapsed.components.seconds) * 1_000_000_000
-            + Int64(elapsed.components.attoseconds / 1_000_000_000)
-        )
-
-        return AgentResult(output: output, exitCode: 0, tokensUsed: tokensUsed, duration: duration)
+    enum CodingKeys: String, CodingKey {
+        case promptTokens = "prompt_tokens"
+        case completionTokens = "completion_tokens"
+        case totalTokens = "total_tokens"
+        case totalCost = "total_cost"
     }
+}
+
+// MARK: - Errors
+
+public enum OpenRouterError: Error, Sendable {
+    case invalidURL(String)
+    case invalidResponse
+    case httpError(statusCode: Int, body: String)
 }
