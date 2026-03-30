@@ -6,6 +6,7 @@ backups/
 .pids/
 projects/*/
 !projects/.gitkeep
+!projects/shikki/
 
 # Local dev overrides
 docker-compose.override.yml
