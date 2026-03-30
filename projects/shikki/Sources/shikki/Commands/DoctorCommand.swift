@@ -16,9 +16,19 @@ struct DoctorCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Emit bash/zsh aliases for all Shikkimoji emoji commands")
     var emitAliases: Bool = false
 
+    /// Also accessible as `shikki doctor --context`.
+    @Flag(name: .long, help: "Run context recovery diagnostic (alias for `shikki diagnostic`)")
+    var context: Bool = false
+
     func run() async throws {
         if emitAliases {
             print(EmojiRegistry.generateShellAliases())
+            return
+        }
+
+        if context {
+            let diagnostic = try DiagnosticCommand.parse([])
+            try await diagnostic.run()
             return
         }
 
