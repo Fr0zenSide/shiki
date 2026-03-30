@@ -26,6 +26,7 @@ struct ShikkiCommand: AsyncParsableCommand {
             IngestCommand.self,
             LogCommand.self,
             MenuCommand.self,
+            ObservatoryCommand.self,
             PauseCommand.self,
             PRCommand.self,
             // ReviewCommand.self, // TODO: rebase on top of PR #29 cleanup
