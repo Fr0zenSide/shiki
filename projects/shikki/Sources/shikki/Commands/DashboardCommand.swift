@@ -17,6 +17,9 @@ struct DashboardCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Single snapshot (no live refresh)")
     var snapshot: Bool = false
 
+    @Flag(name: .long, help: "Reactive mode — subscribe to EventBus for live updates")
+    var reactive: Bool = false
+
     func run() async throws {
         if legacy {
             try await runLegacy()
@@ -24,9 +27,35 @@ struct DashboardCommand: AsyncParsableCommand {
             let state = await DashboardRenderer.gatherState(session: session)
             let width = TerminalOutput.terminalWidth()
             print(DashboardRenderer.render(state: state, width: width))
+        } else if reactive {
+            await runReactive()
         } else {
             await DashboardRenderer.runLive(session: session)
         }
+    }
+
+    /// Reactive mode: subscribe to EventBus, update dashboard in real-time.
+    private func runReactive() async {
+        let eventBus = InProcessEventBus()
+        let initialState = await DashboardRenderer.gatherState(session: session)
+        let engine = ReactiveDashboardEngine(
+            eventBus: eventBus,
+            initialState: initialState
+        )
+
+        // Start event listener in background
+        let listenTask = Task {
+            await engine.startListening()
+        }
+
+        // Run the TUI loop with engine-driven state
+        await ReactiveDashboardLoop.run(
+            engine: engine,
+            session: session,
+            refreshInterval: 2.0
+        )
+
+        listenTask.cancel()
     }
 
     /// Legacy view: sessions sorted by attention zone.
