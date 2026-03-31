@@ -18,6 +18,9 @@ let package = Package(
             name: "ShikkiKit",
             dependencies: [
                 .product(name: "Logging", package: "swift-log"),
+            ],
+            resources: [
+                .copy("Resources/autopilot-prompt.md"),
             ]
         ),
         .executableTarget(
@@ -30,7 +33,8 @@ let package = Package(
         ),
         .testTarget(
             name: "ShikkiKitTests",
-            dependencies: ["ShikkiKit"]
+            dependencies: ["ShikkiKit"],
+            exclude: ["__Snapshots__"]
         ),
     ]
 )
