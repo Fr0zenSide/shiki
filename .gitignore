@@ -26,3 +26,5 @@ tools/qmd/
 # Backend public assets (generated)
 src/backend/public/
 .claude/worktrees/
+packages/ShikiCore/.build/
+**/.build/
