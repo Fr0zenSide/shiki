@@ -5,14 +5,6 @@ import Foundation
 
 // MARK: - Public Models
 
-/// Status of a test result.
-public enum TestStatus: String, Sendable, Codable {
-    case passed
-    case failed
-    case skipped
-    case timeout
-}
-
 /// A parsed test event emitted by `swift test --experimental-event-stream-output`.
 ///
 /// The event stream format uses a `kind` envelope with nested payload objects.
