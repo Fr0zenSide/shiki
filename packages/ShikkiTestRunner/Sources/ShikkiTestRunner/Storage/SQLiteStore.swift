@@ -378,7 +378,7 @@ public final class SQLiteStore: @unchecked Sendable {
 
     /// Fetch all runs, most recent first.
     public func allRuns(limit: Int = 20) throws -> [TestRunRow] {
-        let sql = "SELECT run_id, git_hash, branch_name, started_at, finished_at, total_tests, passed, failed, skipped, duration_ms FROM test_runs ORDER BY started_at DESC LIMIT ?"
+        let sql = "SELECT run_id, git_hash, branch_name, started_at, finished_at, total_tests, passed, failed, skipped, duration_ms FROM test_runs ORDER BY started_at DESC, rowid DESC LIMIT ?"
         return try lock.withLock {
             try query(sql, bindings: [.int64(Int64(limit))]) { stmt in
                 TestRunRow(
@@ -393,6 +393,64 @@ public final class SQLiteStore: @unchecked Sendable {
                     skipped: sqlite3_column_type(stmt, 8) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 8),
                     durationMs: sqlite3_column_type(stmt, 9) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 9)
                 )
+            }
+        }
+    }
+
+    /// Fetch all runs for a specific git commit hash, most recent first.
+    public func runsForGitHash(_ hash: String) throws -> [TestRunRow] {
+        let sql = "SELECT run_id, git_hash, branch_name, started_at, finished_at, total_tests, passed, failed, skipped, duration_ms FROM test_runs WHERE git_hash = ? ORDER BY started_at DESC, rowid DESC"
+        return try lock.withLock {
+            try query(sql, bindings: [.text(hash)]) { stmt in
+                readTestRunRow(stmt)
+            }
+        }
+    }
+
+    /// Fetch all runs for a specific branch, most recent first.
+    public func runsForBranch(_ branchName: String) throws -> [TestRunRow] {
+        let sql = "SELECT run_id, git_hash, branch_name, started_at, finished_at, total_tests, passed, failed, skipped, duration_ms FROM test_runs WHERE branch_name = ? ORDER BY started_at DESC, rowid DESC"
+        return try lock.withLock {
+            try query(sql, bindings: [.text(branchName)]) { stmt in
+                readTestRunRow(stmt)
+            }
+        }
+    }
+
+    /// Fetch the most recent completed run (finished_at is not null).
+    public func latestFinishedRun() throws -> TestRunRow? {
+        let sql = "SELECT run_id, git_hash, branch_name, started_at, finished_at, total_tests, passed, failed, skipped, duration_ms FROM test_runs WHERE finished_at IS NOT NULL ORDER BY started_at DESC, rowid DESC LIMIT 1"
+        let rows: [TestRunRow] = try lock.withLock {
+            try query(sql, bindings: []) { stmt in
+                readTestRunRow(stmt)
+            }
+        }
+        return rows.first
+    }
+
+    /// Fetch all results for a given run with a specific status.
+    public func resultsForRun(_ runID: String, status: TestStatus) throws -> [TestResultRow] {
+        let sql = "SELECT id, run_id, group_id, test_file, test_name, suite_name, status, duration_ms, error_message, error_file, raw_output FROM test_results WHERE run_id = ? AND status = ? ORDER BY id"
+        return try lock.withLock {
+            try query(sql, bindings: [.text(runID), .text(status.rawValue)]) { stmt in
+                readTestResultRow(stmt)
+            }
+        }
+    }
+
+    /// Fetch all results across all runs exceeding a duration threshold.
+    public func slowResults(thresholdMs: Int64, limit: Int = 50) throws -> [TestResultRow] {
+        let sql = """
+        SELECT t.id, t.run_id, t.group_id, t.test_file, t.test_name, t.suite_name, t.status,
+               t.duration_ms, t.error_message, t.error_file, t.raw_output
+        FROM test_results t
+        WHERE t.duration_ms > ? AND t.status IN ('passed', 'failed')
+        ORDER BY t.duration_ms DESC
+        LIMIT ?
+        """
+        return try lock.withLock {
+            try query(sql, bindings: [.int64(thresholdMs), .int64(Int64(limit))]) { stmt in
+                readTestResultRow(stmt)
             }
         }
     }
@@ -469,6 +527,39 @@ public final class SQLiteStore: @unchecked Sendable {
             LEFT JOIN test_groups g_new ON g_new.run_id = g_old.run_id AND g_new.scope_name = g_old.scope_name
             """)
         }
+    }
+
+    // MARK: - Row Readers
+
+    private func readTestRunRow(_ stmt: OpaquePointer) -> TestRunRow {
+        TestRunRow(
+            runID: String(cString: sqlite3_column_text(stmt, 0)),
+            gitHash: String(cString: sqlite3_column_text(stmt, 1)),
+            branchName: sqlite3_column_type(stmt, 2) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(stmt, 2)),
+            startedAt: String(cString: sqlite3_column_text(stmt, 3)),
+            finishedAt: sqlite3_column_type(stmt, 4) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(stmt, 4)),
+            totalTests: sqlite3_column_type(stmt, 5) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 5),
+            passed: sqlite3_column_type(stmt, 6) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 6),
+            failed: sqlite3_column_type(stmt, 7) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 7),
+            skipped: sqlite3_column_type(stmt, 8) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 8),
+            durationMs: sqlite3_column_type(stmt, 9) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 9)
+        )
+    }
+
+    private func readTestResultRow(_ stmt: OpaquePointer) -> TestResultRow {
+        TestResultRow(
+            id: sqlite3_column_int64(stmt, 0),
+            runID: String(cString: sqlite3_column_text(stmt, 1)),
+            groupID: sqlite3_column_type(stmt, 2) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 2),
+            testFile: String(cString: sqlite3_column_text(stmt, 3)),
+            testName: String(cString: sqlite3_column_text(stmt, 4)),
+            suiteName: sqlite3_column_type(stmt, 5) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(stmt, 5)),
+            status: TestStatus(rawValue: String(cString: sqlite3_column_text(stmt, 6))) ?? .failed,
+            durationMs: sqlite3_column_type(stmt, 7) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 7),
+            errorMessage: sqlite3_column_type(stmt, 8) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(stmt, 8)),
+            errorFile: sqlite3_column_type(stmt, 9) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(stmt, 9)),
+            rawOutput: sqlite3_column_type(stmt, 10) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(stmt, 10))
+        )
     }
 
     // MARK: - Low-Level Helpers
