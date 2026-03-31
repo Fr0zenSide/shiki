@@ -405,7 +405,7 @@ public final class SQLiteStore: @unchecked Sendable {
         FROM test_results t
         JOIN test_runs r ON t.run_id = r.run_id
         WHERE t.test_name = ?
-        ORDER BY r.started_at DESC
+        ORDER BY r.started_at DESC, t.id DESC
         LIMIT ?
         """
         return try lock.withLock {
