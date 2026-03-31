@@ -104,7 +104,7 @@ struct ShikkiTestCLI: AsyncParsableCommand {
             let failed = run.failed ?? 0
             let total = run.totalTests ?? 0
             let duration = run.durationMs.map { reporter.formatDuration(Int($0)) } ?? "?"
-            let marker = failed > 0 ? StatusMarker.failed : StatusMarker.passed
+            let marker = failed > 0 ? StatusMarker.hasFailures.symbol : StatusMarker.allPassed.symbol
             let failStr = failed > 0 ? " !!\(failed)" : ""
             print("\(marker) [\(run.startedAt)] \(run.gitHash.prefix(7)) \(run.branchName ?? "detached") [\(duration)] \(passed)/\(total)\(failStr)")
         }
@@ -117,9 +117,9 @@ struct ShikkiTestCLI: AsyncParsableCommand {
         let detector = RegressionDetector(store: store)
         let regressions = try detector.detectLatestRegressions()
         if regressions.isEmpty {
-            print("\(StatusMarker.passed) No regressions detected.")
+            print("\(StatusMarker.allPassed.symbol) No regressions detected.")
         } else {
-            print("\(StatusMarker.failed) \(regressions.count) regression(s) found:")
+            print("\(StatusMarker.hasFailures.symbol) \(regressions.count) regression(s) found:")
             for r in regressions {
                 print("  \(r.testName) \u{1B}[2m(\(r.suiteName ?? "unknown suite"))\u{1B}[0m")
             }
@@ -133,9 +133,9 @@ struct ShikkiTestCLI: AsyncParsableCommand {
         let detector = RegressionDetector(store: store)
         let slowTests = try detector.slowTests(thresholdMs: 2000)
         if slowTests.isEmpty {
-            print("\(StatusMarker.passed) No tests exceeding 2s threshold.")
+            print("\(StatusMarker.allPassed.symbol) No tests exceeding 2s threshold.")
         } else {
-            print("\(StatusMarker.failed) \(slowTests.count) slow test(s):")
+            print("\(StatusMarker.hasFailures.symbol) \(slowTests.count) slow test(s):")
             let reporter = TUIReporter()
             for t in slowTests {
                 print("  [\(reporter.formatDuration(Int(t.durationMs)))] \(t.testName)")
@@ -150,7 +150,9 @@ struct ShikkiTestCLI: AsyncParsableCommand {
         let store = try SQLiteStore(path: historyPath)
         let reporter = TUIReporter(verbosity: verbose ? (live ? .live : .verbose) : .clean)
         let parser = EventStreamParser()
-        let timeoutManager = TimeoutManager(defaultTimeout: .seconds(5))
+        let timeoutManager = TimeoutManager(defaultLimit: .seconds(5)) { testID in
+            print("  \u{1B}[33m[TIMEOUT]\u{1B}[0m \(testID) exceeded 5s limit")
+        }
 
         // Git info
         let gitProvider = SystemGitInfoProvider()
@@ -162,7 +164,7 @@ struct ShikkiTestCLI: AsyncParsableCommand {
         let startTime = Date()
 
         // Build scope filter
-        var args = ["swift", "test", "--experimental-event-stream-output"]
+        var args = ["swift", "test"]
         if parallel { args.append("--parallel") }
         if let scope {
             let names = scope.split(separator: ",").map(String.init)
@@ -195,9 +197,22 @@ struct ShikkiTestCLI: AsyncParsableCommand {
         var timedOut = 0
         var logLines: [String] = []
 
+        // Read with global timeout (kill process if tests hang)
+        let globalTimeoutSeconds: Int = 120
         let handle = stdoutPipe.fileHandleForReading
+
+        // Run with timeout — kill process if it exceeds limit
+        let timeoutTask = Task {
+            try await Task.sleep(for: .seconds(globalTimeoutSeconds))
+            if process.isRunning {
+                print("\n\u{1B}[33m[GLOBAL TIMEOUT]\u{1B}[0m Test suite exceeded \(globalTimeoutSeconds)s — killing process")
+                process.terminate()
+            }
+        }
+
         let data = handle.readDataToEndOfFile()
         process.waitUntilExit()
+        timeoutTask.cancel()
         let duration = Int(Date().timeIntervalSince(startTime) * 1000)
 
         // Parse output
@@ -205,34 +220,36 @@ struct ShikkiTestCLI: AsyncParsableCommand {
         let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
         let stderrOutput = String(data: stderrData, encoding: .utf8) ?? ""
 
-        // Try event stream parsing first
-        var usedEventStream = false
+        // Parse Swift Testing text output
+        // Lines like: '􁁛  Test "name" passed after 0.001 seconds.'
+        //             '􀢄  Test "name" failed after 0.001 seconds with 1 issue.'
+        //             '􁁛  Suite "name" passed after 0.243 seconds.'
+        //             '􀢄  Suite "name" failed after 0.243 seconds with 1 issue.'
+        // We count individual Test lines only (not Suite summaries)
         for line in output.split(separator: "\n") {
-            let lineStr = String(line)
-            if let event = try? parser.parseLine(lineStr) {
-                usedEventStream = true
-                switch event.kind {
-                case .testPassed: passed += 1
-                case .testFailed: failed += 1
-                case .testSkipped: skipped += 1
-                default: break
-                }
-            } else {
-                logLines.append(lineStr)
+            let l = String(line)
+            logLines.append(l)
+            // Only count Test lines, not Suite lines
+            guard l.contains("Test \"") else { continue }
+            if l.contains("passed after") {
+                passed += 1
+            } else if l.contains("failed after") || l.contains("with") && l.contains("issue") {
+                failed += 1
+            }
+        }
+        // Also check stderr for test output (some Swift versions write there)
+        for line in stderrOutput.split(separator: "\n") {
+            let l = String(line)
+            logLines.append(l)
+            guard l.contains("Test \"") else { continue }
+            if l.contains("passed after") {
+                passed += 1
+            } else if l.contains("failed after") {
+                failed += 1
             }
         }
 
-        // Fallback: parse text output if event stream didn't work
-        if !usedEventStream {
-            for line in output.split(separator: "\n") {
-                let l = String(line)
-                if l.contains("passed after") { passed += 1 }
-                else if l.contains("failed after") || l.contains("with 1 issue") { failed += 1 }
-                logLines.append(l)
-            }
-        }
-
-        let total = passed + failed + skipped + timedOut
+        var total = passed + failed + skipped + timedOut
 
         // Save to SQLite
         try store.finishRun(
@@ -251,14 +268,30 @@ struct ShikkiTestCLI: AsyncParsableCommand {
 
         // Render summary
         let durationStr = reporter.formatDuration(duration)
-        let marker = failed > 0 ? StatusMarker.failed : (total == 0 ? StatusMarker.partial : StatusMarker.passed)
+        let marker = failed > 0 ? StatusMarker.hasFailures.symbol : (total == 0 ? StatusMarker.partialRun.symbol : StatusMarker.allPassed.symbol)
         let failStr = failed > 0 ? " !!\(failed)" : ""
         let skipStr = skipped > 0 ? " ??\(skipped)" : ""
+
+        // If test runner captured a summary line, use its counts
+        for line in logLines {
+            // "Test run with 177 tests in 16 suites passed after 0.230 seconds."
+            if line.contains("Test run with") {
+                if let match = line.range(of: #"(\d+) tests?"#, options: .regularExpression) {
+                    let numStr = line[match].filter { $0.isNumber }
+                    if let n = Int(numStr), n > total {
+                        // Swift Testing summary is more accurate than our line counting
+                        let realTotal = n
+                        passed = realTotal - failed - skipped
+                    }
+                }
+            }
+        }
+        total = passed + failed + skipped + timedOut
 
         // Show failures inline (if not verbose --live which already showed everything)
         if failed > 0 && !live {
             for line in logLines {
-                if line.contains("failed") || line.contains("issue") || line.contains("Expectation failed") {
+                if line.contains("failed after") || line.contains("Expectation failed") {
                     print("  \(line)")
                 }
             }

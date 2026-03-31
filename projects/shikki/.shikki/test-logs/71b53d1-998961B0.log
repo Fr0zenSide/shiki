@@ -1,0 +1,5 @@
+
+---STDERR---
+error: Missing value for '--experimental-event-stream-output'
+Usage: swift test <options> <subcommand>
+  See 'test -help' for more information.
