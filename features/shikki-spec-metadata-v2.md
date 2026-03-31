@@ -37,10 +37,14 @@ DRAFT → REVIEW → PARTIAL → VALIDATED → IMPLEMENTING → SHIPPED → ARCH
   │        │        │          │            │            │          └─ no longer active
   │        │        │          │            │            └─ code matches spec
   │        │        │          │            └─ waves dispatched
-  │        │        │          └─ @Daimyo approved all sections
+  │        │        │          └─ all reviewers approved all sections
   │        │        └─ some sections approved, others need work
   │        └─ someone is reading/reviewing
   └─ just written, nobody looked at it
+
+Also:
+  VALIDATED → REJECTED    ← decision: not implementing (documented why)
+  ANY STATE → OUTDATED    ← superseded by newer spec
 ```
 
 ---
@@ -228,8 +232,54 @@ This can be scripted — parse each `.md`, count headings, generate frontmatter.
 
 ---
 
-## 9. @shi Mini-Challenge
+## 9. Inline Annotations
 
-1. **@Ronin**: If two reviewers disagree (one says `validated`, other says `rework`), who wins? Should there be a quorum?
-2. **@Hanami**: The `flsh.duration` is estimated. Should it auto-calculate from word count (avg 150 WPM for TTS)?
-3. **@Kintsugi**: A spec that's `validated` but never `implementing` — is it a promise unkept or wisdom deferred?
+Notes live IN the markdown body (not just YAML header) — visible when you `bat` the file, tracked by git:
+
+```markdown
+## 8. TUI Output
+
+<!-- @note @Daimyo 2026-03-31 -->
+<!-- Change | to !! for failure count. More attention. -->
+<!-- status: applied -->
+
+<!-- @note @Ronin pending -->
+<!-- What if logger buffer overflows during a 10min E2E test? -->
+<!-- status: open -->
+```
+
+Three note states: `open` (needs action), `applied` (integrated into spec text), `resolved` (discussed, no change needed).
+
+When running `shikki spec review <file>`:
+1. Shows all `open` notes as a checklist
+2. Mark them `applied` or `resolved`
+3. Diff shows changes between reviews
+4. Git tracks: "note opened on commit X, applied on commit Y"
+
+---
+
+## 10. Flsh Vault Sync
+
+Specs should be accessible from Flsh as a dedicated vault:
+
+- **Shikki side**: `shikki spec push` syncs current spec state to Flsh vault (symlink or copy)
+- **Flsh side**: `flsh watch <folder>` monitors spec folder for changes, auto-indexes for voice search
+- **Future**: `shi inbox` and `flsh inbox` show the same pending specs/reviews — two interfaces, one source of truth
+
+This enables the workflow: write spec in terminal → review by voice on walk → annotate by voice → annotations appear as `<!-- @note -->` in the file.
+
+### Backlog: Flsh spec folder watcher
+- Flsh listens to a project's `features/` directory
+- Auto-indexes new/changed specs for voice search
+- `flsh specs` lists all with status (same as `shikki spec list` but voice)
+- `flsh read <spec> --from anchor` resumes where you stopped
+
+---
+
+## 11. @shi Mini-Challenge (updated with @Daimyo answers)
+
+1. **@Ronin**: If two reviewers disagree? → **Per-reviewer status. Spec not validated until ALL reviewers agree. No quorum — consensus required.**
+2. **@Hanami**: Duration estimation? → **v1: avg 150 WPM for TTS. Future: auto-compute from Flsh's own voice rendering, measuring real read time.**
+3. **@Kintsugi**: Validated but never implementing? → **Added `rejected` and `outdated` lifecycle states. A spec can be validated and intentionally not implemented — wisdom deferred. Or explicitly rejected — decision documented.**
+4. **@Katana**: Inline annotations in markdown — could a malicious spec inject `<!-- @note @admin -->` pretending to be another reviewer? Should notes be signed?
+5. **@Sensei**: The Flsh vault sync creates a second copy of specs. Should it be symlinks (live) or snapshots (point-in-time)? Symlinks are simpler but Flsh could corrupt the source.
