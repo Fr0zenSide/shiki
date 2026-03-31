@@ -55,19 +55,20 @@ private func makeHeartbeatLoop(
     client: MockBackendClient = MockBackendClient(),
     launcher: MockProcessLauncher = MockProcessLauncher(),
     notifier: MockNotificationSender = MockNotificationSender(),
-    eventBus: InProcessEventBus? = nil
-) -> (loop: HeartbeatLoop, client: MockBackendClient, launcher: MockProcessLauncher, notifier: MockNotificationSender, eventBus: InProcessEventBus) {
+    eventBus: InProcessEventBus? = nil,
+    registry: SessionRegistry? = nil
+) -> (loop: HeartbeatLoop, client: MockBackendClient, launcher: MockProcessLauncher, notifier: MockNotificationSender, eventBus: InProcessEventBus, registry: SessionRegistry) {
     let bus = eventBus ?? InProcessEventBus()
-    let registry = SessionRegistry(discoverer: NullDiscoverer(), journal: SessionJournal(basePath: "/tmp/shiki-test-journal"))
+    let reg = registry ?? SessionRegistry(discoverer: NullDiscoverer(), journal: SessionJournal(basePath: "/tmp/shiki-test-journal"))
     let loop = HeartbeatLoop(
         client: client,
         launcher: launcher,
         notifier: notifier,
-        registry: registry,
+        registry: reg,
         eventBus: bus,
         interval: .seconds(1)
     )
-    return (loop, client, launcher, notifier, bus)
+    return (loop, client, launcher, notifier, bus, reg)
 }
 
 // MARK: - Tests
@@ -77,7 +78,7 @@ struct HeartbeatLoopDispatchTests {
 
     @Test("Dispatches task when slots available and queue non-empty")
     func dispatchesTaskWhenSlotsAvailable() async throws {
-        let (loop, client, launcher, _, _) = makeHeartbeatLoop()
+        let (loop, client, launcher, _, _, _) = makeHeartbeatLoop()
 
         client.dispatcherQueueResult = [
             TestFixtures.dispatcherTask(
@@ -99,7 +100,7 @@ struct HeartbeatLoopDispatchTests {
 
     @Test("No-ops when dispatcher queue is empty")
     func noOpWhenQueueEmpty() async throws {
-        let (loop, client, launcher, _, _) = makeHeartbeatLoop()
+        let (loop, client, launcher, _, _, _) = makeHeartbeatLoop()
 
         client.dispatcherQueueResult = []
 
@@ -111,12 +112,15 @@ struct HeartbeatLoopDispatchTests {
     @Test("Skips dispatch when max concurrent slots full")
     func skipsWhenSlotsFull() async throws {
         let launcher = MockProcessLauncher()
-        // Fill 6 slots (maxConcurrent)
+        let registry = SessionRegistry(discoverer: NullDiscoverer(), journal: SessionJournal(basePath: "/tmp/shiki-test-journal"))
+        // Fill 6 slots (maxConcurrent) in registry
         for i in 0..<6 {
-            launcher.runningSlugs.insert("company\(i):task-\(i)")
+            let slug = "company\(i):task-\(i)"
+            await registry.registerManual(windowName: slug, paneId: "%\(i)", pid: pid_t(i + 100), state: .working)
+            launcher.runningSlugs.insert(slug)
         }
 
-        let (loop, client, _, _, _) = makeHeartbeatLoop(launcher: launcher)
+        let (loop, client, _, _, _, _) = makeHeartbeatLoop(launcher: launcher, registry: registry)
         client.dispatcherQueueResult = [
             TestFixtures.dispatcherTask(taskId: "t-extra", title: "Overflow")
         ]
@@ -129,7 +133,7 @@ struct HeartbeatLoopDispatchTests {
 
     @Test("Skips task when budget exhausted")
     func skipsBudgetExhausted() async throws {
-        let (loop, client, launcher, _, _) = makeHeartbeatLoop()
+        let (loop, client, launcher, _, _, _) = makeHeartbeatLoop()
 
         client.dispatcherQueueResult = [
             TestFixtures.dispatcherTask(
@@ -148,9 +152,11 @@ struct HeartbeatLoopDispatchTests {
     @Test("Skips task when company already has running session")
     func skipsCompanyWithRunningSession() async throws {
         let launcher = MockProcessLauncher()
+        let registry = SessionRegistry(discoverer: NullDiscoverer(), journal: SessionJournal(basePath: "/tmp/shiki-test-journal"))
         launcher.runningSlugs.insert("wabisabi:existing-ta")
+        await registry.registerManual(windowName: "wabisabi:existing-ta", paneId: "%0", pid: 100, state: .working)
 
-        let (loop, client, _, _, _) = makeHeartbeatLoop(launcher: launcher)
+        let (loop, client, _, _, _, _) = makeHeartbeatLoop(launcher: launcher, registry: registry)
         client.dispatcherQueueResult = [
             TestFixtures.dispatcherTask(
                 taskId: "t-2", title: "Another task",
@@ -166,7 +172,7 @@ struct HeartbeatLoopDispatchTests {
     @Test("Publishes companyDispatched event on dispatch")
     func publishesEventOnDispatch() async throws {
         let bus = InProcessEventBus()
-        let (loop, client, _, _, _) = makeHeartbeatLoop(eventBus: bus)
+        let (loop, client, _, _, _, _) = makeHeartbeatLoop(eventBus: bus)
 
         client.dispatcherQueueResult = [
             TestFixtures.dispatcherTask(
@@ -200,9 +206,11 @@ struct HeartbeatLoopCleanupTests {
     @Test("Removes sessions for inactive companies")
     func removesInactiveSessions() async throws {
         let launcher = MockProcessLauncher()
+        let registry = SessionRegistry(discoverer: NullDiscoverer(), journal: SessionJournal(basePath: "/tmp/shiki-test-journal"))
         launcher.runningSlugs.insert("wabisabi:spm-wave3")
+        await registry.registerManual(windowName: "wabisabi:spm-wave3", paneId: "%0", pid: 100, state: .working)
 
-        let (loop, client, _, _, _) = makeHeartbeatLoop(launcher: launcher)
+        let (loop, client, _, _, _, _) = makeHeartbeatLoop(launcher: launcher, registry: registry)
 
         // Status says no active companies — wabisabi session should be cleaned up
         client.statusResult = TestFixtures.orchestratorStatus(activeCompanySlugs: [])
@@ -219,9 +227,11 @@ struct HeartbeatLoopCleanupTests {
     @Test("Keeps sessions for active companies")
     func keepsActiveSessions() async throws {
         let launcher = MockProcessLauncher()
+        let registry = SessionRegistry(discoverer: NullDiscoverer(), journal: SessionJournal(basePath: "/tmp/shiki-test-journal"))
         launcher.runningSlugs.insert("maya:fix-tests")
+        await registry.registerManual(windowName: "maya:fix-tests", paneId: "%0", pid: 100, state: .working)
 
-        let (loop, client, _, _, _) = makeHeartbeatLoop(launcher: launcher)
+        let (loop, client, _, _, _, _) = makeHeartbeatLoop(launcher: launcher, registry: registry)
 
         // Maya is still active
         client.statusResult = TestFixtures.orchestratorStatus(activeCompanySlugs: ["maya"])
@@ -234,7 +244,7 @@ struct HeartbeatLoopCleanupTests {
 
     @Test("No-ops when no running sessions")
     func noOpWhenNoSessions() async throws {
-        let (loop, client, launcher, _, _) = makeHeartbeatLoop()
+        let (loop, client, launcher, _, _, _) = makeHeartbeatLoop()
         client.statusResult = TestFixtures.orchestratorStatus(activeCompanySlugs: [])
 
         try await loop.cleanupIdleSessions()
@@ -247,9 +257,11 @@ struct HeartbeatLoopCleanupTests {
     func publishesSessionEndEvent() async throws {
         let bus = InProcessEventBus()
         let launcher = MockProcessLauncher()
+        let registry = SessionRegistry(discoverer: NullDiscoverer(), journal: SessionJournal(basePath: "/tmp/shiki-test-journal"))
         launcher.runningSlugs.insert("wabisabi:cleanup-me")
+        await registry.registerManual(windowName: "wabisabi:cleanup-me", paneId: "%0", pid: 100, state: .working)
 
-        let (loop, client, _, _, _) = makeHeartbeatLoop(launcher: launcher, eventBus: bus)
+        let (loop, client, _, _, _, _) = makeHeartbeatLoop(launcher: launcher, eventBus: bus, registry: registry)
         client.statusResult = TestFixtures.orchestratorStatus(activeCompanySlugs: [])
         client.companiesResult = [TestFixtures.company(slug: "wabisabi")]
         client.sessionTranscriptResult = TestFixtures.sessionTranscript()
@@ -273,7 +285,7 @@ struct HeartbeatLoopDecisionTests {
 
     @Test("Sends ntfy notification for new T1 decisions")
     func notifiesOnNewT1Decisions() async throws {
-        let (loop, client, _, notifier, _) = makeHeartbeatLoop()
+        let (loop, client, _, notifier, _, _) = makeHeartbeatLoop()
 
         client.pendingDecisionsResult = [
             TestFixtures.decision(id: "d-1", tier: 1, question: "Should we cache images?", companySlug: "maya")
@@ -289,7 +301,7 @@ struct HeartbeatLoopDecisionTests {
 
     @Test("Ignores T2+ decisions for ntfy notifications")
     func ignoresNonT1Decisions() async throws {
-        let (loop, client, _, notifier, _) = makeHeartbeatLoop()
+        let (loop, client, _, notifier, _, _) = makeHeartbeatLoop()
 
         client.pendingDecisionsResult = [
             TestFixtures.decision(id: "d-2", tier: 2, question: "Minor style choice")
@@ -302,7 +314,7 @@ struct HeartbeatLoopDecisionTests {
 
     @Test("Does not re-notify for already-seen decisions")
     func doesNotReNotify() async throws {
-        let (loop, client, _, notifier, _) = makeHeartbeatLoop()
+        let (loop, client, _, notifier, _, _) = makeHeartbeatLoop()
 
         let decision = TestFixtures.decision(id: "d-1", tier: 1, question: "Cache images?")
         client.pendingDecisionsResult = [decision]
@@ -318,7 +330,7 @@ struct HeartbeatLoopDecisionTests {
 
     @Test("Cleans up notified IDs when decision is answered")
     func cleansUpAnsweredDecisions() async throws {
-        let (loop, client, _, notifier, _) = makeHeartbeatLoop()
+        let (loop, client, _, notifier, _, _) = makeHeartbeatLoop()
 
         client.pendingDecisionsResult = [
             TestFixtures.decision(id: "d-1", tier: 1, question: "Cache?")
@@ -342,7 +354,7 @@ struct HeartbeatLoopDecisionTests {
     @Test("Publishes decisionPending event")
     func publishesDecisionPendingEvent() async throws {
         let bus = InProcessEventBus()
-        let (loop, client, _, _, _) = makeHeartbeatLoop(eventBus: bus)
+        let (loop, client, _, _, _, _) = makeHeartbeatLoop(eventBus: bus)
 
         client.pendingDecisionsResult = [
             TestFixtures.decision(id: "d-1", tier: 1, question: "Should we deploy?", companySlug: "maya")
@@ -366,7 +378,7 @@ struct HeartbeatLoopDecisionTests {
         let notifier = MockNotificationSender()
         notifier.shouldThrow = MockError.apiUnreachable
 
-        let (loop, client, _, _, _) = makeHeartbeatLoop(notifier: notifier)
+        let (loop, client, _, _, _, _) = makeHeartbeatLoop(notifier: notifier)
         client.pendingDecisionsResult = [
             TestFixtures.decision(id: "d-1", tier: 1, question: "Should we ship?")
         ]
@@ -381,7 +393,7 @@ struct HeartbeatLoopAnsweredDecisionsTests {
 
     @Test("Detects decisions that disappeared from pending")
     func detectsAnsweredDecisions() async throws {
-        let (loop, client, _, _, _) = makeHeartbeatLoop()
+        let (loop, client, _, _, _, _) = makeHeartbeatLoop()
 
         // First cycle: establish baseline — decision d-1 is pending
         let decisions = [TestFixtures.decision(id: "d-1", tier: 1, question: "Cache?")]
@@ -405,7 +417,7 @@ struct HeartbeatLoopAnsweredDecisionsTests {
 
     @Test("No-ops when no decisions were previously pending")
     func noOpWhenNoPreviousPending() async throws {
-        let (loop, client, _, _, _) = makeHeartbeatLoop()
+        let (loop, client, _, _, _, _) = makeHeartbeatLoop()
 
         // First call with empty pending list
         try await loop.checkAnsweredDecisions(currentPending: [])
@@ -420,7 +432,7 @@ struct HeartbeatLoopStaleCompaniesTests {
 
     @Test("Relaunches stale company with pending tasks and no session")
     func relaunchesStaleCompany() async throws {
-        let (loop, client, launcher, _, _) = makeHeartbeatLoop()
+        let (loop, client, launcher, _, _, _) = makeHeartbeatLoop()
 
         client.staleCompaniesResult = [
             TestFixtures.company(id: "c-1", slug: "maya", projectPath: "Maya")
@@ -437,7 +449,7 @@ struct HeartbeatLoopStaleCompaniesTests {
 
     @Test("Skips stale company with no pending tasks")
     func skipsStaleWithoutTasks() async throws {
-        let (loop, client, launcher, _, _) = makeHeartbeatLoop()
+        let (loop, client, launcher, _, _, _) = makeHeartbeatLoop()
 
         client.staleCompaniesResult = [
             TestFixtures.company(id: "c-1", slug: "maya")
@@ -452,9 +464,11 @@ struct HeartbeatLoopStaleCompaniesTests {
     @Test("Skips stale company that already has running session")
     func skipsStaleWithRunningSession() async throws {
         let launcher = MockProcessLauncher()
+        let registry = SessionRegistry(discoverer: NullDiscoverer(), journal: SessionJournal(basePath: "/tmp/shiki-test-journal"))
         launcher.runningSlugs.insert("maya:fix-ui")
+        await registry.registerManual(windowName: "maya:fix-ui", paneId: "%0", pid: 100, state: .working)
 
-        let (loop, client, _, _, _) = makeHeartbeatLoop(launcher: launcher)
+        let (loop, client, _, _, _, _) = makeHeartbeatLoop(launcher: launcher, registry: registry)
 
         client.staleCompaniesResult = [
             TestFixtures.company(id: "c-1", slug: "maya")
@@ -470,7 +484,7 @@ struct HeartbeatLoopStaleCompaniesTests {
 
     @Test("Skips stale company with exhausted budget")
     func skipsStaleWithExhaustedBudget() async throws {
-        let (loop, client, launcher, _, _) = makeHeartbeatLoop()
+        let (loop, client, launcher, _, _, _) = makeHeartbeatLoop()
 
         client.staleCompaniesResult = [
             TestFixtures.company(id: "c-1", slug: "maya")
@@ -489,7 +503,7 @@ struct HeartbeatLoopStaleCompaniesTests {
 
     @Test("No-ops when no stale companies")
     func noOpWhenNoStaleCompanies() async throws {
-        let (loop, client, launcher, _, _) = makeHeartbeatLoop()
+        let (loop, client, launcher, _, _, _) = makeHeartbeatLoop()
 
         client.staleCompaniesResult = []
 

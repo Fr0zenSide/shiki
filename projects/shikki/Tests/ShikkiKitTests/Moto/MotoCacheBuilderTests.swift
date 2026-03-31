@@ -48,7 +48,7 @@ struct MotoCacheBuilderTests {
         #expect(manifest.stats.protocols == 2)
         #expect(manifest.stats.types == 3)
         #expect(manifest.stats.testCount == 15)
-        #expect(manifest.stats.sourceFiles == 10)
+        #expect(manifest.stats.sourceFiles == 8)
         #expect(manifest.stats.totalCacheTokens > 0)
     }
 

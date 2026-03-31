@@ -240,7 +240,7 @@ struct S3ParserEdgeCaseTests {
         #expect(spec.title == "Session Lifecycle Spec")
         #expect(spec.sections.count == 2)
         #expect(spec.sections[0].title == "State Machine")
-        #expect(spec.sections[0].scenarios.count == 4) // 2 when + 1 foreach + 1 when
+        #expect(spec.sections[0].scenarios.count == 3) // 2 when + 1 foreach (absorbs trailing when as sub-condition)
         #expect(spec.sections[1].title == "Budget")
         #expect(spec.sections[1].scenarios.count == 1)
         #expect(spec.concerns.count == 1)

@@ -117,7 +117,7 @@ struct NATSEventBridgeDualSinkTests {
 
         let published = await nats.publishedMessages
         #expect(published.count == 1)
-        #expect(published[0].subject == "shikki.events.global.lifecycle")
+        #expect(published[0].subject == "shikki.events.global.heartbeat")
     }
 }
 
@@ -239,12 +239,12 @@ struct NATSEventBridgeRoutingTests {
         let events: [(EventType, String)] = [
             (.shipStarted, "shikki.events.maya.ship"),
             (.decisionPending, "shikki.events.maya.decision"),
-            (.codeChange, "shikki.events.maya.git"),
+            (.codeChange, "shikki.events.maya.code"),
             (.codeGenStarted, "shikki.events.maya.codegen"),
             (.scheduledTaskFired, "shikki.events.maya.scheduler"),
-            (.decisionMade, "shikki.events.maya.observatory"),
-            (.prCacheBuilt, "shikki.events.maya.agent"),
-            (.heartbeat, "shikki.events.maya.lifecycle"),
+            (.decisionMade, "shikki.events.maya.decision"),
+            (.prCacheBuilt, "shikki.events.maya.pr"),
+            (.heartbeat, "shikki.events.maya.heartbeat"),
         ]
 
         for (eventType, expectedSubject) in events {

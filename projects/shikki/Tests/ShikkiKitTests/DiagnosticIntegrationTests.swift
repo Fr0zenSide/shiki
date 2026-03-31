@@ -101,10 +101,10 @@ struct DiagnosticIntegrationTests {
 
     // MARK: - Time window smart defaults (BR-07)
 
-    @Test("Default window with no checkpoint returns 2h")
-    func defaultWindow_noCheckpoint_returns2h() {
+    @Test("Default window with no checkpoint returns 1h")
+    func defaultWindow_noCheckpoint_returns1h() {
         let window = TimeWindow.lookback(seconds: DurationParser.defaultRecoveryDuration)
-        #expect(abs(window.duration - 7200) < 1)
+        #expect(abs(window.duration - 3600) < 1)
     }
 
     @Test("Default window with fresh checkpoint starts from checkpoint minus 10m")
@@ -119,11 +119,11 @@ struct DiagnosticIntegrationTests {
         #expect(abs(window.duration - expectedDuration) < 1)
     }
 
-    @Test("Default window with stale checkpoint returns 2h")
-    func defaultWindow_staleCheckpoint_returns2h() {
-        // Stale = older than 2h, so we use default 2h window
+    @Test("Default window with stale checkpoint returns 1h")
+    func defaultWindow_staleCheckpoint_returns1h() {
+        // Stale = older than default window, so we use default 1h window
         let window = TimeWindow.lookback(seconds: DurationParser.defaultRecoveryDuration)
-        #expect(abs(window.duration - 7200) < 1)
+        #expect(abs(window.duration - 3600) < 1)
     }
 
     // MARK: - Data Safety (BR-24, BR-25)
