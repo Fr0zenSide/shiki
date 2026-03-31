@@ -4,7 +4,7 @@
 import Foundation
 
 /// Status of an individual test.
-public enum TestStatus: String, Sendable, Hashable {
+public enum TestStatus: String, Sendable, Hashable, Codable {
     case passed
     case failed
     case skipped
