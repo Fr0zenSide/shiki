@@ -1,0 +1,26 @@
+{
+  "": {
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/master.swiftdeps"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/Sources/ShikkiTestRunner/Core/EventStreamParser.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/EventStreamParser.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/EventStreamParser.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/EventStreamParser~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/EventStreamParser.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/EventStreamParser.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/Sources/ShikkiTestRunner/Core/TimeoutManager.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/TimeoutManager.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/TimeoutManager.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/TimeoutManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/TimeoutManager.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/TimeoutManager.dia"
+  },
+  "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/Sources/ShikkiTestRunner/Storage/SQLiteStore.swift": {
+    "dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/SQLiteStore.d",
+    "object": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/SQLiteStore.swift.o",
+    "swiftmodule": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/SQLiteStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/SQLiteStore.swiftdeps",
+    "diagnostics": "/Users/jeoffrey/Documents/Workspaces/shiki/.claude/worktrees/agent-a4fe4a3e/packages/ShikkiTestRunner/.build/arm64-apple-macosx/debug/ShikkiTestRunner.build/SQLiteStore.dia"
+  }
+}
