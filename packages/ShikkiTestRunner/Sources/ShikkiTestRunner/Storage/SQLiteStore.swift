@@ -54,6 +54,10 @@ public struct TestRunRow: Sendable, Equatable {
     public let failed: Int64?
     public let skipped: Int64?
     public let durationMs: Int64?
+    public let agentID: String?
+    public let attempt: Int64?
+    public let isRacer: Bool?
+    public let wonRace: Bool?
 }
 
 /// A test group row from the database.
@@ -101,7 +105,6 @@ public final class SQLiteStore: @unchecked Sendable {
             throw SQLiteStoreError.openFailed(msg)
         }
         db = opened
-        // Enable WAL mode for better concurrent read performance
         try execute("PRAGMA journal_mode=WAL")
         try createTables()
     }
@@ -125,7 +128,11 @@ public final class SQLiteStore: @unchecked Sendable {
             failed INTEGER,
             skipped INTEGER,
             duration_ms INTEGER,
-            moto_cache_hash TEXT
+            moto_cache_hash TEXT,
+            agent_id TEXT,
+            attempt INTEGER,
+            is_racer BOOLEAN,
+            won_race BOOLEAN
         );
 
         CREATE TABLE IF NOT EXISTS test_groups (
@@ -157,6 +164,7 @@ public final class SQLiteStore: @unchecked Sendable {
 
         CREATE INDEX IF NOT EXISTS idx_runs_hash ON test_runs(git_hash);
         CREATE INDEX IF NOT EXISTS idx_runs_branch ON test_runs(branch_name);
+        CREATE INDEX IF NOT EXISTS idx_runs_agent ON test_runs(agent_id);
         CREATE INDEX IF NOT EXISTS idx_results_status ON test_results(status);
         CREATE INDEX IF NOT EXISTS idx_results_test ON test_results(test_name);
         CREATE INDEX IF NOT EXISTS idx_results_group ON test_results(group_id);
@@ -167,31 +175,37 @@ public final class SQLiteStore: @unchecked Sendable {
     // MARK: - Public API
 
     /// Record a new test run.
-    ///
-    /// - Parameters:
-    ///   - gitHash: The git commit hash for this run.
-    ///   - branch: The branch name (optional).
-    /// - Returns: The generated run_id (UUID string).
     @discardableResult
-    public func recordRun(gitHash: String, branch: String? = nil) throws -> String {
+    public func recordRun(
+        gitHash: String,
+        branch: String? = nil,
+        agentID: String? = nil,
+        attempt: Int64? = nil,
+        isRacer: Bool? = nil,
+        wonRace: Bool? = nil
+    ) throws -> String {
         let runID = UUID().uuidString
         let now = iso8601Now()
         let sql = """
-        INSERT INTO test_runs (run_id, git_hash, branch_name, started_at)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO test_runs (run_id, git_hash, branch_name, started_at, agent_id, attempt, is_racer, won_race)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """
         _ = try lock.withLock {
-            try prepareAndBind(sql, bindings: [.text(runID), .text(gitHash), .optionalText(branch), .text(now)])
+            try prepareAndBind(sql, bindings: [
+                .text(runID),
+                .text(gitHash),
+                .optionalText(branch),
+                .text(now),
+                .optionalText(agentID),
+                .optionalInt64(attempt),
+                .optionalInt64(isRacer.map { $0 ? 1 : 0 }),
+                .optionalInt64(wonRace.map { $0 ? 1 : 0 }),
+            ])
         }
         return runID
     }
 
     /// Record a test group (scope) within a run.
-    ///
-    /// - Parameters:
-    ///   - runID: The parent run ID.
-    ///   - scope: The scope name (e.g., "nats", "flywheel").
-    /// - Returns: The auto-generated group ID.
     @discardableResult
     public func recordGroup(runID: String, scope: String) throws -> Int64 {
         let now = iso8601Now()
@@ -206,18 +220,6 @@ public final class SQLiteStore: @unchecked Sendable {
     }
 
     /// Record an individual test result.
-    ///
-    /// - Parameters:
-    ///   - runID: The parent run ID.
-    ///   - groupID: The parent group ID (optional).
-    ///   - testFile: The source file containing the test.
-    ///   - testName: The test function name.
-    ///   - suiteName: The test suite/class name (optional).
-    ///   - status: The test status.
-    ///   - durationMs: Execution time in milliseconds (optional).
-    ///   - error: Error message if failed (optional).
-    ///   - errorFile: Error source location (optional).
-    ///   - rawOutput: Captured stdout/stderr (optional).
     @discardableResult
     public func recordResult(
         runID: String,
@@ -335,7 +337,7 @@ public final class SQLiteStore: @unchecked Sendable {
 
     /// Fetch a test run by its ID.
     public func fetchRun(_ runID: String) throws -> TestRunRow? {
-        let sql = "SELECT run_id, git_hash, branch_name, started_at, finished_at, total_tests, passed, failed, skipped, duration_ms FROM test_runs WHERE run_id = ?"
+        let sql = "SELECT run_id, git_hash, branch_name, started_at, finished_at, total_tests, passed, failed, skipped, duration_ms, agent_id, attempt, is_racer, won_race FROM test_runs WHERE run_id = ?"
         let rows: [TestRunRow] = try lock.withLock {
             try query(sql, bindings: [.text(runID)]) { stmt in
                 TestRunRow(
@@ -348,7 +350,11 @@ public final class SQLiteStore: @unchecked Sendable {
                     passed: sqlite3_column_type(stmt, 6) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 6),
                     failed: sqlite3_column_type(stmt, 7) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 7),
                     skipped: sqlite3_column_type(stmt, 8) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 8),
-                    durationMs: sqlite3_column_type(stmt, 9) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 9)
+                    durationMs: sqlite3_column_type(stmt, 9) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 9),
+                    agentID: sqlite3_column_type(stmt, 10) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(stmt, 10)),
+                    attempt: sqlite3_column_type(stmt, 11) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 11),
+                    isRacer: sqlite3_column_type(stmt, 12) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 12) != 0,
+                    wonRace: sqlite3_column_type(stmt, 13) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 13) != 0
                 )
             }
         }
@@ -378,7 +384,7 @@ public final class SQLiteStore: @unchecked Sendable {
 
     /// Fetch all runs, most recent first.
     public func allRuns(limit: Int = 20) throws -> [TestRunRow] {
-        let sql = "SELECT run_id, git_hash, branch_name, started_at, finished_at, total_tests, passed, failed, skipped, duration_ms FROM test_runs ORDER BY started_at DESC, rowid DESC LIMIT ?"
+        let sql = "SELECT run_id, git_hash, branch_name, started_at, finished_at, total_tests, passed, failed, skipped, duration_ms, agent_id, attempt, is_racer, won_race FROM test_runs ORDER BY started_at DESC LIMIT ?"
         return try lock.withLock {
             try query(sql, bindings: [.int64(Int64(limit))]) { stmt in
                 TestRunRow(
@@ -391,66 +397,12 @@ public final class SQLiteStore: @unchecked Sendable {
                     passed: sqlite3_column_type(stmt, 6) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 6),
                     failed: sqlite3_column_type(stmt, 7) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 7),
                     skipped: sqlite3_column_type(stmt, 8) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 8),
-                    durationMs: sqlite3_column_type(stmt, 9) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 9)
+                    durationMs: sqlite3_column_type(stmt, 9) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 9),
+                    agentID: sqlite3_column_type(stmt, 10) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(stmt, 10)),
+                    attempt: sqlite3_column_type(stmt, 11) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 11),
+                    isRacer: sqlite3_column_type(stmt, 12) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 12) != 0,
+                    wonRace: sqlite3_column_type(stmt, 13) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 13) != 0
                 )
-            }
-        }
-    }
-
-    /// Fetch all runs for a specific git commit hash, most recent first.
-    public func runsForGitHash(_ hash: String) throws -> [TestRunRow] {
-        let sql = "SELECT run_id, git_hash, branch_name, started_at, finished_at, total_tests, passed, failed, skipped, duration_ms FROM test_runs WHERE git_hash = ? ORDER BY started_at DESC, rowid DESC"
-        return try lock.withLock {
-            try query(sql, bindings: [.text(hash)]) { stmt in
-                readTestRunRow(stmt)
-            }
-        }
-    }
-
-    /// Fetch all runs for a specific branch, most recent first.
-    public func runsForBranch(_ branchName: String) throws -> [TestRunRow] {
-        let sql = "SELECT run_id, git_hash, branch_name, started_at, finished_at, total_tests, passed, failed, skipped, duration_ms FROM test_runs WHERE branch_name = ? ORDER BY started_at DESC, rowid DESC"
-        return try lock.withLock {
-            try query(sql, bindings: [.text(branchName)]) { stmt in
-                readTestRunRow(stmt)
-            }
-        }
-    }
-
-    /// Fetch the most recent completed run (finished_at is not null).
-    public func latestFinishedRun() throws -> TestRunRow? {
-        let sql = "SELECT run_id, git_hash, branch_name, started_at, finished_at, total_tests, passed, failed, skipped, duration_ms FROM test_runs WHERE finished_at IS NOT NULL ORDER BY started_at DESC, rowid DESC LIMIT 1"
-        let rows: [TestRunRow] = try lock.withLock {
-            try query(sql, bindings: []) { stmt in
-                readTestRunRow(stmt)
-            }
-        }
-        return rows.first
-    }
-
-    /// Fetch all results for a given run with a specific status.
-    public func resultsForRun(_ runID: String, status: TestStatus) throws -> [TestResultRow] {
-        let sql = "SELECT id, run_id, group_id, test_file, test_name, suite_name, status, duration_ms, error_message, error_file, raw_output FROM test_results WHERE run_id = ? AND status = ? ORDER BY id"
-        return try lock.withLock {
-            try query(sql, bindings: [.text(runID), .text(status.rawValue)]) { stmt in
-                readTestResultRow(stmt)
-            }
-        }
-    }
-
-    /// Fetch all results across all runs exceeding a duration threshold.
-    public func slowResults(thresholdMs: Int64, limit: Int = 50) throws -> [TestResultRow] {
-        let sql = """
-        SELECT t.id, t.run_id, t.group_id, t.test_file, t.test_name, t.suite_name, t.status,
-               t.duration_ms, t.error_message, t.error_file, t.raw_output
-        FROM test_results t
-        WHERE t.duration_ms > ? AND t.status IN ('passed', 'failed')
-        ORDER BY t.duration_ms DESC
-        LIMIT ?
-        """
-        return try lock.withLock {
-            try query(sql, bindings: [.int64(thresholdMs), .int64(Int64(limit))]) { stmt in
-                readTestResultRow(stmt)
             }
         }
     }
@@ -488,11 +440,6 @@ public final class SQLiteStore: @unchecked Sendable {
     // MARK: - Merge
 
     /// Merge test data from a temporary agent SQLite into this persistent store.
-    ///
-    /// Attaches the source database, copies all rows, then detaches.
-    /// Used for the agent test SQLite handoff pattern.
-    ///
-    /// - Parameter sourcePath: Path to the temporary SQLite file to merge from.
     public func mergeFrom(sourcePath: String) throws {
         try lock.withLock {
             try executeRaw("ATTACH DATABASE '\(sourcePath)' AS tmp_source")
@@ -500,25 +447,17 @@ public final class SQLiteStore: @unchecked Sendable {
                 _ = try? executeRaw("DETACH DATABASE tmp_source")
             }
 
-            // Merge runs (skip conflicts — same run_id means already merged)
             try executeRaw("""
             INSERT OR IGNORE INTO test_runs
             SELECT * FROM tmp_source.test_runs
             """)
 
-            // Merge groups
-            // We need to remap IDs since they're auto-increment
-            // Strategy: insert and let auto-increment generate new IDs,
-            // then use a mapping to update result references.
-            // For simplicity in Wave 1, we use INSERT with explicit columns
-            // and rely on AUTOINCREMENT for new IDs.
             try executeRaw("""
             INSERT INTO test_groups (run_id, scope_name, started_at, finished_at, total_tests, passed, failed, skipped, duration_ms)
             SELECT run_id, scope_name, started_at, finished_at, total_tests, passed, failed, skipped, duration_ms
             FROM tmp_source.test_groups
             """)
 
-            // Merge results — assign to the newly inserted groups by matching run_id + scope
             try executeRaw("""
             INSERT INTO test_results (run_id, group_id, test_file, test_name, suite_name, status, duration_ms, error_message, error_file, raw_output)
             SELECT r.run_id, g_new.id, r.test_file, r.test_name, r.suite_name, r.status, r.duration_ms, r.error_message, r.error_file, r.raw_output
@@ -527,39 +466,6 @@ public final class SQLiteStore: @unchecked Sendable {
             LEFT JOIN test_groups g_new ON g_new.run_id = g_old.run_id AND g_new.scope_name = g_old.scope_name
             """)
         }
-    }
-
-    // MARK: - Row Readers
-
-    private func readTestRunRow(_ stmt: OpaquePointer) -> TestRunRow {
-        TestRunRow(
-            runID: String(cString: sqlite3_column_text(stmt, 0)),
-            gitHash: String(cString: sqlite3_column_text(stmt, 1)),
-            branchName: sqlite3_column_type(stmt, 2) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(stmt, 2)),
-            startedAt: String(cString: sqlite3_column_text(stmt, 3)),
-            finishedAt: sqlite3_column_type(stmt, 4) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(stmt, 4)),
-            totalTests: sqlite3_column_type(stmt, 5) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 5),
-            passed: sqlite3_column_type(stmt, 6) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 6),
-            failed: sqlite3_column_type(stmt, 7) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 7),
-            skipped: sqlite3_column_type(stmt, 8) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 8),
-            durationMs: sqlite3_column_type(stmt, 9) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 9)
-        )
-    }
-
-    private func readTestResultRow(_ stmt: OpaquePointer) -> TestResultRow {
-        TestResultRow(
-            id: sqlite3_column_int64(stmt, 0),
-            runID: String(cString: sqlite3_column_text(stmt, 1)),
-            groupID: sqlite3_column_type(stmt, 2) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 2),
-            testFile: String(cString: sqlite3_column_text(stmt, 3)),
-            testName: String(cString: sqlite3_column_text(stmt, 4)),
-            suiteName: sqlite3_column_type(stmt, 5) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(stmt, 5)),
-            status: TestStatus(rawValue: String(cString: sqlite3_column_text(stmt, 6))) ?? .failed,
-            durationMs: sqlite3_column_type(stmt, 7) == SQLITE_NULL ? nil : sqlite3_column_int64(stmt, 7),
-            errorMessage: sqlite3_column_type(stmt, 8) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(stmt, 8)),
-            errorFile: sqlite3_column_type(stmt, 9) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(stmt, 9)),
-            rawOutput: sqlite3_column_type(stmt, 10) == SQLITE_NULL ? nil : String(cString: sqlite3_column_text(stmt, 10))
-        )
     }
 
     // MARK: - Low-Level Helpers
@@ -581,7 +487,7 @@ public final class SQLiteStore: @unchecked Sendable {
         try execute(sql)
     }
 
-    private enum Binding {
+    enum Binding {
         case text(String)
         case optionalText(String?)
         case int64(Int64)
@@ -589,7 +495,7 @@ public final class SQLiteStore: @unchecked Sendable {
     }
 
     @discardableResult
-    private func prepareAndBind(_ sql: String, bindings: [Binding]) throws -> Int32 {
+    func prepareAndBind(_ sql: String, bindings: [Binding]) throws -> Int32 {
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
             let msg = String(cString: sqlite3_errmsg(db))
@@ -627,7 +533,7 @@ public final class SQLiteStore: @unchecked Sendable {
         return result
     }
 
-    private func query<T>(_ sql: String, bindings: [Binding], mapper: (OpaquePointer) -> T) throws -> [T] {
+    func query<T>(_ sql: String, bindings: [Binding], mapper: (OpaquePointer) -> T) throws -> [T] {
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
             let msg = String(cString: sqlite3_errmsg(db))
@@ -664,7 +570,7 @@ public final class SQLiteStore: @unchecked Sendable {
         return rows
     }
 
-    private func iso8601Now() -> String {
+    func iso8601Now() -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.string(from: Date())

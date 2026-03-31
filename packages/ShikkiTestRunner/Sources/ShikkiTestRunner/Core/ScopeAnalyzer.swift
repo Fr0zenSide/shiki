@@ -119,7 +119,6 @@ public struct ScopeAnalyzer: Sendable {
     /// Parse `import` statements from Swift source code.
     /// Handles: `import Foo`, `import struct Foo.Bar`, `@testable import Foo`
     static let importRegex: NSRegularExpression = {
-        // Matches: optional @testable, then `import` with optional kind, then module name
         // swiftlint:disable:next force_try
         try! NSRegularExpression(
             pattern: #"^(?:@testable\s+)?import\s+(?:struct\s+|class\s+|enum\s+|protocol\s+|func\s+|typealias\s+|let\s+|var\s+)?(\w+)"#,
@@ -153,10 +152,7 @@ public struct ScopeAnalyzer: Sendable {
     // MARK: - Type Reference Parsing
 
     /// Parse type references from Swift source code.
-    /// Looks for PascalCase identifiers that are likely type names.
-    /// Filters out common Swift/XCTest types to reduce noise.
     static let typeRefRegex: NSRegularExpression = {
-        // Match PascalCase identifiers (at least 2 chars, starts uppercase, contains lowercase)
         // swiftlint:disable:next force_try
         try! NSRegularExpression(
             pattern: #"\b([A-Z][a-zA-Z0-9]{2,})\b"#,
@@ -166,17 +162,14 @@ public struct ScopeAnalyzer: Sendable {
 
     /// Well-known types to exclude from type reference analysis.
     static let excludedTypes: Set<String> = [
-        // Swift standard library
         "String", "Int", "Double", "Float", "Bool", "Array", "Dictionary",
         "Set", "Optional", "Result", "Error", "Data", "Date", "URL",
         "UUID", "Codable", "Sendable", "Equatable", "Hashable",
         "Comparable", "Identifiable", "CustomStringConvertible",
-        // Testing
         "XCTestCase", "Test", "Suite", "Issue", "Confirmation",
         "XCTAssertEqual", "XCTAssertTrue", "XCTAssertFalse",
         "XCTAssertNil", "XCTAssertNotNil", "XCTAssertThrowsError",
         "XCTFail", "XCTUnwrap", "XCTExpectFailure",
-        // Foundation
         "NSObject", "NSError", "NSRange", "NSRegularExpression",
         "JSONEncoder", "JSONDecoder", "PropertyListEncoder",
         "FileManager", "ProcessInfo", "Bundle", "NotificationCenter",
@@ -207,22 +200,18 @@ public struct ScopeAnalyzer: Sendable {
     // MARK: - Glob Pattern Matching
 
     /// Simple glob pattern matching for test file paths.
-    /// Supports `*` (any segment) and `**` (recursive).
     func matchesGlobPattern(filePath: String, pattern: String) -> Bool {
         let fileName = (filePath as NSString).lastPathComponent
 
-        // Handle ** prefix: match just the filename against the rest
         if pattern.hasPrefix("**/") {
             let filePattern = String(pattern.dropFirst(3))
             return matchesSimpleGlob(string: fileName, pattern: filePattern)
         }
 
-        // Handle direct filename pattern
         if !pattern.contains("/") {
             return matchesSimpleGlob(string: fileName, pattern: pattern)
         }
 
-        // Full path match
         return matchesSimpleGlob(string: filePath, pattern: pattern)
     }
 

@@ -56,7 +56,6 @@ public actor TimeoutManager {
     ///   - testID: Unique identifier for the test.
     ///   - limit: Override the default timeout for this specific test.
     public func startTimeout(testID: String, limit: Duration? = nil) {
-        // Cancel existing timeout for this test if any
         activeTasks[testID]?.cancel()
 
         let duration = limit ?? defaultLimit
@@ -65,7 +64,6 @@ public actor TimeoutManager {
         let task = Task { [weak self] in
             do {
                 try await Task.sleep(for: duration)
-                // Timeout fired — test didn't complete in time
                 guard let self else { return }
                 await self.markTimedOut(testID)
                 await handler(testID)

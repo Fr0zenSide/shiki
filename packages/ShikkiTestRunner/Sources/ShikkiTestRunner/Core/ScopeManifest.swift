@@ -20,16 +20,21 @@ public struct ScopeDefinition: Sendable, Codable, Equatable, Hashable {
     /// Example: ["**/NATS*Tests.swift", "**/EventBus*Tests.swift"]
     public let testFilePatterns: [String]
 
+    /// Scopes that this scope depends on. Used for dependency expansion in PR gates.
+    public let dependsOn: [String]
+
     public init(
         name: String,
         modulePatterns: [String] = [],
         typePatterns: [String] = [],
-        testFilePatterns: [String] = []
+        testFilePatterns: [String] = [],
+        dependsOn: [String] = []
     ) {
         self.name = name
         self.modulePatterns = modulePatterns
         self.typePatterns = typePatterns
         self.testFilePatterns = testFilePatterns
+        self.dependsOn = dependsOn
     }
 }
 
@@ -98,6 +103,27 @@ extension ScopeManifest {
     }
 }
 
+// MARK: - Lookup
+
+extension ScopeManifest {
+
+    /// Find a scope definition by name.
+    public func scope(named name: String) -> ScopeDefinition? {
+        scopes.first { $0.name == name }
+    }
+
+    /// All scope names in this manifest.
+    public var scopeNames: [String] {
+        scopes.map(\.name)
+    }
+
+    /// Find all scopes that depend on the given scope name (reverse dependency lookup).
+    /// Returns scopes whose `dependsOn` array contains `scopeName`.
+    public func dependents(of scopeName: String) -> [ScopeDefinition] {
+        scopes.filter { $0.dependsOn.contains(scopeName) }
+    }
+}
+
 // MARK: - JSON Loading
 
 extension ScopeManifest {
@@ -154,7 +180,8 @@ extension ScopeManifest {
                     "TerminalOutput", "ANSIRenderer", "PaletteEngine",
                     "TUIComponent", "ProgressBar",
                 ],
-                testFilePatterns: ["**/TUI*Tests.swift", "**/Terminal*Tests.swift"]
+                testFilePatterns: ["**/TUI*Tests.swift", "**/Terminal*Tests.swift"],
+                dependsOn: ["kernel"]
             ),
             ScopeDefinition(
                 name: "safety",
@@ -172,7 +199,8 @@ extension ScopeManifest {
                     "ArchitectureCache", "SpecParser", "CodeGenerator",
                     "TemplateEngine",
                 ],
-                testFilePatterns: ["**/CodeGen*Tests.swift", "**/Spec*Tests.swift"]
+                testFilePatterns: ["**/CodeGen*Tests.swift", "**/Spec*Tests.swift"],
+                dependsOn: ["moto"]
             ),
             ScopeDefinition(
                 name: "observatory",
@@ -180,7 +208,8 @@ extension ScopeManifest {
                 typePatterns: [
                     "DecisionJournal", "AgentReportCard", "OversightDashboard",
                 ],
-                testFilePatterns: ["**/Observatory*Tests.swift", "**/Decision*Tests.swift"]
+                testFilePatterns: ["**/Observatory*Tests.swift", "**/Decision*Tests.swift"],
+                dependsOn: ["nats"]
             ),
             ScopeDefinition(
                 name: "ship",
@@ -189,7 +218,8 @@ extension ScopeManifest {
                     "ShipGate", "VersionBumper", "ReleaseManager",
                     "ChangelogGenerator",
                 ],
-                testFilePatterns: ["**/Ship*Tests.swift", "**/Release*Tests.swift"]
+                testFilePatterns: ["**/Ship*Tests.swift", "**/Release*Tests.swift"],
+                dependsOn: ["kernel", "safety"]
             ),
             ScopeDefinition(
                 name: "kernel",
@@ -207,7 +237,8 @@ extension ScopeManifest {
                     "BM25Index", "SourceChunker", "AnswerPipeline",
                     "RetrievalRouter",
                 ],
-                testFilePatterns: ["**/AnswerEngine*Tests.swift", "**/BM25*Tests.swift"]
+                testFilePatterns: ["**/AnswerEngine*Tests.swift", "**/BM25*Tests.swift"],
+                dependsOn: ["memory"]
             ),
             ScopeDefinition(
                 name: "s3-parser",

@@ -5,6 +5,14 @@ import Foundation
 
 // MARK: - Public Models
 
+/// Status of a test result.
+public enum TestStatus: String, Sendable, Codable {
+    case passed
+    case failed
+    case skipped
+    case timeout
+}
+
 /// A parsed test event emitted by `swift test --experimental-event-stream-output`.
 ///
 /// The event stream format uses a `kind` envelope with nested payload objects.
@@ -52,14 +60,6 @@ public struct TestEvent: Sendable, Equatable {
 // MARK: - Raw JSON Wire Format
 
 /// The raw JSON envelope from `swift test --experimental-event-stream-output`.
-///
-/// Swift Testing emits events in this shape:
-/// ```json
-/// {"kind": "test", "payload": {"kind": "testStarted", "testID": "...", ...}}
-/// {"kind": "event", "payload": {"kind": "testCaseStarted", ...}}
-/// ```
-///
-/// We normalize the variety of formats into our unified `TestEvent`.
 private struct RawEventEnvelope: Decodable {
     let kind: String
     let payload: RawPayload?
@@ -179,7 +179,6 @@ public struct EventStreamParser: Sendable {
     private func mapEnvelope(_ envelope: RawEventEnvelope) -> TestEvent? {
         let payload = envelope.payload
 
-        // Map the envelope kind + payload kind to our unified Kind enum
         let eventKind: TestEvent.Kind?
         let payloadKind = payload?.kind ?? envelope.kind
         let result = payload?.result
@@ -221,14 +220,15 @@ public struct EventStreamParser: Sendable {
 
         guard let kind = eventKind else { return nil }
 
-        // Extract error message from messages array
         let errorMessage = payload?.messages?.compactMap(\.text).joined(separator: "\n")
 
-        // Build duration
         let duration: Duration?
         if let secs = payload?.duration {
             let attoseconds = Int64(secs * 1_000_000_000) * 1_000_000_000
-            duration = Duration(secondsComponent: Int64(secs), attosecondsComponent: attoseconds % 1_000_000_000_000_000_000)
+            duration = Duration(
+                secondsComponent: Int64(secs),
+                attosecondsComponent: attoseconds % 1_000_000_000_000_000_000
+            )
         } else {
             duration = nil
         }

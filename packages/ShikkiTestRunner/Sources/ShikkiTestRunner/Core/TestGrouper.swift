@@ -64,7 +64,6 @@ public struct TestGrouper: Sendable {
     /// - Parameter assignments: Scope assignments from ScopeAnalyzer.
     /// - Returns: Array of test groups.
     public func buildGroups(from assignments: [ScopeAssignment]) -> [TestGroup] {
-        // Bucket assignments by scope name
         var scopeBuckets: [String: [ScopeAssignment]] = [:]
 
         for assignment in assignments {
@@ -72,7 +71,6 @@ public struct TestGrouper: Sendable {
             scopeBuckets[key, default: []].append(assignment)
         }
 
-        // Build groups preserving manifest order, then append unscoped
         var groups: [TestGroup] = []
 
         for scopeDef in manifest.scopes {
@@ -89,7 +87,6 @@ public struct TestGrouper: Sendable {
             }
         }
 
-        // Add unscoped group if any files didn't match
         if let unscoped = scopeBuckets["unscoped"], !unscoped.isEmpty {
             let testCount = estimateTestCount(files: unscoped)
             groups.append(TestGroup(
@@ -107,25 +104,14 @@ public struct TestGrouper: Sendable {
 
     /// Verification result for scope coverage.
     public struct VerificationResult: Sendable, Equatable {
-        /// Whether all files are accounted for (each in exactly one scope).
         public let isComplete: Bool
-
-        /// Files appearing in no scope.
         public let unscopedFiles: [String]
-
-        /// Files appearing in multiple scopes (should not happen with first-match-wins).
         public let duplicateFiles: [String]
-
-        /// Total number of files analyzed.
         public let totalFiles: Int
-
-        /// Number of scopes with at least one file.
         public let activeScopeCount: Int
     }
 
     /// Verify that every test file appears in exactly one scope.
-    /// - Parameter files: Array of (filePath, content) tuples.
-    /// - Returns: Verification result.
     public func verify(files: [(path: String, content: String)]) -> VerificationResult {
         let assignments = analyzer.analyzeAll(files: files)
         return verifyAssignments(assignments, totalFiles: files.count)
@@ -164,13 +150,10 @@ public struct TestGrouper: Sendable {
     // MARK: - Scope Listing
 
     /// List available scopes with file/test counts.
-    /// - Parameter files: Array of (filePath, content) tuples (optional: pass empty for manifest-only listing).
-    /// - Returns: Array of scope listings.
     public func listScopes(
         files: [(path: String, content: String)] = []
     ) -> [ScopeListing] {
         if files.isEmpty {
-            // Manifest-only listing (no file analysis)
             return manifest.scopes.map { scope in
                 ScopeListing(
                     scopeName: scope.name,
@@ -193,10 +176,6 @@ public struct TestGrouper: Sendable {
     }
 
     /// Filter groups to only include the named scopes.
-    /// - Parameters:
-    ///   - groups: All test groups.
-    ///   - scopeNames: Names of scopes to include.
-    /// - Returns: Filtered groups matching the requested names.
     public func filterScopes(
         groups: [TestGroup], scopeNames: Set<String>
     ) -> [TestGroup] {
@@ -205,22 +184,17 @@ public struct TestGrouper: Sendable {
 
     // MARK: - Test Count Estimation
 
-    /// Estimate test count from file content by counting test function patterns.
     private func estimateTestCount(files: [ScopeAssignment]) -> Int {
-        // Simple heuristic: not exact, just a reasonable estimate.
-        // Real count comes from running the tests.
-        return files.count * 8  // rough average of ~8 tests per file
+        return files.count * 8
     }
 
     /// Count test functions in Swift source content.
-    /// Recognizes both XCTest (`func test*`) and Swift Testing (`@Test func`).
     public static func countTestFunctions(in content: String) -> Int {
         let nsContent = content as NSString
         let range = NSRange(location: 0, length: nsContent.length)
 
         var count = 0
 
-        // XCTest pattern: func testSomething
         if let xcTestRegex = try? NSRegularExpression(
             pattern: #"func\s+test\w+\s*\("#,
             options: [.anchorsMatchLines]
@@ -228,7 +202,6 @@ public struct TestGrouper: Sendable {
             count += xcTestRegex.numberOfMatches(in: content, range: range)
         }
 
-        // Swift Testing pattern: @Test func
         if let swiftTestRegex = try? NSRegularExpression(
             pattern: #"@Test\s+(?:func|")"#,
             options: [.anchorsMatchLines]
