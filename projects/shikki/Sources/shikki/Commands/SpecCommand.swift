@@ -2,16 +2,36 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki spec` — wraps the /md-feature skill into a ShikiCore CLI entry point.
+/// `shikki spec` — Spec management hub.
+///
+/// Subcommands: generate, list, read, review, validate, progress.
+/// Default subcommand: list (shows all specs with status).
+struct SpecCommand: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "spec",
+        abstract: "Feature specification management — generate, list, review, validate",
+        subcommands: [
+            SpecGenerateCommand.self,
+            SpecListCommand.self,
+            SpecReadCommand.self,
+            SpecReviewCommand.self,
+            SpecValidateCommand.self,
+            SpecProgressCommand.self,
+        ],
+        defaultSubcommand: SpecListCommand.self
+    )
+}
+
+/// `shikki spec generate` — wraps the /md-feature skill into a ShikiCore CLI entry point.
 ///
 /// BR-SP-01: The #1 priority component, first stone of Shikki.
 /// BR-SP-02: Output to ShikiDB (source of truth) + features/*.md (human-readable backup).
 /// BR-SP-03: Accepts backlog item ID, #N shorthand, or free text.
 /// BR-SP-04: Completion triggers inbox item automatically.
 /// BR-SP-05: Multi-project targeting via --company flag.
-struct SpecCommand: AsyncParsableCommand {
+struct SpecGenerateCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "spec",
+        commandName: "generate",
         abstract: "Generate a feature specification — the first stone of Shikki Flow"
     )
 

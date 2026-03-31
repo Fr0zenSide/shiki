@@ -109,7 +109,7 @@ extension FlywheelCommand {
             }
         }
 
-        private func colorForLevel(_ level: RiskLevel) -> String {
+        private func colorForLevel(_ level: RiskTier) -> String {
             switch level {
             case .low: return "\u{1B}[32m"
             case .medium: return "\u{1B}[33m"
