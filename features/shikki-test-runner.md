@@ -115,6 +115,59 @@ Release tag:            shikki test --all + E2E + snapshots
 
 This is the missing piece in the sub-agent workflow. Agents running `swift test` (full suite, 5+ minutes) instead of testing just their scope caused timeouts and rate limit exhaustion during the v0.3.0-pre dispatch.
 
+### Agent Test SQLite Handoff
+
+Each sub-agent produces a test SQLite as a **deliverable** alongside its code. Before worktree cleanup, the agent's test DB merges into the project's persistent history.
+
+```
+Agent lifecycle:
+  1. Agent spawns in worktree
+  2. Agent implements feature
+  3. Agent runs: shikki test --scope <changed>
+     → creates /tmp/shikki-test-{agent_id}.sqlite
+  4. Agent commits code + pushes branch
+  5. BEFORE worktree cleanup:
+     → agent merges its SQLite into main .shikki/test-history.sqlite
+     → tagged with: agent_id, branch, commit hash, scope, attempt number
+  6. Worktree deleted, test history preserved
+```
+
+The persistent DB accumulates test results from every agent, every race, every retry:
+
+```sql
+-- Additional columns in test_runs for agent tracking
+ALTER TABLE test_runs ADD COLUMN agent_id TEXT;      -- "w2-1-nats"
+ALTER TABLE test_runs ADD COLUMN attempt INTEGER;    -- 1, 2, 3 (retry count)
+ALTER TABLE test_runs ADD COLUMN is_racer BOOLEAN;   -- true if speculative execution
+ALTER TABLE test_runs ADD COLUMN won_race BOOLEAN;   -- true if this racer's code was kept
+```
+
+This enables process improvement queries:
+
+```sql
+-- Which scopes need multiple attempts?
+SELECT g.scope_name, COUNT(DISTINCT r.run_id) as attempts, AVG(g.failed) as avg_failures
+FROM test_groups g JOIN test_runs r ON g.run_id = r.run_id
+WHERE r.agent_id IS NOT NULL
+GROUP BY g.scope_name HAVING attempts > 1
+ORDER BY attempts DESC;
+
+-- Racer win rate: are speculative executions worth it?
+SELECT
+    COUNT(*) FILTER (WHERE won_race = true) as wins,
+    COUNT(*) FILTER (WHERE won_race = false) as losses,
+    ROUND(100.0 * COUNT(*) FILTER (WHERE won_race = true) / COUNT(*), 1) as win_pct
+FROM test_runs WHERE is_racer = true;
+
+-- Pattern: same scope failing across dispatch sessions
+SELECT g.scope_name, r.branch_name, g.failed, r.started_at
+FROM test_groups g JOIN test_runs r ON g.run_id = r.run_id
+WHERE g.failed > 0 AND r.agent_id IS NOT NULL
+ORDER BY g.scope_name, r.started_at;
+```
+
+When you see the same scope failing across multiple agents or dispatch sessions, the data tells you: split it further, improve mocking, or redesign the dependency boundary. Process improvement from test evidence, not guessing.
+
 ---
 
 ## 6. Core Engine — Swift's `lit`, in Swift
