@@ -31,7 +31,7 @@ public struct SpecFrontmatterService: Sendable {
     /// Count the number of `## ` headings (sections) in a markdown file.
     public func countSections(in content: String) -> Int {
         content.components(separatedBy: "\n")
-            .filter { $0.hasPrefix("## ") }
+            .filter { $0.hasPrefix("## ") && !$0.hasPrefix("### ") }
             .count
     }
 
@@ -341,7 +341,8 @@ public struct SpecFrontmatterService: Sendable {
     func serializeToYAML(_ metadata: SpecMetadata) -> String {
         var lines: [String] = []
 
-        lines.append("title: \"\(metadata.title)\"")
+        let escapedTitle = metadata.title.replacingOccurrences(of: "\"", with: "\\\"")
+        lines.append("title: \"\(escapedTitle)\"")
         lines.append("status: \(metadata.status.rawValue)")
 
         if let progress = metadata.progress {

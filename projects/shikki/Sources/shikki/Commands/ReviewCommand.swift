@@ -347,7 +347,7 @@ extension ReviewError {
 struct ClaudeAgentReviewProvider: ReviewAnalysisProvider {
     private let model: String
 
-    init(model: String = "claude-sonnet-4-20250514") {
+    init(model: String = ProcessInfo.processInfo.environment["SHIKKI_REVIEW_MODEL"] ?? "claude-sonnet-4-6") {
         self.model = model
     }
 

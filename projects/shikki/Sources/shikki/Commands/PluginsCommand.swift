@@ -115,6 +115,9 @@ extension PluginsCommand {
             do {
                 let manifest = try await registry.loadManifest(from: manifestPath)
 
+                // Validate manifest structure (including checksum presence)
+                try manifest.validate()
+
                 // Copy plugin to plugins directory
                 let destDir = (PluginRegistry.defaultPluginsDirectory as NSString)
                     .appendingPathComponent(manifest.id.rawValue.replacingOccurrences(of: "/", with: "-"))
@@ -128,8 +131,8 @@ extension PluginsCommand {
                 )
                 try fm.copyItem(atPath: source, toPath: destDir)
 
-                // Register
-                try await registry.register(manifest: manifest)
+                // Register with checksum verification
+                try await registry.register(manifest: manifest, expectedChecksum: manifest.checksum)
 
                 print("\u{1B}[32mInstalled \(manifest.displayName) v\(manifest.version)\u{1B}[0m")
                 print("  ID: \(manifest.id)")

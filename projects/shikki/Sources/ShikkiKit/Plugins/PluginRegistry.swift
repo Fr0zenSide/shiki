@@ -71,7 +71,21 @@ public actor PluginRegistry {
     /// Register a plugin manifest. Validates checksum and version compatibility.
     /// - Throws: `PluginRegistryError` if the plugin is already installed, incompatible, or has duplicate commands.
     @discardableResult
-    public func register(manifest: PluginManifest) throws -> PluginManifest {
+    public func register(manifest: PluginManifest, expectedChecksum: String? = nil) throws -> PluginManifest {
+        // Validate manifest structure (ensures checksum is non-empty)
+        try manifest.validate()
+
+        // Verify checksum if an expected value is provided
+        if let expected = expectedChecksum {
+            guard manifest.verifyChecksum(expected) else {
+                throw PluginRegistryError.checksumMismatch(
+                    pluginID: manifest.id,
+                    expected: expected,
+                    actual: manifest.checksum
+                )
+            }
+        }
+
         // Check for duplicates
         if plugins[manifest.id] != nil {
             throw PluginRegistryError.pluginAlreadyInstalled(manifest.id)

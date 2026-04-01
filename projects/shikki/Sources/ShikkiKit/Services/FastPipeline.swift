@@ -167,9 +167,9 @@ public struct FastPipeline: Sendable {
         }
 
         // Stage 2: Full Test Suite
-        // In a real run, this shells out to `swift test`. In dry-run, skip.
+        // Use the quick pipeline's test results instead of hardcoding.
         logger.info("Fast pipeline: Stage 2 — Test Suite")
-        let testsAllPassed = true // Agent already ran tests in quick flow
+        let testsAllPassed = quickResult.testsPassing > 0
 
         // Stage 3: Pre-PR Gates
         logger.info("Fast pipeline: Stage 3 — Pre-PR Gates")
