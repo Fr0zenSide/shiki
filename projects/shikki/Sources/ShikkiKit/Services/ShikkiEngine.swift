@@ -26,18 +26,23 @@ public struct ShikkiEngine: Sendable {
     public let checkpointManager: CheckpointManager
     public let lockfileManager: LockfileManager
     public let dbSync: any DBSyncing
+    public let sessionBootstrap: SessionBootstrap
     private let logger = Logger(label: "shikki.engine")
 
     public init(
         detector: any StateDetecting,
         checkpointManager: CheckpointManager,
         lockfileManager: LockfileManager,
-        dbSync: any DBSyncing
+        dbSync: any DBSyncing,
+        sessionBootstrap: SessionBootstrap? = nil
     ) {
         self.detector = detector
         self.checkpointManager = checkpointManager
         self.lockfileManager = lockfileManager
         self.dbSync = dbSync
+        self.sessionBootstrap = sessionBootstrap ?? SessionBootstrap(
+            checkpointManager: checkpointManager
+        )
     }
 
     // MARK: - Entry Point (BR-08, BR-09, BR-10)
@@ -47,11 +52,20 @@ public struct ShikkiEngine: Sendable {
     /// BR-09: IDLE + checkpoint → resume.
     /// BR-10: IDLE + no checkpoint → clean start.
     /// BR-11: Never prompts — deterministic dispatch.
+    ///
+    /// On first run (no checkpoint, no sessions), SessionBootstrap creates
+    /// default state so we never crash on missing checkpoint.json.
     public func dispatch() async throws -> ShikkiAction {
         let state = await detector.detect()
 
         switch state {
         case .idle:
+            // Bootstrap first-run state if needed (creates sessions dir + default checkpoint)
+            if sessionBootstrap.isFirstRun() {
+                try sessionBootstrap.createDefaultState()
+                return .startClean
+            }
+
             // Check for resumable checkpoint
             if let checkpoint = try checkpointManager.load() {
                 return .resume(checkpoint)
@@ -66,13 +80,16 @@ public struct ShikkiEngine: Sendable {
         }
     }
 
-    /// Render welcome message for resume action.
-    /// BR-45: Shows "Welcome back" line.
-    /// BR-49: Returns nil for clean start.
+    /// Render welcome message for resume action or first-run greeting.
+    /// BR-45: Shows "Welcome back" line for resume.
+    /// BR-49: Shows "Welcome to Shikki" for clean start (first run).
+    /// Returns nil only for attach/blocked states.
     public func welcomeMessage(for action: ShikkiAction, now: Date = Date()) -> String? {
         switch action {
         case .resume(let checkpoint):
             return WelcomeRenderer.renderToString(checkpoint: checkpoint, now: now)
+        case .startClean:
+            return sessionBootstrap.welcomeMessage()
         default:
             return nil
         }

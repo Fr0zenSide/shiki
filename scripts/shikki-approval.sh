@@ -12,6 +12,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Guard: exit 0 if notify lib is missing (fresh clone without setup)
+if [[ ! -f "$SCRIPT_DIR/shikki-notify-lib.sh" ]]; then
+  echo '{}' # no decision = fall back to interactive
+  exit 0
+fi
+
 source "$SCRIPT_DIR/shikki-notify-lib.sh"
 
 CONFIG_DIR="$HOME/.config/shikki-notify"

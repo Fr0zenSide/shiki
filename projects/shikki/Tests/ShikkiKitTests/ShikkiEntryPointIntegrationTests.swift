@@ -23,11 +23,17 @@ struct ShikkiEntryPointIntegrationTests {
         }
 
         let detector = StateDetector(sessionName: "shikki", environment: env, checkpointManager: cpManager)
+        let bootstrap = SessionBootstrap(
+            sessionsDirectory: "\(dir)/sessions",
+            checkpointManager: cpManager,
+            hostname: "test-host"
+        )
         let engine = ShikkiEngine(
             detector: detector,
             checkpointManager: cpManager,
             lockfileManager: lockManager,
-            dbSync: dbSync
+            dbSync: dbSync,
+            sessionBootstrap: bootstrap
         )
         return (engine, dir)
     }
@@ -118,15 +124,16 @@ struct ShikkiEntryPointIntegrationTests {
         #expect(message!.contains("3 panes"))
     }
 
-    // BR-10 + BR-49: Clean start has no welcome message
-    @Test("Clean start has no welcome message")
-    func cleanStart_showsNoWelcomeBackMessage() async throws {
+    // BR-10: Clean start shows first-run welcome (zero-to-running spec)
+    @Test("Clean start shows first-run welcome message")
+    func cleanStart_showsFirstRunWelcome() async throws {
         let (engine, dir) = try makeEngine(tmuxRunning: false)
         defer { cleanup(dir) }
 
         let action = try await engine.dispatch()
         let message = engine.welcomeMessage(for: action)
-        #expect(message == nil)
+        #expect(message != nil)
+        #expect(message!.contains("Welcome to Shikki"))
     }
 
     // BR-23: Checkpoint deleted after successful resume

@@ -84,7 +84,7 @@ services:
     ports:
       - "127.0.0.1:3900:3900"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:3900/health || exit 1"]
+      test: ["CMD", "deno", "eval", "const r = await fetch('http://localhost:3900/health'); if (!r.ok) Deno.exit(1);"]
       interval: 10s
       timeout: 5s
       retries: 3
