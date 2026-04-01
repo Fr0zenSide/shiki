@@ -1,0 +1,163 @@
+# Quick Flow — Lightweight Change Pipeline
+
+For small, well-understood changes that don't need the full `/md-feature` ceremony.
+Bug fixes, small tweaks, single-file refactors, config changes.
+
+## When to use Quick Flow
+
+- Bug fix with known root cause
+- Single-feature tweak (< 3 files changed)
+- Config or copy change
+- Refactor with no behavior change
+- Test addition for existing code
+
+## When NOT to use Quick Flow (escalate to /md-feature)
+
+- New feature with user-facing behavior
+- Change spanning > 5 files
+- Architecture change (new protocols, DI changes, new coordinators)
+- Change affecting state machine or business rules
+- Anything requiring Phase 1 brainstorming
+
+## Scope Detection (automatic)
+
+Before starting, evaluate these signals. If 2+ are present, WARN and recommend `/md-feature`:
+
+| Signal | Weight |
+|--------|--------|
+| Multiple components mentioned | +1 |
+| "System", "architecture", "redesign" language | +1 |
+| User uncertainty ("maybe", "not sure if") | +1 |
+| Cross-feature interaction | +1 |
+| New navigation route needed | +1 |
+| New DI registration needed | +1 |
+| Estimated > 5 files changed | +1 |
+
+Score >= 2 — "This looks bigger than a quick fix. Consider `/md-feature` instead. Proceed anyway? (y/n)"
+
+## Pipeline (4 steps)
+
+### Step 1: Quick Spec (~2 min)
+
+Write a mini-spec covering:
+- **Problem**: 1-2 sentences — what's wrong or what's needed
+- **Solution**: 1-2 sentences — what to do
+- **Files**: List of files to create/modify
+- **Test plan**: Which test(s) to write or modify
+- **Risk**: Low/Medium — if Medium, add mitigation
+
+Present to user for approval. In `--yolo` mode, skip confirmation.
+
+### Step 2: TDD Implementation (~5-15 min)
+
+Strict TDD cycle:
+1. Write failing test(s)
+2. Run tests — verify RED
+3. Implement the fix/change
+4. Run tests — verify GREEN
+5. If refactor needed, do it (keep GREEN)
+
+Rules:
+- NO production code without a failing test first
+- If you write code before the test: DELETE IT (not "keep as reference")
+- Run the project's test command (from project adapter, or detect: `swift test`, `npm test`, `deno test`, etc.) after EVERY change
+- Capture full test output — do not summarize or truncate
+
+**Escalation**: If 3 fix attempts fail on the same test, STOP. This is not a quick fix — escalate to `/md-feature` or ask @Daimyo for guidance. Quick Flow is for well-understood changes; repeated failures mean the change is not well-understood.
+
+### Step 3: Self-Review (~2 min)
+
+Before declaring done, run a quick self-review:
+1. `git diff` — read every changed line
+2. Check against quick spec — did you implement what was specified? Nothing more?
+3. Verify no unintended changes (stray formatting, debug prints, commented code)
+4. Verify all tests pass (run again, capture output)
+5. Check for common issues per project adapter (e.g., force unwraps, hardcoded strings, missing accessibility labels)
+
+### Step 4: Ship (~1 min)
+
+Offer the user 3 options:
+- **Commit + PR**: `git add <specific files>` then commit then `gh pr create`
+- **Commit only**: `git add <specific files>` then commit
+- **Keep unstaged**: Leave changes for user to review
+
+In `--yolo` mode, auto-commit with conventional commit message.
+
+## Verification Protocol
+
+Before declaring Step 2 complete:
+1. Run the FULL test suite (not just new tests)
+2. Parse output for exact pass/fail count
+3. Zero failures required
+4. If any failure: investigate (do NOT just re-run hoping it passes)
+
+## Anti-Rationalization
+
+| Thought | Response |
+|---------|----------|
+| "This is so small it doesn't need a test" | If it's small, the test is fast. Write it. |
+| "I'll write the test after since I know the fix" | You don't know the fix works until the test proves it. TDD is not optional. |
+| "The existing tests cover this case" | Then the bug wouldn't exist. Write a test that reproduces the bug. |
+| "Quick spec is overkill for a one-liner" | The spec takes 30 seconds. Skipping it means you might fix the wrong thing. |
+| "Self-review is unnecessary, the tests pass" | Tests verify behavior. Self-review catches: scope creep, debug artifacts, style violations. |
+| "I'll skip scope detection, the user already decided" | Scope detection protects the user from underestimating. Always run it. |
+
+## README Tracking
+
+Quick Flow features are tracked in `README.md` → `## Feature Roadmap` (see `feature-tracking.md`).
+
+After each step completes:
+1. Check the completed step in the sub-checklist
+2. Update the WIP counter: `(N/4 steps)`
+
+On Step 1 (Quick Spec): create `features/<name>.md` with the mini-spec and add entry to README.
+On Step 4 (Ship): if PR merged via `/validate-pr`, check top-level checkbox and remove sub-checklist.
+
+## Pipeline Checkpointing
+
+If Shiki backend is available (`curl -sf http://localhost:3900/health`), checkpoint each step for resume support. If unavailable, skip checkpointing silently — the pipeline works without it.
+
+**On start**: Create a pipeline run:
+```bash
+RUN_ID=$(curl -sf -X POST http://localhost:3900/api/pipelines \
+  -H 'Content-Type: application/json' \
+  -d '{"pipelineType":"quick","config":{}}' | jq -r '.id // empty')
+```
+
+**After each step**: Record a checkpoint:
+```bash
+curl -sf -X POST http://localhost:3900/api/pipelines/$RUN_ID/checkpoints \
+  -H 'Content-Type: application/json' \
+  -d '{"phase":"step_1_spec","phaseIndex":0,"status":"completed","stateAfter":{...}}'
+```
+
+**Phase names**: `step_1_spec` (0), `step_2_implementation` (1), `step_3_self_review` (2), `step_4_ship` (3)
+
+**On failure**: Record the failed checkpoint with `"status":"failed"` and `"error":"..."`, then check routing:
+```bash
+curl -sf -X POST http://localhost:3900/api/pipelines/$RUN_ID/route \
+  -H 'Content-Type: application/json' \
+  -d '{"failedPhase":"<phase>"}'
+```
+If action is `auto_fix`: attempt fix then retry. If `escalate`: stop and ask @Daimyo.
+
+**On completion**: Update the run status:
+```bash
+curl -sf -X PATCH http://localhost:3900/api/pipelines/$RUN_ID \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"completed"}'
+```
+
+**On resume** (via `/retry`): Skip phases with index < resumeFromIndex. Use the provided state.
+
+## Output Format
+
+After Quick Flow completes:
+```
+## Quick Flow Complete
+- Spec: <1-line summary>
+- Files: <count> changed
+- Tests: <count> passing (X new)
+- Commit: <hash> (or "unstaged")
+- Time: <duration>
+```

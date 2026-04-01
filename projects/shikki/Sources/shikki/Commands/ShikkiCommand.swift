@@ -35,6 +35,7 @@ struct ShikkiCommand: AsyncParsableCommand {
             MenuCommand.self,
             ObservatoryCommand.self,
             PauseCommand.self,
+            PluginsCommand.self,
             PRCommand.self,
             QuickCommand.self,
             ReportCommand.self,
