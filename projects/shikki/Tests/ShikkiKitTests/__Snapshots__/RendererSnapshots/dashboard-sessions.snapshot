@@ -1,9 +1,0 @@
-│ * maya:spm-wave3  working                                │
-│ ^ wabisabi:onboard  prOpen                               │
-│                                                          │
-│ COMMAND                                                  │
-  [merge] maya:spm-wave3            approved (maya)
-│ > status  Show orchestrator overview                     │
-  [working] wabisabi:onboard          working (wabisabi)
-│ > doctor  Diagnose environment                           │
-  [idle] flsh:mlx                  done (flsh)

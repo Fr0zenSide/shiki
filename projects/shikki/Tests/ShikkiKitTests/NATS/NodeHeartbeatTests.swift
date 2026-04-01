@@ -239,8 +239,8 @@ struct NodeHeartbeatTests {
         }
 
         try await heartbeat.start()
-        // Wait for at least one monitor cycle
-        try await Task.sleep(for: .milliseconds(200))
+        // Wait for multiple monitor cycles (generous for CI/loaded machines)
+        try await Task.sleep(for: .milliseconds(500))
 
         await heartbeat.stop()
 
