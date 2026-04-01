@@ -12,6 +12,8 @@ struct ShikkiCommand: AsyncParsableCommand {
         subcommands: [
             // New shikki stop with countdown
             ShikkiStopCommand.self,
+            // Bootstrap
+            SetupCommand.self,
             // Retained subcommands
             AgentReportsCommand.self,
             AskCommand.self,
@@ -66,8 +68,21 @@ struct ShikkiCommand: AsyncParsableCommand {
     static func main() async {
         // BR-EM-01: Emoji pre-parser — rewrite emoji argv before ArgumentParser
         let rewrittenArgs = EmojiRouter.rewrite(CommandLine.arguments)
+
+        // Setup guard: auto-bootstrap on first run (skip for exempt commands)
+        let args = Array(rewrittenArgs.dropFirst())
+        let firstArg = args.first ?? ""
+        let version = configuration.version ?? "0.0.0"
+        let guard_ = SetupGuard(currentVersion: version)
+        if !guard_.isExempt(command: firstArg) && guard_.needsSetup() {
+            let ok = await guard_.check(command: firstArg)
+            if !ok {
+                _exit(1)
+            }
+        }
+
         do {
-            var command = try parseAsRoot(rewrittenArgs.dropFirst().map { String($0) })
+            var command = try parseAsRoot(args.map { String($0) })
             if var asyncCommand = command as? AsyncParsableCommand {
                 try await asyncCommand.run()
             } else {
