@@ -6,3 +6,15 @@ backups/
 .pids/
 projects/*/
 !projects/.gitkeep
+!projects/shikki/
+
+# Local dev overrides
+docker-compose.override.yml
+.claude/settings.local.json
+
+# Generated PR caches (rebuilt by shiki pr --build)
+projects/shikki/docs/pr*-cache/
+
+# Swift build artifacts
+.build/
+*.xcodeproj/

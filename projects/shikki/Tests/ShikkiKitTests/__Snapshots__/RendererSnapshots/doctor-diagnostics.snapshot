@@ -1,0 +1,4 @@
+  ✓ git       git 2.44 found
+  ✓ tmux      tmux 3.4 found
+  ⚠ delta     delta not found
+  ✗ qmd       qmd not found
