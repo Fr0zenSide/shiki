@@ -48,6 +48,7 @@ struct ShikkiCommand: AsyncParsableCommand {
             ShipCommand.self,
             SpecCommand.self,
             SpecCheckCommand.self,
+            SpecMigrateCommand.self,
             StatusCommand.self,
             TemplatesCommand.self,
             WakeCommand.self,
