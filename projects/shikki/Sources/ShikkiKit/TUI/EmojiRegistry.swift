@@ -68,6 +68,10 @@ public enum EmojiRegistry: Sendable {
               description: "Restart/resume"),
         Entry(emoji: "🔇", command: "focus", category: .workflow, acceptsArgs: true,
               description: "Focus mode"),
+        Entry(emoji: "\u{26A1}", command: "quick", category: .workflow, acceptsArgs: true,
+              description: "Quick change"),
+        Entry(emoji: "\u{1F32A}\u{FE0F}", command: "fast", category: .workflow, acceptsArgs: true,
+              description: "Fast pipeline"),
 
         // Intelligence
         Entry(emoji: "🧠", command: "brain", category: .intelligence, acceptsArgs: true,

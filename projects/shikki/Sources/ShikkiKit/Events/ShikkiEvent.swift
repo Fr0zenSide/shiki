@@ -118,6 +118,18 @@ public enum EventType: Codable, Sendable, Hashable {
     case contextSaved          // pre-compaction context snapshot
     case agentReportGenerated  // agent report card produced
 
+    // Quick Flow
+    case quickStarted
+    case quickStepCompleted
+    case quickCompleted
+    case quickFailed
+
+    // Fast Pipeline
+    case fastStarted
+    case fastStageCompleted
+    case fastCompleted
+    case fastFailed
+
     // Generic
     case custom(String)
 }

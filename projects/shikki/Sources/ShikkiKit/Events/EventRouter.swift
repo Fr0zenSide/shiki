@@ -193,6 +193,22 @@ public enum EventClassifier {
         case .agentReportGenerated:
             return .progress
 
+        // Quick Flow
+        case .quickStarted, .quickStepCompleted:
+            return .progress
+        case .quickCompleted:
+            return .milestone
+        case .quickFailed:
+            return .alert
+
+        // Fast Pipeline
+        case .fastStarted, .fastStageCompleted:
+            return .progress
+        case .fastCompleted:
+            return .milestone
+        case .fastFailed:
+            return .alert
+
         // Custom
         case .custom(let name):
             if name == "redFlag" { return .critical }

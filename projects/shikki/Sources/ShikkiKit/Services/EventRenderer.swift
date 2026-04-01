@@ -118,6 +118,8 @@ public struct ANSIEventRenderer: EventRenderer {
         case .redFlag: return "red-flag"
         case .contextSaved: return "context"
         case .agentReportGenerated: return "report"
+        case .quickStarted, .quickStepCompleted, .quickCompleted, .quickFailed: return "quick"
+        case .fastStarted, .fastStageCompleted, .fastCompleted, .fastFailed: return "fast"
         case .custom(let name): return name
         }
     }
