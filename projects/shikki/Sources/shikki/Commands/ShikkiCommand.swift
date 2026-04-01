@@ -43,6 +43,7 @@ struct ShikkiCommand: AsyncParsableCommand {
             FocusCommand.self,
             RestartCommand.self,
             ScheduleCommand.self,
+            SessionCommand.self,
             UndoCommand.self,
             SearchCommand.self,
             ShipCommand.self,
@@ -132,6 +133,26 @@ struct ShikkiCommand: AsyncParsableCommand {
 
         let action = try await engine.dispatch()
 
+        // Z2R-W4: Startup health monitor — silent check, auto-fix, toast
+        if action == .startClean || action != .blocked {
+            let healthMonitor = StartupHealthMonitor()
+            let toasts = await healthMonitor.runStartupHealthCheck()
+            if !toasts.isEmpty {
+                let rendered = StartupHealthMonitor.renderToasts(toasts)
+                print(rendered)
+            }
+        }
+
+        // Z2R-W4: Previous session summary on startup
+        if case .startClean = action {
+            let sessionSummary = PreviousSessionSummary()
+            let rendered = sessionSummary.renderLastSession()
+            if !rendered.isEmpty {
+                print(rendered)
+                print()
+            }
+        }
+
         switch action {
         case .startClean:
             // Acquire lockfile (BR-53)
@@ -144,6 +165,14 @@ struct ShikkiCommand: AsyncParsableCommand {
         case .resume(let checkpoint):
             // BR-45: Show welcome back message
             WelcomeRenderer.render(checkpoint: checkpoint)
+
+            // Z2R-W4: Show previous session summary after welcome back
+            let sessionSummary = PreviousSessionSummary()
+            let rendered = sessionSummary.renderLastSession()
+            if !rendered.isEmpty {
+                print(rendered)
+                print()
+            }
 
             // Acquire lockfile (BR-53)
             try lockfileManager.acquire()

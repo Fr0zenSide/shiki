@@ -140,7 +140,7 @@ public struct ShikkiEngine: Sendable {
 
     /// Commands that were deleted — subsumed by FSM.
     public static let deletedCommands: Set<String> = [
-        "start", "attach", "session",
+        "start", "attach",
     ]
 
     /// Commands requiring a RUNNING tmux session.
