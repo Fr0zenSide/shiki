@@ -1,0 +1,116 @@
+{
+  "date": "2026-04-01",
+  "source": "github-trending",
+  "summary": {
+    "total_scanned": 13,
+    "high_relevance": 5,
+    "medium_relevance": 3,
+    "low_relevance": 5
+  },
+  "repos": [
+    {
+      "repo": "obra/superpowers",
+      "description": "An agentic skills framework & software development methodology that works",
+      "language": "Shell",
+      "stars_today": 2620,
+      "relevance": "HIGH",
+      "takeaway": "Steal the skills-as-shell-composables architecture. Superpowers packages discrete capabilities as invokable shell skills with a clear methodology for skill discovery, chaining, and agentic dev workflows — directly maps to Shikki's plugin/skill system. Study how it handles skill registration and dispatch."
+    },
+    {
+      "repo": "Yeachan-Heo/oh-my-claudecode",
+      "description": "Teams-first Multi-agent orchestration for Claude Code",
+      "language": "TypeScript",
+      "stars_today": 1126,
+      "relevance": "HIGH",
+      "takeaway": "Multi-agent orchestration patterns for Claude Code teams — steal the agent-to-agent communication protocol, task delegation model, and how it handles parallel agent execution. Directly applicable to Shikki's @agent dispatch pipeline."
+    },
+    {
+      "repo": "NousResearch/hermes-agent",
+      "description": "The agent that grows with you",
+      "language": "Python",
+      "stars_today": 1907,
+      "relevance": "HIGH",
+      "takeaway": "Adaptive memory and learning patterns — steal how Hermes accumulates context over sessions and grows its capability model. Relevant to Shikki's ShikiDB memory layer and how radar/ingest findings should feed back into agent behavior."
+    },
+    {
+      "repo": "OpenBMB/ChatDev",
+      "description": "ChatDev 2.0: Dev All through LLM-powered Multi-Agent Collaboration",
+      "language": "Python",
+      "stars_today": 84,
+      "relevance": "HIGH",
+      "takeaway": "LLM multi-agent software dev collaboration — steal role specialization (PM, engineer, tester agents) and the structured handoff protocol between agents. Maps to Shikki's @Sensei/@Hanami/@tech-expert review pipeline in /pre-pr."
+    },
+    {
+      "repo": "luongnv89/claude-howto",
+      "description": "A visual, example-driven guide to Claude Code — from basic concepts to advanced agents",
+      "language": "Python",
+      "stars_today": 2390,
+      "relevance": "HIGH",
+      "takeaway": "Mine for undocumented Claude Code agent patterns and advanced tool-use examples. Particularly useful for improving Shikki's md-feature and quick pipeline prompts, and for identifying Claude Code capabilities Shikki isn't yet exploiting."
+    },
+    {
+      "repo": "shanraisshan/claude-code-best-practice",
+      "description": "Practice made claude perfect",
+      "language": "HTML",
+      "stars_today": 2407,
+      "relevance": "MEDIUM",
+      "takeaway": "Claude Code workflow conventions — audit against Shikki's current CLAUDE.md rules and hook configs for gaps or improvements."
+    },
+    {
+      "repo": "microsoft/agent-lightning",
+      "description": "The absolute trainer to light up AI agents",
+      "language": "Python",
+      "stars_today": 130,
+      "relevance": "MEDIUM",
+      "takeaway": "AI agent optimization/training patterns — steal any eval or benchmarking methodology applicable to measuring Shikki pipeline quality."
+    },
+    {
+      "repo": "neovim/neovim",
+      "description": "Vim-fork focused on extensibility and usability",
+      "language": "Vim Script",
+      "stars_today": 93,
+      "relevance": "MEDIUM",
+      "takeaway": "Terminal UX and extensibility architecture — Neovim's plugin API and lazy-loading model are reference-grade for Shikki's Swift CLI plugin system design."
+    },
+    {
+      "repo": "microsoft/VibeVoice",
+      "description": "Open-Source Frontier Voice AI",
+      "language": "Python",
+      "stars_today": 3863,
+      "relevance": "LOW",
+      "takeaway": null
+    },
+    {
+      "repo": "PaddlePaddle/PaddleOCR",
+      "description": "Turn any PDF or image document into structured data for your AI",
+      "language": "Python",
+      "stars_today": 439,
+      "relevance": "LOW",
+      "takeaway": null
+    },
+    {
+      "repo": "sherlock-project/sherlock",
+      "description": "Hunt down social media accounts by username across social networks",
+      "language": "Python",
+      "stars_today": 865,
+      "relevance": "LOW",
+      "takeaway": null
+    },
+    {
+      "repo": "vas3k/TaxHacker",
+      "description": "Self-hosted AI accounting app analyzing receipts and transactions",
+      "language": "TypeScript",
+      "stars_today": 318,
+      "relevance": "LOW",
+      "takeaway": null
+    },
+    {
+      "repo": "jwasham/coding-interview-university",
+      "description": "A complete computer science study plan to become a software engineer",
+      "language": "Markdown",
+      "stars_today": 873,
+      "relevance": "LOW",
+      "takeaway": null
+    }
+  ]
+}
