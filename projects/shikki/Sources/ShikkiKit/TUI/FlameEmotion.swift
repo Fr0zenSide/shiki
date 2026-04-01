@@ -133,6 +133,22 @@ public enum FlameEmotionResolver: Sendable {
         case .agentReportGenerated:
             return .calm
 
+        // Quick Flow
+        case .quickStarted, .quickStepCompleted:
+            return .focused
+        case .quickCompleted:
+            return .excited
+        case .quickFailed:
+            return .alarmed
+
+        // Fast Pipeline
+        case .fastStarted, .fastStageCompleted:
+            return .focused
+        case .fastCompleted:
+            return .celebrating
+        case .fastFailed:
+            return .alarmed
+
         // Custom — default to calm
         case .custom:
             return .calm

@@ -26,6 +26,9 @@ struct ShipCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Ship to TestFlight after quality gates")
     var testflight: Bool = false
 
+    @Flag(name: .long, help: "Run pre-PR quality gates (CTO review, slop scan, tests, lint)")
+    var prePr: Bool = false
+
     @Option(name: .long, help: "App slug from apps.toml (required when multiple apps configured)")
     var app: String?
 
@@ -42,7 +45,13 @@ struct ShipCommand: AsyncParsableCommand {
             return
         }
 
-        // Validate mandatory --why
+        // Handle --pre-pr mode: run pre-PR gates only, persist status
+        if prePr {
+            try await runPrePR()
+            return
+        }
+
+        // Standard ship mode: require --why and check pre-PR status
         guard let reason = why else {
             FileHandle.standardError.write(
                 Data("Error: --why is required. Every release needs a reason.\n".utf8)
@@ -60,16 +69,7 @@ struct ShipCommand: AsyncParsableCommand {
 
         // Detect project root and current branch
         let projectRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-        let branchProcess = Process()
-        branchProcess.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        branchProcess.arguments = ["branch", "--show-current"]
-        let branchPipe = Pipe()
-        branchProcess.standardOutput = branchPipe
-        try branchProcess.run()
-        let branchData = branchPipe.fileHandleForReading.readDataToEndOfFile()
-        branchProcess.waitUntilExit()
-        let branch = String(data: branchData, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? "unknown"
+        let branch = try detectBranch()
 
         // Build context
         let context: ShipContext
@@ -87,9 +87,13 @@ struct ShipCommand: AsyncParsableCommand {
             )
         }
 
-        // Build gate pipeline -- core 8 gates
-        let changelogStore = ChangelogStore()
+        // Build gate pipeline: PrePRRequired + core ship gates
         var gates: [any ShipGate] = []
+
+        // Gate 0: Verify pre-PR has passed (unless skipped)
+        if !skipList.contains("prepr") {
+            gates.append(PrePRRequiredGate())
+        }
 
         if !skipList.contains("cleanbranch") {
             gates.append(CleanBranchGate())
@@ -104,7 +108,7 @@ struct ShipCommand: AsyncParsableCommand {
             gates.append(BuildGate())
         }
         if !skipList.contains("changelog") {
-            gates.append(ChangelogGate(changelogStore: changelogStore))
+            gates.append(ChangelogGate(changelogStore: ChangelogStore()))
         }
         if !skipList.contains("versionbump") {
             gates.append(VersionBumpGate(versionOverride: version))
@@ -116,7 +120,7 @@ struct ShipCommand: AsyncParsableCommand {
             gates.append(PushGate())
         }
 
-        // TestFlight gates (9-12) -- appended when --testflight
+        // TestFlight gates -- appended when --testflight
         let tfContext = TestFlightContext()
         if testflight {
             gates.append(AppRegistryGate(appSlug: app, tfContext: tfContext))
@@ -131,33 +135,17 @@ struct ShipCommand: AsyncParsableCommand {
         let totalGates = gates.count
 
         // Render preflight
-        if testflight {
-            // TestFlight extended preflight will be rendered after AppRegistryGate loads config
-            // For now show standard preflight
-            ShipRenderer.renderPreflight(
-                branch: branch,
-                target: target,
-                currentVersion: "detecting...",
-                nextVersion: version ?? "auto",
-                commitCount: 0,
-                gateCount: totalGates,
-                isDryRun: dryRun,
-                why: reason,
-                skipList: skipList
-            )
-        } else {
-            ShipRenderer.renderPreflight(
-                branch: branch,
-                target: target,
-                currentVersion: "detecting...",
-                nextVersion: version ?? "auto",
-                commitCount: 0,
-                gateCount: totalGates,
-                isDryRun: dryRun,
-                why: reason,
-                skipList: skipList
-            )
-        }
+        ShipRenderer.renderPreflight(
+            branch: branch,
+            target: target,
+            currentVersion: "detecting...",
+            nextVersion: version ?? "auto",
+            commitCount: 0,
+            gateCount: totalGates,
+            isDryRun: dryRun,
+            why: reason,
+            skipList: skipList
+        )
 
         if !dryRun {
             FileHandle.standardError.write(Data("  Press Enter to proceed (Ctrl-C to abort)...".utf8))
@@ -200,7 +188,7 @@ struct ShipCommand: AsyncParsableCommand {
             ))
         }
 
-        // Send ntfy notification (best effort, using Process)
+        // Send ntfy notification (best effort)
         let ntfyPayload: String
         if result.success {
             if testflight {
@@ -232,5 +220,136 @@ struct ShipCommand: AsyncParsableCommand {
         if !result.success {
             throw ExitCode.failure
         }
+    }
+
+    // MARK: - Pre-PR Pipeline
+
+    /// Run pre-PR quality gates and persist status for later `shikki ship` validation.
+    private func runPrePR() async throws {
+        let projectRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        let branch = try detectBranch()
+
+        let context: ShipContext
+        if dryRun {
+            context = DryRunShipContext(
+                branch: branch,
+                target: target,
+                projectRoot: projectRoot
+            )
+        } else {
+            context = RealShipContext(
+                branch: branch,
+                target: target,
+                projectRoot: projectRoot
+            )
+        }
+
+        // Build pre-PR gate pipeline
+        // ReviewProvider is a placeholder -- in production, this will be a ClaudeAgentProvider.
+        // For now, skip LLM gates in --pre-pr if no provider is configured, running
+        // only pure Swift gates (test + lint). LLM gates will be wired when AgentProvider is ready.
+        let gates: [any ShipGate] = [
+            TestValidationGate(),
+            LintValidationGate(),
+        ]
+
+        // Render pre-PR preflight
+        FileHandle.standardError.write(Data("\n".utf8))
+        FileHandle.standardError.write(Data("\u{1B}[1m--- Pre-PR Quality Gates ---\u{1B}[0m\n".utf8))
+        FileHandle.standardError.write(Data("\n".utf8))
+        FileHandle.standardError.write(Data("  Branch:  \u{1B}[36m\(branch)\u{1B}[0m\n".utf8))
+        FileHandle.standardError.write(
+            Data("  Gates:   \(gates.count) (TestValidation, LintValidation)\n".utf8)
+        )
+        if dryRun {
+            FileHandle.standardError.write(Data("  Mode:    \u{1B}[33m[DRY RUN]\u{1B}[0m\n".utf8))
+        }
+        FileHandle.standardError.write(Data("\n".utf8))
+
+        let startTime = Date()
+        let service = ShipService()
+        let result = try await service.run(gates: gates, context: context)
+
+        // Render results
+        for (index, gr) in result.gateResults.enumerated() {
+            ShipRenderer.renderGateProgress(
+                gate: gr.gate,
+                index: index,
+                total: gates.count,
+                elapsed: nil,
+                result: gr.result
+            )
+        }
+
+        let totalElapsed = Date().timeIntervalSince(startTime)
+
+        // Persist pre-PR status
+        let gateRecords = result.gateResults.map { gr -> PrePRGateRecord in
+            let passed: Bool
+            switch gr.result {
+            case .pass: passed = true
+            case .warn: passed = true  // warnings pass
+            case .fail: passed = false
+            }
+            let detail: String?
+            switch gr.result {
+            case .pass(let d): detail = d
+            case .warn(let r): detail = r
+            case .fail(let r): detail = r
+            }
+            return PrePRGateRecord(gate: gr.gate, passed: passed, detail: detail)
+        }
+
+        let status = PrePRStatus(
+            passed: result.success,
+            timestamp: Date(),
+            branch: branch,
+            gateResults: gateRecords
+        )
+
+        let statusStore = PrePRStatusStore()
+        try statusStore.save(status)
+
+        // Summary
+        FileHandle.standardError.write(Data("\n".utf8))
+        if result.success {
+            FileHandle.standardError.write(
+                Data("\u{1B}[1m\u{1B}[32m--- Pre-PR Passed ---\u{1B}[0m \(String(format: "%.1fs", totalElapsed))\n".utf8)
+            )
+            FileHandle.standardError.write(
+                Data("  Status saved. Run `shikki ship --why \"...\"` to proceed.\n".utf8)
+            )
+        } else {
+            FileHandle.standardError.write(
+                Data("\u{1B}[1m\u{1B}[31m--- Pre-PR Failed ---\u{1B}[0m \(String(format: "%.1fs", totalElapsed))\n".utf8)
+            )
+            if let gate = result.failedGate, let reason = result.failureReason {
+                FileHandle.standardError.write(Data("  Failed at: \(gate)\n".utf8))
+                FileHandle.standardError.write(Data("  Reason: \(reason)\n".utf8))
+            }
+            FileHandle.standardError.write(
+                Data("  Fix the issues and run `shikki ship --pre-pr` again.\n".utf8)
+            )
+        }
+        FileHandle.standardError.write(Data("\n".utf8))
+
+        if !result.success {
+            throw ExitCode.failure
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func detectBranch() throws -> String {
+        let branchProcess = Process()
+        branchProcess.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        branchProcess.arguments = ["branch", "--show-current"]
+        let branchPipe = Pipe()
+        branchProcess.standardOutput = branchPipe
+        try branchProcess.run()
+        let branchData = branchPipe.fileHandleForReading.readDataToEndOfFile()
+        branchProcess.waitUntilExit()
+        return String(data: branchData, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? "unknown"
     }
 }

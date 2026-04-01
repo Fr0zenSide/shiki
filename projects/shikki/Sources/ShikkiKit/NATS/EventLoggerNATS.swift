@@ -158,6 +158,12 @@ public enum NATSSubjectMapper {
             return "alert"
         case .agentReportGenerated:
             return "report"
+        // Quick Flow
+        case .quickStarted, .quickStepCompleted, .quickCompleted, .quickFailed:
+            return "quick"
+        // Fast Pipeline
+        case .fastStarted, .fastStageCompleted, .fastCompleted, .fastFailed:
+            return "fast"
         // Generic
         case .custom:
             return "custom"
