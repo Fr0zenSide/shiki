@@ -1,19 +1,21 @@
 #!/bin/bash
 # ========================================
-# 四季 Shikki — Dev OS Workspace CLI
+# 四季 Shiki — Dev OS Workspace CLI
 #
 # Ports: DB=5433  Ollama=11435  API=3900  UI=5174
 #
 # Usage:
-#   ./shikki              # show status (or guide to init)
-#   ./shikki init         # first-time setup
-#   ./shikki new <name>   # create a new project
-#   ./shikki start        # start all services
-#   ./shikki stop         # stop all services
-#   ./shikki status       # show services + projects
-#   ./shikki notify setup # configure remote approval (ntfy.sh)
-#   ./shikki notify test  # send a test notification
-#   ./shikki -h           # help
+#   ./shiki              # show status (or guide to init)
+#   ./shiki init         # first-time setup (idempotent)
+#   ./shiki init --force # re-init even if already set up
+#   ./shiki new <name>   # create a new project
+#   ./shiki start        # start all services
+#   ./shiki stop         # stop all services
+#   ./shiki status       # show services + projects
+#   ./shiki health       # detailed health report
+#   ./shiki notify setup # configure remote approval (ntfy.sh)
+#   ./shiki notify test  # send a test notification
+#   ./shiki -h           # help
 # ========================================
 
 set -e
@@ -23,6 +25,25 @@ cd "$SCRIPT_DIR"
 
 PID_DIR="$SCRIPT_DIR/.pids"
 mkdir -p "$PID_DIR"
+
+# Trap for cleanup on interruption or error (BR-13)
+_shiki_in_init=0
+cleanup() {
+  local exit_code=$?
+  if [ "$_shiki_in_init" -eq 1 ] && [ $exit_code -ne 0 ]; then
+    echo ""
+    echo -e "${RED}Interrupted — cleaning up stale PIDs...${NC}"
+    for pidfile in "$PID_DIR"/*.pid; do
+      [ -f "$pidfile" ] || continue
+      local pid
+      pid=$(cat "$pidfile")
+      if ! kill -0 "$pid" 2>/dev/null; then
+        rm -f "$pidfile"
+      fi
+    done
+  fi
+}
+trap cleanup EXIT
 
 # Colors
 GREEN='\033[0;32m'
@@ -115,36 +136,79 @@ check_prereqs() {
 
   echo ""
   echo -e "${YELLOW}Or let Claude handle it:${NC}"
-  echo -e "  claude \"install shikki dependencies for me\""
+  echo -e "  claude \"install shiki dependencies for me\""
   exit 1
 }
 
 is_running() {
   local service="$1"
-  [ -f "$PID_DIR/${service}.pid" ] && kill -0 "$(cat "$PID_DIR/${service}.pid")" 2>/dev/null
+  local pidfile="$PID_DIR/${service}.pid"
+  [ -f "$pidfile" ] || return 1
+  local pid
+  pid=$(cat "$pidfile")
+  # Check PID is alive
+  kill -0 "$pid" 2>/dev/null || return 1
+  # Cross-check: verify the expected port is held by this PID (BR-05)
+  local port=""
+  case "$service" in
+    backend)  port=3900 ;;
+    frontend) port=5174 ;;
+  esac
+  if [ -n "$port" ]; then
+    lsof -ti :"$port" 2>/dev/null | grep -qw "$pid" || return 1
+  fi
+  return 0
+}
+
+kill_port() {
+  local port="$1"
+  local pids
+  pids=$(lsof -ti :"$port" 2>/dev/null || true)
+  if [ -n "$pids" ]; then
+    echo -e "  ${YELLOW}Killing process(es) on port $port (PID $pids)...${NC}"
+    echo "$pids" | xargs kill 2>/dev/null || true
+    sleep 1
+    # Force-kill survivors
+    for p in $pids; do
+      kill -0 "$p" 2>/dev/null && kill -9 "$p" 2>/dev/null || true
+    done
+  fi
+}
+
+cleanup_stale_pids() {
+  for pidfile in "$PID_DIR"/*.pid; do
+    [ -f "$pidfile" ] || continue
+    local pid
+    pid=$(cat "$pidfile")
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$pidfile"
+    fi
+  done
 }
 
 # ── Help ───────────────────────────────────────────────────────────
 
 do_help() {
-  echo -e "${GREEN}四季 Shikki — Dev OS Workspace${NC}"
+  echo -e "${GREEN}四季 Shiki — Dev OS Workspace${NC}"
   echo ""
-  echo "Usage: ./shikki <command> [args]"
+  echo "Usage: ./shiki <command> [args]"
   echo ""
   echo "Commands:"
-  echo "  init             First-time setup (docker, env, services)"
+  echo "  init [--force]   First-time setup (docker, env, services)"
+  echo "                   --force: re-init even if already initialized"
   echo "  new <name>       Create a new project in projects/<name>"
   echo "  start            Start all Shiki services"
   echo "  stop             Stop all Shiki services"
   echo "  status           Show running services and projects"
+  echo "  health [--ping]  Detailed health report (--ping for uptime check)"
   echo "  notify setup     Configure remote approval via ntfy.sh"
   echo "  notify test      Send a test notification"
   echo "  notify status    Show notification config"
   echo "  -h, --help       Show this help"
   echo ""
   echo "Getting started:"
-  echo "  1. ./shikki init"
-  echo "  2. ./shikki new my-app"
+  echo "  1. ./shiki init"
+  echo "  2. ./shiki new my-app"
   echo "  3. cd projects/my-app && claude"
   echo ""
   echo "Services:"
@@ -157,12 +221,35 @@ do_help() {
 # ── Init ───────────────────────────────────────────────────────────
 
 do_init() {
-  echo -e "${GREEN}四季 Shikki — First-Time Setup${NC}"
+  local force=0
+  [[ "${1:-}" == "--force" ]] && force=1
+
+  # BR-04: Guard — already initialized without --force
+  if is_initialized && [ "$force" -eq 0 ]; then
+    echo -e "${GREEN}✓${NC} Shiki workspace already initialized."
+    echo -e "  Use ${BOLD}./shiki start${NC} to start services,"
+    echo -e "  or  ${BOLD}./shiki init --force${NC} to re-initialize."
+    exit 0
+  fi
+
+  # BR-03: Stop running services before re-init
+  if is_running backend || is_running frontend || docker compose ps --quiet 2>/dev/null | grep -q .; then
+    echo -e "${YELLOW}Services detected — stopping before re-init...${NC}"
+    do_stop
+    echo ""
+  fi
+
+  _shiki_in_init=1
+
+  echo -e "${GREEN}四季 Shiki — First-Time Setup${NC}"
   echo ""
 
   # Prerequisites
   check_prereqs
   echo -e "${GREEN}✓${NC} Prerequisites OK (docker, deno, node)"
+
+  # Clean stale PIDs (BR-05)
+  cleanup_stale_pids
 
   # .env
   if [ ! -f .env ]; then
@@ -179,19 +266,32 @@ do_init() {
   [ ! -f features/.gitkeep ] && touch features/.gitkeep
   echo -e "${GREEN}✓${NC} Directories ready (projects/, features/, backups/)"
 
-  # Docker services
+  # Docker services (BR-07: skip already running+healthy containers)
   echo ""
   echo -e "${CYAN}Starting Docker services...${NC}"
   source .env
-  docker compose up -d db ollama ntfy
+
+  local docker_needs_up=()
+  for svc in db ollama ntfy; do
+    local svc_status
+    svc_status=$(docker compose ps --format '{{.Status}}' "$svc" 2>/dev/null || true)
+    if echo "$svc_status" | grep -qi "up.*healthy\|up.*running"; then
+      echo -e "  ${GREEN}✓${NC} $svc already running"
+    else
+      docker_needs_up+=("$svc")
+    fi
+  done
+  if [ ${#docker_needs_up[@]} -gt 0 ]; then
+    docker compose up -d "${docker_needs_up[@]}"
+  fi
 
   echo -ne "  Waiting for PostgreSQL..."
   for i in $(seq 1 30); do
-    if docker compose exec -T db pg_isready -U "${POSTGRES_USER:-shikki}" -d "${POSTGRES_DB:-shikki}" &>/dev/null; then
+    if docker compose exec -T db pg_isready -U "${POSTGRES_USER:-shiki}" -d "${POSTGRES_DB:-shiki}" &>/dev/null; then
       echo -e " ${GREEN}ready${NC}"
       break
     fi
-    [ $i -eq 30 ] && { echo -e " ${RED}timeout${NC}"; exit 1; }
+    [ $i -eq 30 ] && { echo -e " ${RED}timeout — check: docker compose logs db${NC}"; exit 1; }
     sleep 1
     echo -n "."
   done
@@ -202,7 +302,7 @@ do_init() {
       echo -e " ${GREEN}ready${NC}"
       break
     fi
-    [ $i -eq 60 ] && { echo -e " ${RED}timeout${NC}"; exit 1; }
+    [ $i -eq 60 ] && { echo -e " ${RED}timeout — check: docker compose logs ollama${NC}"; exit 1; }
     sleep 1
     echo -n "."
   done
@@ -210,55 +310,64 @@ do_init() {
   # Pull embedding model
   docker compose up -d ollama-init
 
-  # Start backend
+  # Start backend (BR-01: kill orphan on port 3900, BR-08: absolute path)
   echo ""
   echo -e "${CYAN}Starting Deno backend on port 3900...${NC}"
+  kill_port 3900
 
-  export DATABASE_URL="postgres://${POSTGRES_USER:-shikki}:${POSTGRES_PASSWORD}@localhost:5433/${POSTGRES_DB:-shikki}"
+  export DATABASE_URL="postgres://${POSTGRES_USER:-shiki}:${POSTGRES_PASSWORD}@localhost:5433/${POSTGRES_DB:-shiki}"
   export OLLAMA_URL="http://localhost:11435"
   export EMBED_MODEL="nomic-embed-text"
   export WS_PORT=3900
 
-  cd src/backend
-  deno run --allow-net --allow-env --allow-read src/server.ts > "$SCRIPT_DIR/.pids/backend.log" 2>&1 &
+  deno run --allow-net --allow-env --allow-read "$SCRIPT_DIR/src/backend/src/server.ts" > "$SCRIPT_DIR/.pids/backend.log" 2>&1 &
   BACKEND_PID=$!
   echo "$BACKEND_PID" > "$PID_DIR/backend.pid"
-  cd "$SCRIPT_DIR"
 
   sleep 2
 
   if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
-    echo -e "${RED}Backend failed to start. Check .pids/backend.log${NC}"
+    echo -e "${RED}Backend failed to start.${NC}"
+    echo -e "  ${DIM}Check logs: $SCRIPT_DIR/.pids/backend.log${NC}"
     exit 1
   fi
   echo -e "${GREEN}✓${NC} Backend running (PID $BACKEND_PID)"
 
-  # Start frontend
+  # Start frontend (BR-02: kill orphan on port 5174, BR-09: absolute CWD)
   echo -e "${CYAN}Starting Vue frontend on port 5174...${NC}"
+  kill_port 5174
 
-  cd src/frontend
-  if [ ! -d "node_modules" ]; then
+  if [ ! -d "$SCRIPT_DIR/src/frontend/node_modules" ]; then
     echo -e "  ${DIM}Installing npm dependencies...${NC}"
-    npm install --silent
+    npm install --silent --prefix "$SCRIPT_DIR/src/frontend"
   fi
+  cd "$SCRIPT_DIR/src/frontend"
   npx vite --port 5174 --host > "$SCRIPT_DIR/.pids/frontend.log" 2>&1 &
   FRONTEND_PID=$!
   echo "$FRONTEND_PID" > "$PID_DIR/frontend.pid"
   cd "$SCRIPT_DIR"
 
   sleep 2
+
+  if ! kill -0 "$FRONTEND_PID" 2>/dev/null; then
+    echo -e "${RED}Frontend failed to start.${NC}"
+    echo -e "  ${DIM}Check logs: $SCRIPT_DIR/.pids/frontend.log${NC}"
+    exit 1
+  fi
   echo -e "${GREEN}✓${NC} Frontend running (PID $FRONTEND_PID)"
+
+  _shiki_in_init=0
 
   # Welcome
   echo ""
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  echo -e "${GREEN}  四季 Shikki — Dev OS Workspace${NC}"
+  echo -e "${GREEN}  四季 Shiki — Dev OS Workspace${NC}"
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo ""
   echo -e "  Dashboard:  ${CYAN}http://localhost:5174${NC}"
   echo -e "  API:        ${CYAN}http://localhost:3900${NC}"
   echo ""
-  echo -e "  Next: ${BOLD}./shikki new <project-name>${NC}"
+  echo -e "  Next: ${BOLD}./shiki new <project-name>${NC}"
   echo -e "  Then: ${BOLD}cd projects/<name> && claude${NC}"
   echo ""
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -270,7 +379,7 @@ do_new() {
   local name="$1"
 
   if [ -z "$name" ]; then
-    echo -e "${RED}Usage: ./shikki new <project-name>${NC}"
+    echo -e "${RED}Usage: ./shiki new <project-name>${NC}"
     exit 1
   fi
 
@@ -294,7 +403,7 @@ do_new() {
 
   # Create project adapter from template
   mkdir -p .claude
-  cp "$SCRIPT_DIR/.claude/skills/shikki-process/project-adapter-template.md" .claude/project-adapter.md
+  cp "$SCRIPT_DIR/.claude/skills/shiki-process/project-adapter-template.md" .claude/project-adapter.md
   echo -e "${GREEN}✓${NC} Project adapter created (.claude/project-adapter.md)"
 
   # Create basic structure
@@ -315,7 +424,7 @@ GITIGNORE
   cat > README.md << README
 # $name
 
-> Created with [Shikki (四季)](https://github.com/Fr0zenSide/shiki)
+> Created with [Shiki (四季)](https://github.com/Fr0zenSide/shiki)
 
 ## Getting Started
 
@@ -343,12 +452,12 @@ README
       -d "{\"name\": \"$name\", \"path\": \"projects/$name\"}" 2>/dev/null | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
 
     if [ -n "$project_id" ]; then
-      echo -e "${GREEN}✓${NC} Registered in Shikki (ID: ${DIM}$project_id${NC})"
+      echo -e "${GREEN}✓${NC} Registered in Shiki (ID: ${DIM}$project_id${NC})"
     else
-      echo -e "${DIM}  Shikki API available but project registration returned no ID${NC}"
+      echo -e "${DIM}  Shiki API available but project registration returned no ID${NC}"
     fi
   else
-    echo -e "${DIM}  Shikki API not running — project not registered (run ./shikki start first)${NC}"
+    echo -e "${DIM}  Shiki API not running — project not registered (run ./shiki start first)${NC}"
   fi
 
   cd "$SCRIPT_DIR"
@@ -363,27 +472,43 @@ README
 
 do_start() {
   if ! is_initialized; then
-    echo -e "${YELLOW}Shikki is not initialized. Run: ./shikki init${NC}"
+    echo -e "${YELLOW}Shiki is not initialized. Run: ./shiki init${NC}"
     exit 1
   fi
 
-  echo -e "${GREEN}四季 Shikki — Starting services${NC}"
+  echo -e "${GREEN}四季 Shiki — Starting services${NC}"
   echo ""
 
   check_prereqs
   source .env
 
-  # Docker services
+  # Clean stale PIDs (BR-05)
+  cleanup_stale_pids
+
+  # Docker services (BR-07: skip already running+healthy containers)
   echo -e "${CYAN}Starting Docker services (PostgreSQL + Ollama + ntfy)...${NC}"
-  docker compose up -d db ollama ntfy
+
+  local docker_needs_up=()
+  for svc in db ollama ntfy; do
+    local svc_status
+    svc_status=$(docker compose ps --format '{{.Status}}' "$svc" 2>/dev/null || true)
+    if echo "$svc_status" | grep -qi "up.*healthy\|up.*running"; then
+      echo -e "  ${GREEN}✓${NC} $svc already running"
+    else
+      docker_needs_up+=("$svc")
+    fi
+  done
+  if [ ${#docker_needs_up[@]} -gt 0 ]; then
+    docker compose up -d "${docker_needs_up[@]}"
+  fi
 
   echo -ne "  Waiting for PostgreSQL..."
   for i in $(seq 1 30); do
-    if docker compose exec -T db pg_isready -U "${POSTGRES_USER:-shikki}" -d "${POSTGRES_DB:-shikki}" &>/dev/null; then
+    if docker compose exec -T db pg_isready -U "${POSTGRES_USER:-shiki}" -d "${POSTGRES_DB:-shiki}" &>/dev/null; then
       echo -e " ${GREEN}ready${NC}"
       break
     fi
-    [ $i -eq 30 ] && { echo -e " ${RED}timeout${NC}"; exit 1; }
+    [ $i -eq 30 ] && { echo -e " ${RED}timeout — check: docker compose logs db${NC}"; exit 1; }
     sleep 1
     echo -n "."
   done
@@ -394,7 +519,7 @@ do_start() {
       echo -e " ${GREEN}ready${NC}"
       break
     fi
-    [ $i -eq 60 ] && { echo -e " ${RED}timeout${NC}"; exit 1; }
+    [ $i -eq 60 ] && { echo -e " ${RED}timeout — check: docker compose logs ollama${NC}"; exit 1; }
     sleep 1
     echo -n "."
   done
@@ -402,25 +527,25 @@ do_start() {
   # Pull embedding model in background
   docker compose up -d ollama-init
 
-  # Backend
+  # Backend (BR-01: kill orphan on port, BR-08: absolute path)
   if ! is_running backend; then
     echo -e "${CYAN}Starting Deno backend on port 3900...${NC}"
+    kill_port 3900
 
-    export DATABASE_URL="postgres://${POSTGRES_USER:-shikki}:${POSTGRES_PASSWORD}@localhost:5433/${POSTGRES_DB:-shikki}"
+    export DATABASE_URL="postgres://${POSTGRES_USER:-shiki}:${POSTGRES_PASSWORD}@localhost:5433/${POSTGRES_DB:-shiki}"
     export OLLAMA_URL="http://localhost:11435"
     export EMBED_MODEL="nomic-embed-text"
     export WS_PORT=3900
 
-    cd src/backend
-    deno run --allow-net --allow-env --allow-read src/server.ts > "$SCRIPT_DIR/.pids/backend.log" 2>&1 &
+    deno run --allow-net --allow-env --allow-read "$SCRIPT_DIR/src/backend/src/server.ts" > "$SCRIPT_DIR/.pids/backend.log" 2>&1 &
     BACKEND_PID=$!
     echo "$BACKEND_PID" > "$PID_DIR/backend.pid"
-    cd "$SCRIPT_DIR"
 
     sleep 2
 
     if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
-      echo -e "${RED}Backend failed to start. Check .pids/backend.log${NC}"
+      echo -e "${RED}Backend failed to start.${NC}"
+      echo -e "  ${DIM}Check logs: $SCRIPT_DIR/.pids/backend.log${NC}"
       exit 1
     fi
     echo -e "  ${GREEN}✓${NC} Backend running (PID $BACKEND_PID)"
@@ -428,21 +553,28 @@ do_start() {
     echo -e "  ${GREEN}✓${NC} Backend already running (PID $(cat "$PID_DIR/backend.pid"))"
   fi
 
-  # Frontend
+  # Frontend (BR-02: kill orphan on port, BR-09: absolute CWD)
   if ! is_running frontend; then
     echo -e "${CYAN}Starting Vue frontend on port 5174...${NC}"
+    kill_port 5174
 
-    cd src/frontend
-    if [ ! -d "node_modules" ]; then
+    if [ ! -d "$SCRIPT_DIR/src/frontend/node_modules" ]; then
       echo -e "  ${DIM}Installing npm dependencies...${NC}"
-      npm install --silent
+      npm install --silent --prefix "$SCRIPT_DIR/src/frontend"
     fi
+    cd "$SCRIPT_DIR/src/frontend"
     npx vite --port 5174 --host > "$SCRIPT_DIR/.pids/frontend.log" 2>&1 &
     FRONTEND_PID=$!
     echo "$FRONTEND_PID" > "$PID_DIR/frontend.pid"
     cd "$SCRIPT_DIR"
 
     sleep 2
+
+    if ! kill -0 "$FRONTEND_PID" 2>/dev/null; then
+      echo -e "${RED}Frontend failed to start.${NC}"
+      echo -e "  ${DIM}Check logs: $SCRIPT_DIR/.pids/frontend.log${NC}"
+      exit 1
+    fi
     echo -e "  ${GREEN}✓${NC} Frontend running (PID $FRONTEND_PID)"
   else
     echo -e "  ${GREEN}✓${NC} Frontend already running (PID $(cat "$PID_DIR/frontend.pid"))"
@@ -451,7 +583,7 @@ do_start() {
   # Ready
   echo ""
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  echo -e "${GREEN}  四季 Shikki is running${NC}"
+  echo -e "${GREEN}  四季 Shiki is running${NC}"
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo -e "  Dashboard:  ${CYAN}http://localhost:5174${NC}"
   echo -e "  API:        ${CYAN}http://localhost:3900${NC}"
@@ -466,7 +598,7 @@ do_start() {
 # ── Stop ───────────────────────────────────────────────────────────
 
 do_stop() {
-  echo -e "${YELLOW}Shutting down Shikki...${NC}"
+  echo -e "${YELLOW}Shutting down Shiki...${NC}"
 
   # Stop Deno backend
   if [ -f "$PID_DIR/backend.pid" ]; then
@@ -494,17 +626,17 @@ do_stop() {
     docker compose down
   fi
 
-  echo -e "${GREEN}Shikki stopped.${NC}"
+  echo -e "${GREEN}Shiki stopped.${NC}"
 }
 
 # ── Status ─────────────────────────────────────────────────────────
 
 do_status() {
-  echo -e "${GREEN}四季 Shikki — Status${NC}"
+  echo -e "${GREEN}四季 Shiki — Status${NC}"
   echo ""
 
   if ! is_initialized; then
-    echo -e "${YELLOW}Not initialized.${NC} Run: ${BOLD}./shikki init${NC}"
+    echo -e "${YELLOW}Not initialized.${NC} Run: ${BOLD}./shiki init${NC}"
     echo ""
     return
   fi
@@ -554,9 +686,9 @@ do_status() {
         count=$((count + 1))
       fi
     done
-    [ $count -eq 0 ] && echo -e "  ${DIM}none — run: ./shikki new <name>${NC}"
+    [ $count -eq 0 ] && echo -e "  ${DIM}none — run: ./shiki new <name>${NC}"
   else
-    echo -e "  ${DIM}none — run: ./shikki new <name>${NC}"
+    echo -e "  ${DIM}none — run: ./shiki new <name>${NC}"
   fi
 
   # Worktrees
@@ -582,7 +714,7 @@ do_health() {
     curl -sf "$api_url/health" > /dev/null 2>&1 && exit 0 || exit 1
   fi
 
-  echo -e "${GREEN}四季 Shikki — Health Report${NC}"
+  echo -e "${GREEN}四季 Shiki — Health Report${NC}"
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo ""
 
@@ -602,7 +734,7 @@ do_health() {
       echo -e "  ${RED}✗${NC} Docker services not running"
     fi
     echo ""
-    echo -e "${YELLOW}Run: ./shikki start${NC}"
+    echo -e "${YELLOW}Run: ./shiki start${NC}"
     return 1
   fi
 
@@ -683,7 +815,7 @@ PYEOF
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo -e "  API:    ${CYAN}http://localhost:3900${NC}"
   echo -e "  Health: ${CYAN}http://localhost:3900/health/full${NC}"
-  echo -e "  Ping:   ${DIM}./shikki health --ping${NC} (uptime-kuma)"
+  echo -e "  Ping:   ${DIM}./shiki health --ping${NC} (uptime-kuma)"
   echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
@@ -691,13 +823,13 @@ PYEOF
 
 do_notify() {
   local subcmd="${1:-}"
-  local CONFIG_DIR="$HOME/.config/shikki-notify"
+  local CONFIG_DIR="$HOME/.config/shiki-notify"
   local CONFIG_FILE="$CONFIG_DIR/config"
-  local HOOK_SCRIPT="$SCRIPT_DIR/scripts/shikki-approval.sh"
+  local HOOK_SCRIPT="$SCRIPT_DIR/scripts/shiki-approval.sh"
 
   case "$subcmd" in
     setup)
-      echo -e "${GREEN}四季 Shikki — Remote Approval Setup${NC}"
+      echo -e "${GREEN}四季 Shiki — Remote Approval Setup${NC}"
       echo ""
       echo "This configures push notifications for Claude Code permission requests."
       echo "When Claude needs approval, you'll get a notification on your phone/watch"
@@ -705,8 +837,8 @@ do_notify() {
       echo ""
       echo -e "${CYAN}Prerequisites:${NC}"
       echo "  1. Install ntfy app on iPhone: https://apps.apple.com/app/ntfy/id1625396347"
-      echo "  2. Shikki embeds its own ntfy server at http://localhost:2586"
-      echo "     (started automatically with ./shikki start)"
+      echo "  2. Shiki embeds its own ntfy server at http://localhost:2586"
+      echo "     (started automatically with ./shiki start)"
       echo ""
 
       # Check if ntfy container is running
@@ -725,13 +857,13 @@ do_notify() {
       echo ""
 
       # Get topic
-      local default_topic="shikki-$(whoami)"
+      local default_topic="shiki-$(whoami)"
       read -p "ntfy topic name [$default_topic]: " topic
       topic="${topic:-$default_topic}"
 
       # Server: default to embedded
       echo ""
-      echo "  Shikki includes a local ntfy server (recommended)."
+      echo "  Shiki includes a local ntfy server (recommended)."
       echo "  Use https://ntfy.sh for public cloud, or your own server."
       read -p "ntfy server [http://localhost:2586]: " server
       server="${server:-http://localhost:2586}"
@@ -774,7 +906,7 @@ do_notify() {
       # Write config
       mkdir -p "$CONFIG_DIR"
       cat > "$CONFIG_FILE" << CONF
-# Shikki Remote Approval Configuration
+# Shiki Remote Approval Configuration
 # Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 NTFY_TOPIC="$topic"
@@ -879,13 +1011,13 @@ PYEOF
       echo "  Next time Claude Code asks for permission, you'll get a"
       echo "  push notification with approve/deny buttons."
       echo ""
-      echo -e "  Test it: ${BOLD}./shikki notify test${NC}"
+      echo -e "  Test it: ${BOLD}./shiki notify test${NC}"
       echo ""
       ;;
 
     test)
       if [ ! -f "$CONFIG_FILE" ]; then
-        echo -e "${RED}Not configured. Run: ./shikki notify setup${NC}"
+        echo -e "${RED}Not configured. Run: ./shiki notify setup${NC}"
         exit 1
       fi
 
@@ -906,7 +1038,7 @@ PYEOF
         "${auth_args[@]}" \
         -d "{
           \"topic\": \"$NTFY_TOPIC\",
-          \"title\": \"Shikki: Test Notification\",
+          \"title\": \"Shiki: Test Notification\",
           \"message\": \"Tool: Bash\\nCommand: echo hello world\",
           \"tags\": [\"key\", \"test_tube\"],
           \"priority\": 4,
@@ -967,13 +1099,13 @@ PYEOF
 
     status)
       if [ ! -f "$CONFIG_FILE" ]; then
-        echo -e "${YELLOW}Not configured.${NC} Run: ${BOLD}./shikki notify setup${NC}"
+        echo -e "${YELLOW}Not configured.${NC} Run: ${BOLD}./shiki notify setup${NC}"
         return
       fi
 
       source "$CONFIG_FILE"
 
-      echo -e "${GREEN}四季 Shikki — Notification Status${NC}"
+      echo -e "${GREEN}四季 Shiki — Notification Status${NC}"
       echo ""
       echo -e "  Server:      ${BOLD}${NTFY_SERVER}${NC}"
       echo -e "  Topic:       ${BOLD}${NTFY_TOPIC}${NC}"
@@ -985,10 +1117,10 @@ PYEOF
 
       # Check hook installation
       local local_settings="$SCRIPT_DIR/.claude/settings.local.json"
-      if [ -f "$local_settings" ] && grep -q "shikki-approval" "$local_settings" 2>/dev/null; then
+      if [ -f "$local_settings" ] && grep -q "shiki-approval" "$local_settings" 2>/dev/null; then
         echo -e "  Hook:        ${GREEN}✓${NC} installed in settings.local.json"
       else
-        echo -e "  Hook:        ${RED}✗${NC} not installed (run ./shikki notify setup)"
+        echo -e "  Hook:        ${RED}✗${NC} not installed (run ./shiki notify setup)"
       fi
 
       # Check log
@@ -1006,9 +1138,9 @@ PYEOF
 
     *)
       echo -e "${YELLOW}Usage:${NC}"
-      echo "  ./shikki notify setup    Configure remote approval"
-      echo "  ./shikki notify test     Send test notification"
-      echo "  ./shikki notify status   Show config and recent approvals"
+      echo "  ./shiki notify setup    Configure remote approval"
+      echo "  ./shiki notify test     Send test notification"
+      echo "  ./shiki notify status   Show config and recent approvals"
       ;;
   esac
 }
@@ -1016,11 +1148,11 @@ PYEOF
 # ── Main ───────────────────────────────────────────────────────────
 
 case "${1:-}" in
-  init)       do_init ;;
+  init)       do_init "${2:-}" ;;
   new)        do_new "$2" ;;
   start)      do_start ;;
   stop)       do_stop ;;
-  status)     do_health "${2:-}" ;;
+  status)     do_status ;;
   health)     do_health "${2:-}" ;;
   notify)     do_notify "${2:-}" ;;
   -h|--help)  do_help ;;
@@ -1029,9 +1161,9 @@ case "${1:-}" in
     if is_initialized; then
       do_health
     else
-      echo -e "${GREEN}四季 Shikki — Dev OS Workspace${NC}"
+      echo -e "${GREEN}四季 Shiki — Dev OS Workspace${NC}"
       echo ""
-      echo -e "Welcome! Run ${BOLD}./shikki init${NC} to get started."
+      echo -e "Welcome! Run ${BOLD}./shiki init${NC} to get started."
       echo ""
       do_help
     fi
