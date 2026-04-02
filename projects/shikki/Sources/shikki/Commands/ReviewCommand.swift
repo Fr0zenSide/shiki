@@ -149,53 +149,63 @@ struct ReviewCommand: AsyncParsableCommand {
     private func runPrePR() async throws {
         FileHandle.standardError.write(Data("\u{1B}[2mRunning pre-PR quality gates...\u{1B}[0m\n".utf8))
 
-        // Pre-PR gates run locally (no LLM needed for core gates)
         let projectRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        let branch = (try? shellSync("git branch --show-current").trimmingCharacters(in: .whitespacesAndNewlines)) ?? "unknown"
+
+        let context = RealShipContext(
+            branch: branch,
+            target: "develop",
+            projectRoot: projectRoot
+        )
+
+        // Use the compiled PrePRGates system
+        let gates: [any ShipGate] = [
+            TestValidationGate(),
+            LintValidationGate(),
+        ]
+
         var passed = 0
         var failed = 0
         var warnings = 0
+        var gateRecords: [PrePRGateRecord] = []
 
-        // Gate 1: Clean working tree
+        for (idx, gate) in gates.enumerated() {
+            let result = try await gate.evaluate(context: context)
+            let gatePassed: Bool
+            switch result {
+            case .pass(let detail):
+                printGate(index: idx + 1, name: gate.name, passed: true, detail: detail)
+                passed += 1
+                gatePassed = true
+            case .warn(let reason):
+                printGate(index: idx + 1, name: gate.name, passed: true, detail: reason)
+                warnings += 1
+                passed += 1
+                gatePassed = true
+            case .fail(let reason):
+                printGate(index: idx + 1, name: gate.name, passed: false, detail: reason)
+                failed += 1
+                gatePassed = false
+            }
+            gateRecords.append(PrePRGateRecord(gate: gate.name, passed: gatePassed))
+        }
+
+        // Check clean working tree separately (not a ShipGate)
         let cleanResult = shellSync("git status --porcelain")
-        if cleanResult.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            printGate(index: 1, name: "Clean Branch", passed: true)
-            passed += 1
-        } else {
-            printGate(index: 1, name: "Clean Branch", passed: false, detail: "Uncommitted changes detected")
-            failed += 1
-        }
+        let isClean = cleanResult.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        printGate(index: gates.count + 1, name: "Clean Branch", passed: isClean,
+                  detail: isClean ? nil : "Uncommitted changes detected")
+        if isClean { passed += 1 } else { failed += 1 }
+        gateRecords.append(PrePRGateRecord(gate: "CleanBranch", passed: isClean))
 
-        // Gate 2: Tests pass
-        let testResult = shellSyncExit("swift test --package-path \(projectRoot.path)")
-        if testResult == 0 {
-            printGate(index: 2, name: "Tests", passed: true)
-            passed += 1
-        } else {
-            printGate(index: 2, name: "Tests", passed: false, detail: "Test suite failed")
-            failed += 1
-        }
-
-        // Gate 3: Build succeeds
-        let buildResult = shellSyncExit("swift build --package-path \(projectRoot.path)")
-        if buildResult == 0 {
-            printGate(index: 3, name: "Build", passed: true)
-            passed += 1
-        } else {
-            printGate(index: 3, name: "Build", passed: false, detail: "Build failed")
-            failed += 1
-        }
-
-        // Gate 4: No TODO/FIXME in staged changes
-        let diffTodos = shellSync("git diff --cached | grep -c 'TODO\\|FIXME' 2>/dev/null || echo 0")
-        let todoCount = Int(diffTodos.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
-        if todoCount == 0 {
-            printGate(index: 4, name: "No TODOs in Diff", passed: true)
-            passed += 1
-        } else {
-            printGate(index: 4, name: "No TODOs in Diff", passed: true, detail: "\(todoCount) TODO/FIXME in staged changes")
-            warnings += 1
-            passed += 1
-        }
+        // Save pre-PR status
+        let status = PrePRStatus(
+            passed: failed == 0,
+            timestamp: Date(),
+            branch: branch,
+            gateResults: gateRecords
+        )
+        try? PrePRStatusStore().save(status)
 
         // Summary
         let total = passed + failed

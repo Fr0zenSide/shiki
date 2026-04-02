@@ -46,7 +46,7 @@ struct ProjectInitWizardTests {
     func initCreatesMoto() throws {
         let path = try makeProject(
             files: ["Package.swift"],
-            directories: [".git", "Tests"]
+            directories: [".git", ".git/hooks", "Tests"]
         )
         defer { cleanup(path) }
 
@@ -160,7 +160,7 @@ struct ProjectInitWizardTests {
     func noWarningsFullProject() throws {
         let path = try makeProject(
             files: ["Package.swift"],
-            directories: [".git", "Tests"]
+            directories: [".git", ".git/hooks", "Tests"]
         )
         defer { cleanup(path) }
 
@@ -174,7 +174,7 @@ struct ProjectInitWizardTests {
     func iosTemplate() throws {
         let path = try makeProject(
             files: ["Package.swift"],
-            directories: [".git", "Tests"]
+            directories: [".git", ".git/hooks", "Tests"]
         )
         defer { cleanup(path) }
 
@@ -200,7 +200,7 @@ struct ProjectInitWizardTests {
     func cliTemplate() throws {
         let path = try makeProject(
             files: ["Package.swift"],
-            directories: [".git", "Tests"]
+            directories: [".git", ".git/hooks", "Tests"]
         )
         defer { cleanup(path) }
 
@@ -212,7 +212,7 @@ struct ProjectInitWizardTests {
     func unknownTemplate() throws {
         let path = try makeProject(
             files: ["Package.swift"],
-            directories: [".git", "Tests"]
+            directories: [".git", ".git/hooks", "Tests"]
         )
         defer { cleanup(path) }
 
@@ -226,7 +226,7 @@ struct ProjectInitWizardTests {
     func motoRoundTrip() throws {
         let path = try makeProject(
             files: ["Package.swift"],
-            directories: [".git", "Tests"]
+            directories: [".git", ".git/hooks", "Tests"]
         )
         defer { cleanup(path) }
 

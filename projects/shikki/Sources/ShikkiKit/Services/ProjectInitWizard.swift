@@ -139,6 +139,23 @@ public struct ProjectInitWizard: Sendable {
             }
         }
 
+        // iOS-specific scaffolding: .mcp.json + XcodeGen project.yml
+        let isIOS = template?.lowercased() == "ios"
+            || detected.framework == .swiftUI
+            || detected.framework == .uiKit
+        if isIOS {
+            let iosResult = scaffoldIOSProject(at: path, projectName: detected.name)
+            filesCreated.append(contentsOf: iosResult.filesCreated)
+            warnings.append(contentsOf: iosResult.warnings)
+        }
+
+        // Install git hooks if git repo exists
+        if detected.hasGit {
+            let hooksResult = installGitHooks(at: path)
+            filesCreated.append(contentsOf: hooksResult.filesCreated)
+            warnings.append(contentsOf: hooksResult.warnings)
+        }
+
         // Add warnings for missing features
         if !detected.hasGit {
             warnings.append("No git repository detected. Run `git init` first for full Shikki integration.")
@@ -156,6 +173,220 @@ public struct ProjectInitWizard: Sendable {
             warnings: warnings
         )
     }
+
+    // MARK: - iOS Scaffolding
+
+    /// Scaffold iOS-specific files: .mcp.json (Xcode tools + Apple docs) and XcodeGen project.yml.
+    private func scaffoldIOSProject(at path: String, projectName: String) -> (filesCreated: [String], warnings: [String]) {
+        var filesCreated: [String] = []
+        var warnings: [String] = []
+
+        // 1. Create .mcp.json with xcode-tools + sosumi (Apple docs)
+        let mcpPath = (path as NSString).appendingPathComponent(".mcp.json")
+        if !fileManager.fileExists(atPath: mcpPath) {
+            do {
+                try Self.iosMCPConfig.write(toFile: mcpPath, atomically: true, encoding: .utf8)
+                filesCreated.append(".mcp.json")
+            } catch {
+                warnings.append("Could not create .mcp.json: \(error.localizedDescription)")
+            }
+        }
+
+        // 2. Create XcodeGen project.yml if no .xcodeproj exists
+        let hasXcodeProj = (try? fileManager.contentsOfDirectory(atPath: path))?
+            .contains(where: { $0.hasSuffix(".xcodeproj") }) ?? false
+        let projectYmlPath = (path as NSString).appendingPathComponent("project.yml")
+
+        if !hasXcodeProj && !fileManager.fileExists(atPath: projectYmlPath) {
+            let yml = Self.generateXcodeGenYml(projectName: projectName)
+            do {
+                try yml.write(toFile: projectYmlPath, atomically: true, encoding: .utf8)
+                filesCreated.append("project.yml")
+            } catch {
+                warnings.append("Could not create project.yml: \(error.localizedDescription)")
+            }
+
+            // Check if xcodegen is available
+            let whichProcess = Process()
+            whichProcess.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            whichProcess.arguments = ["which", "xcodegen"]
+            whichProcess.standardOutput = FileHandle.nullDevice
+            whichProcess.standardError = FileHandle.nullDevice
+            try? whichProcess.run()
+            whichProcess.waitUntilExit()
+
+            if whichProcess.terminationStatus != 0 {
+                warnings.append("XcodeGen not found. Install: brew install xcodegen. Then run: xcodegen generate")
+            } else {
+                // Auto-generate .xcodeproj
+                let genProcess = Process()
+                genProcess.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+                genProcess.arguments = ["xcodegen", "generate"]
+                genProcess.currentDirectoryURL = URL(fileURLWithPath: path)
+                genProcess.standardOutput = FileHandle.nullDevice
+                genProcess.standardError = FileHandle.nullDevice
+                try? genProcess.run()
+                genProcess.waitUntilExit()
+
+                if genProcess.terminationStatus == 0 {
+                    filesCreated.append("\(projectName).xcodeproj (generated)")
+                } else {
+                    warnings.append("XcodeGen failed — run `xcodegen generate` manually after reviewing project.yml")
+                }
+            }
+        }
+
+        return (filesCreated, warnings)
+    }
+
+    /// MCP config for iOS projects: Xcode tools + Apple documentation (sosumi).
+    static let iosMCPConfig = """
+    {
+      "mcpServers": {
+        "xcode-tools": {
+          "command": "xcrun",
+          "args": ["mcpbridge"]
+        },
+        "sosumi": {
+          "command": "npx",
+          "args": ["-y", "mcp-remote", "https://sosumi.ai/mcp"]
+        }
+      }
+    }
+    """
+
+    /// Generate a minimal XcodeGen project.yml for an iOS app.
+    static func generateXcodeGenYml(projectName: String) -> String {
+        """
+        name: \(projectName)
+        options:
+          bundleIdPrefix: one.obyw
+          deploymentTarget:
+            iOS: "17.0"
+          xcodeVersion: "16.0"
+          groupSortPosition: top
+
+        settings:
+          base:
+            SWIFT_VERSION: "6.0"
+            GENERATE_INFOPLIST_FILE: true
+
+        targets:
+          \(projectName):
+            type: application
+            platform: iOS
+            sources:
+              - path: Sources
+                group: Sources
+            settings:
+              base:
+                PRODUCT_BUNDLE_IDENTIFIER: one.obyw.\(projectName.lowercased())
+                INFOPLIST_KEY_UIApplicationSceneManifest_Generation: true
+                INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
+                INFOPLIST_KEY_UILaunchScreen_Generation: true
+                INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+
+          \(projectName)Tests:
+            type: bundle.unit-test
+            platform: iOS
+            sources:
+              - path: Tests
+                group: Tests
+            dependencies:
+              - target: \(projectName)
+            settings:
+              base:
+                PRODUCT_BUNDLE_IDENTIFIER: one.obyw.\(projectName.lowercased()).tests
+        """
+    }
+
+    // MARK: - Git Hooks
+
+    /// Install Shikki git hooks (git flow guard).
+    private func installGitHooks(at path: String) -> (filesCreated: [String], warnings: [String]) {
+        var filesCreated: [String] = []
+        var warnings: [String] = []
+
+        let hooksDir = (path as NSString).appendingPathComponent(".git/hooks")
+        guard fileManager.fileExists(atPath: hooksDir) else {
+            warnings.append("Git hooks directory not found — skipping hook installation.")
+            return (filesCreated, warnings)
+        }
+
+        let preCommitPath = (hooksDir as NSString).appendingPathComponent("pre-commit")
+
+        // Don't overwrite existing hooks (user may have custom ones)
+        if fileManager.fileExists(atPath: preCommitPath) {
+            // Check if it's already a Shikki hook
+            if let content = try? String(contentsOfFile: preCommitPath, encoding: .utf8),
+               content.contains("Git Flow Guard") {
+                return (filesCreated, warnings)
+            }
+            warnings.append("Existing pre-commit hook found — Shikki git flow guard NOT installed. Add manually or use --force.")
+            return (filesCreated, warnings)
+        }
+
+        let hookContent = Self.gitFlowPreCommitHook
+        do {
+            try hookContent.write(toFile: preCommitPath, atomically: true, encoding: .utf8)
+            // Make executable
+            let attrs: [FileAttributeKey: Any] = [.posixPermissions: 0o755]
+            try fileManager.setAttributes(attrs, ofItemAtPath: preCommitPath)
+            filesCreated.append(".git/hooks/pre-commit")
+        } catch {
+            warnings.append("Could not install git flow hook: \(error.localizedDescription)")
+        }
+
+        return (filesCreated, warnings)
+    }
+
+    /// The pre-commit hook content that enforces git flow.
+    static let gitFlowPreCommitHook = """
+    #!/bin/sh
+    # Git Flow Guard — installed by shikki init
+    # Reject direct commits on develop/main. Only merge commits allowed.
+
+    BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
+    GIT_DIR=$(git rev-parse --git-dir)
+
+    # --- develop: only merge commits allowed ---
+    if [ "$BRANCH" = "develop" ]; then
+        if [ -f "$GIT_DIR/MERGE_HEAD" ]; then
+            exit 0
+        fi
+        echo ""
+        echo "  BLOCKED: Direct commit on 'develop' is not allowed."
+        echo "  Create a feature branch: git checkout -b feature/my-change"
+        echo "  To bypass (emergency only): git commit --no-verify"
+        echo ""
+        exit 1
+    fi
+
+    # --- main: only merges from release/* or hotfix/* ---
+    if [ "$BRANCH" = "main" ]; then
+        if [ -f "$GIT_DIR/MERGE_HEAD" ]; then
+            MERGE_SOURCE=$(git name-rev --name-only "$(cat "$GIT_DIR/MERGE_HEAD")" 2>/dev/null)
+            case "$MERGE_SOURCE" in
+                release/*|hotfix/*|remotes/origin/release/*|remotes/origin/hotfix/*)
+                    exit 0
+                    ;;
+                *)
+                    echo ""
+                    echo "  BLOCKED: Merge into 'main' only from release/* or hotfix/*."
+                    echo "  Source: $MERGE_SOURCE"
+                    echo ""
+                    exit 1
+                    ;;
+            esac
+        fi
+        echo ""
+        echo "  BLOCKED: Direct commit on 'main' is not allowed."
+        echo "  Only merges from release/* or hotfix/* branches."
+        echo "  To bypass (emergency only): git commit --no-verify"
+        echo ""
+        exit 1
+    fi
+    """
 
     // MARK: - Template Application
 

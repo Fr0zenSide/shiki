@@ -17,6 +17,15 @@ struct PluginsCommand: AsyncParsableCommand {
     )
 }
 
+extension PluginsCommand {
+    /// Compute the on-disk directory name for a plugin ID.
+    /// Shared between install and uninstall to prevent path mismatches.
+    static func pluginDirectoryName(for id: String) -> String {
+        id.replacingOccurrences(of: "/", with: "-")
+            .trimmingCharacters(in: .whitespaces)
+    }
+}
+
 // MARK: - List
 
 extension PluginsCommand {
@@ -120,7 +129,7 @@ extension PluginsCommand {
 
                 // Copy plugin to plugins directory
                 let destDir = (PluginRegistry.defaultPluginsDirectory as NSString)
-                    .appendingPathComponent(manifest.id.rawValue.replacingOccurrences(of: "/", with: "-"))
+                    .appendingPathComponent(PluginsCommand.pluginDirectoryName(for: manifest.id.rawValue))
 
                 if fm.fileExists(atPath: destDir) {
                     try fm.removeItem(atPath: destDir)
@@ -129,6 +138,18 @@ extension PluginsCommand {
                     atPath: (destDir as NSString).deletingLastPathComponent,
                     withIntermediateDirectories: true
                 )
+                // Safety check: reject symlinks in plugin directory to prevent escape
+                let sourceURL = URL(fileURLWithPath: source)
+                if let enumerator = fm.enumerator(at: sourceURL, includingPropertiesForKeys: [.isSymbolicLinkKey]) {
+                    while let fileURL = enumerator.nextObject() as? URL {
+                        let resourceValues = try fileURL.resourceValues(forKeys: [.isSymbolicLinkKey])
+                        if resourceValues.isSymbolicLink == true {
+                            print("\u{1B}[31mPlugin contains symlinks (security risk): \(fileURL.lastPathComponent)\u{1B}[0m")
+                            throw ExitCode(1)
+                        }
+                    }
+                }
+
                 try fm.copyItem(atPath: source, toPath: destDir)
 
                 // Register with checksum verification
@@ -181,7 +202,7 @@ extension PluginsCommand {
 
             // Remove plugin directory
             let pluginDir = (PluginRegistry.defaultPluginsDirectory as NSString)
-                .appendingPathComponent(pluginID.replacingOccurrences(of: "/", with: "-"))
+                .appendingPathComponent(PluginsCommand.pluginDirectoryName(for: pluginID))
 
             if fm.fileExists(atPath: pluginDir) {
                 try fm.removeItem(atPath: pluginDir)
@@ -256,9 +277,8 @@ extension PluginsCommand {
             }
 
             // Version compatibility
-            let compatible = manifest.isCompatible(
-                with: SemanticVersion(major: 0, minor: 3, patch: 0)
-            )
+            let currentVersion = await PluginRegistry().currentVersion
+            let compatible = manifest.isCompatible(with: currentVersion)
             print("  Compatible: \(compatible ? "\u{1B}[32myes\u{1B}[0m" : "\u{1B}[31mno\u{1B}[0m")")
             print("  Min version: \(manifest.minimumShikkiVersion)")
         }

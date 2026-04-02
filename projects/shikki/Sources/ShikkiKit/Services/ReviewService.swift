@@ -226,8 +226,20 @@ public struct ReviewProgress: Codable, Sendable, Equatable {
 public struct ReviewPersistence: Sendable {
     private let baseDirectory: String
 
-    public init(baseDirectory: String = ".shikki/reviews") {
-        self.baseDirectory = baseDirectory
+    public init(baseDirectory: String? = nil) {
+        self.baseDirectory = baseDirectory ?? Self.resolveBaseDirectory()
+    }
+
+    private static func resolveBaseDirectory() -> String {
+        var dir = FileManager.default.currentDirectoryPath
+        while dir != "/" {
+            let shikkiDir = "\(dir)/.shikki"
+            if FileManager.default.fileExists(atPath: shikkiDir) {
+                return "\(shikkiDir)/reviews"
+            }
+            dir = (dir as NSString).deletingLastPathComponent
+        }
+        return "\(FileManager.default.currentDirectoryPath)/.shikki/reviews"
     }
 
     /// Directory for a specific PR's review state.
@@ -400,19 +412,28 @@ public struct ReviewService: Sendable {
         return result
     }
 
-    /// Run batch review for a range of PRs.
+    /// Run batch review for a range of PRs in parallel.
     public func reviewBatch(prNumbers: [Int], dryRun: Bool = false) async throws -> [PRReviewResult] {
-        var results: [PRReviewResult] = []
-        for number in prNumbers {
-            do {
-                let result = try await review(prNumber: number, dryRun: dryRun)
-                results.append(result)
-            } catch {
-                logger.error("Review failed for PR", metadata: ["pr": "\(number)", "error": "\(error)"])
-                // Continue batch — don't abort on single failure
+        try await withThrowingTaskGroup(of: PRReviewResult?.self) { group in
+            for number in prNumbers {
+                group.addTask {
+                    do {
+                        return try await self.review(prNumber: number, dryRun: dryRun)
+                    } catch {
+                        return nil
+                    }
+                }
             }
+
+            var results: [PRReviewResult] = []
+            for try await result in group {
+                if let result {
+                    results.append(result)
+                }
+            }
+            // Sort by PR number to maintain consistent ordering
+            return results.sorted { $0.prNumber < $1.prNumber }
         }
-        return results
     }
 }
 

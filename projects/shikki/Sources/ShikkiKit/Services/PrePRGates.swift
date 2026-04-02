@@ -70,21 +70,20 @@ public struct CtoReviewGate: ShipGate, Sendable {
 
     /// Best-effort feature spec loading from features/*.md based on branch name.
     private func loadFeatureSpec(branch: String, context: ShipContext) async -> String? {
-        // Extract feature slug from branch name (e.g., "feature/cmd-arch-w1" -> "cmd-arch-w1")
         let slug = branch.split(separator: "/").last.map(String.init) ?? branch
+        let featuresDir = context.projectRoot.deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("features").path
 
-        // Try to find a matching feature file
-        let findResult = try? await context.shell(
-            "ls \(shellEscape(context.projectRoot.path))/../../features/*\(shellEscape(slug))* 2>/dev/null"
-        )
-        guard let files = findResult?.stdout.trimmingCharacters(in: .whitespacesAndNewlines),
-              !files.isEmpty,
-              let firstFile = files.split(separator: "\n").first else {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(atPath: featuresDir) else { return nil }
+
+        // Find first .md file containing the slug
+        guard let matchFile = files.first(where: { $0.hasSuffix(".md") && $0.contains(slug) }) else {
             return nil
         }
 
-        let catResult = try? await context.shell("cat \(shellEscape(String(firstFile)))")
-        return catResult?.stdout
+        let fullPath = "\(featuresDir)/\(matchFile)"
+        return try? String(contentsOfFile: fullPath, encoding: .utf8)
     }
 }
 
@@ -119,9 +118,16 @@ public struct SlopScanGate: ShipGate, Sendable {
 
         // Read source contents
         var sources: [String] = []
+        let rootPath = context.projectRoot.path
         for file in files {
+            // Guard against path traversal
+            guard !file.contains("..") else { continue }
+            let fullPath = "\(rootPath)/\(file)"
+            // Verify the resolved path is within the project root
+            let resolved = URL(fileURLWithPath: fullPath).standardized.path
+            guard resolved.hasPrefix(rootPath) else { continue }
             let catResult = try await context.shell(
-                "cat \(shellEscape(context.projectRoot.path))/\(shellEscape(file)) 2>/dev/null"
+                "cat \(shellEscape(resolved)) 2>/dev/null"
             )
             if !catResult.stdout.isEmpty {
                 sources.append("// FILE: \(file)\n\(catResult.stdout)")

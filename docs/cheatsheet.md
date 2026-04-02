@@ -4,7 +4,7 @@
 
 ```bash
 shiki start                # Launch everything from scratch
-shiki attach               # Reconnect to running session
+tmux attach-session        # Reconnect to running session
 shiki stop                 # Kill tmux session (containers stay up)
 ```
 

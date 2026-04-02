@@ -11,8 +11,8 @@ Plugins extend Shikki with new commands, capabilities, and integrations. A plugi
 # From local path
 shikki plugins install ./my-plugin/
 
-# From GitHub (coming soon)
-shikki plugins install github:obyw-one/creative-studio
+# From GitHub (roadmap — not yet implemented)
+# shikki plugins install github:obyw-one/creative-studio
 ```
 
 ### List installed plugins
@@ -52,7 +52,7 @@ my-plugin/
   "version": "0.1.0",
   "source": "local",
   "commands": [
-    { "name": "mycommand", "emoji": "🔧" }
+    { "name": "mycommand", "description": "What this command does" }
   ],
   "capabilities": ["my-feature"],
   "dependencies": {
@@ -87,7 +87,7 @@ shikki mycommand  # your command works!
 
 ## Plugin Storage
 
-Installed plugins live at `~/.shikki/plugins/`:
+Installed plugins live at `~/.shikki/plugins/` (created by `setup.sh` or auto-created on first install):
 
 ```
 ~/.shikki/plugins/
@@ -108,9 +108,10 @@ Installed plugins live at `~/.shikki/plugins/`:
 
 ## Sharing
 
-### Via GitHub
+### Via GitHub (roadmap — P2)
 Push your plugin to a GitHub repo with `manifest.json` at the root.
-Others install with: `shikki plugins install github:your-name/plugin-name`
+When implemented: `shikki plugins install github:your-name/plugin-name`
+See `features/shikki-plugin-marketplace.md` for the full distribution plan.
 
 ### Via Marketplace (coming soon)
 Submit a PR to the `shikki-plugins/registry` repo.

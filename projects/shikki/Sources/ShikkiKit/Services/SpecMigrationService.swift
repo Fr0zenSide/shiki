@@ -298,7 +298,9 @@ public struct SpecMigrationService: Sendable {
                             .trimmingCharacters(in: .whitespaces)
                             .replacingOccurrences(of: "**", with: "")
                         let knownKeys = ["status", "priority", "date", "created", "project", "scope", "author", "authors"]
-                        if knownKeys.contains(potentialKey.lowercased()) {
+                        // Only strip if key is a single word (no spaces) AND matches known keys
+                        let cleanKey = potentialKey.trimmingCharacters(in: .whitespaces)
+                        if !cleanKey.contains(" ") && knownKeys.contains(cleanKey.lowercased()) {
                             return nil
                         }
                     }
@@ -489,12 +491,7 @@ public struct SpecMigrationService: Sendable {
 
     /// Count `## ` level-2 headings in the body text.
     public func countSections(_ body: String) -> Int {
-        body.components(separatedBy: "\n")
-            .filter { line in
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                return trimmed.hasPrefix("## ") && !trimmed.hasPrefix("### ")
-            }
-            .count
+        SpecCommandUtilities.countSections(in: body)
     }
 
     // MARK: - Tag Generation

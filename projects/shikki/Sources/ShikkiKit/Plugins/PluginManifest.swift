@@ -336,11 +336,14 @@ extension PluginManifest {
         case emptyEntryPoint
         case emptyChecksum
         case noCommands
+        case invalidIDFormat(String)
         case minimumVersionNotMet(required: SemanticVersion, current: SemanticVersion)
 
         public var description: String {
             switch self {
             case .emptyID: return "Plugin ID must not be empty"
+            case .invalidIDFormat(let id):
+                return "Plugin ID must match 'org/name' format (alphanumeric, hyphens, dots), got: \(id)"
             case .emptyDisplayName: return "Display name must not be empty"
             case .emptyAuthor: return "Author must not be empty"
             case .emptyEntryPoint: return "Entry point must not be empty"
@@ -355,6 +358,26 @@ extension PluginManifest {
     /// Validate the manifest for structural correctness.
     public func validate() throws {
         if id.rawValue.isEmpty { throw ValidationError.emptyID }
+
+        // Validate ID format: must be "org/name", no path traversal
+        let idValue = id.rawValue
+        guard !idValue.contains(".."),
+              !idValue.hasPrefix("/"),
+              !idValue.hasPrefix("."),
+              idValue.contains("/"),
+              idValue.split(separator: "/").count == 2 else {
+            throw ValidationError.invalidIDFormat(idValue)
+        }
+        // Each segment must be alphanumeric with hyphens/dots only
+        let segments = idValue.split(separator: "/").map(String.init)
+        let validPattern = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._"))
+        for segment in segments {
+            guard !segment.isEmpty,
+                  segment.unicodeScalars.allSatisfy({ validPattern.contains($0) }) else {
+                throw ValidationError.invalidIDFormat(idValue)
+            }
+        }
+
         if displayName.isEmpty { throw ValidationError.emptyDisplayName }
         if author.isEmpty { throw ValidationError.emptyAuthor }
         if entryPoint.isEmpty { throw ValidationError.emptyEntryPoint }

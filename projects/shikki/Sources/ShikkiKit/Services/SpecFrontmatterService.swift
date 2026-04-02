@@ -30,9 +30,7 @@ public struct SpecFrontmatterService: Sendable {
 
     /// Count the number of `## ` headings (sections) in a markdown file.
     public func countSections(in content: String) -> Int {
-        content.components(separatedBy: "\n")
-            .filter { $0.hasPrefix("## ") && !$0.hasPrefix("### ") }
-            .count
+        SpecCommandUtilities.countSections(in: content)
     }
 
     /// Find the line number of a heading anchor in a markdown file.
@@ -341,7 +339,7 @@ public struct SpecFrontmatterService: Sendable {
     func serializeToYAML(_ metadata: SpecMetadata) -> String {
         var lines: [String] = []
 
-        let escapedTitle = metadata.title.replacingOccurrences(of: "\"", with: "\\\"")
+        let escapedTitle = SpecCommandUtilities.escapeYAML(metadata.title)
         lines.append("title: \"\(escapedTitle)\"")
         lines.append("status: \(metadata.status.rawValue)")
 
@@ -361,18 +359,18 @@ public struct SpecFrontmatterService: Sendable {
             lines.append("updated: \(updated)")
         }
         if let authors = metadata.authors {
-            lines.append("authors: \"\(authors)\"")
+            lines.append("authors: \"\(SpecCommandUtilities.escapeYAML(authors))\"")
         }
 
         if !metadata.reviewers.isEmpty {
             lines.append("reviewers:")
             for reviewer in metadata.reviewers {
-                lines.append("  - who: \"\(reviewer.who)\"")
+                lines.append("  - who: \"\(SpecCommandUtilities.escapeYAML(reviewer.who))\"")
                 lines.append("    date: \(reviewer.date ?? "null")")
                 lines.append("    verdict: \(reviewer.verdict.rawValue)")
                 lines.append("    anchor: \(reviewer.anchor ?? "null")")
                 if let notes = reviewer.notes {
-                    lines.append("    notes: \"\(notes)\"")
+                    lines.append("    notes: \"\(SpecCommandUtilities.escapeYAML(notes))\"")
                 }
                 if let sv = reviewer.sectionsValidated {
                     lines.append("    sections_validated: [\(sv.map(String.init).joined(separator: ", "))]")
@@ -401,7 +399,7 @@ public struct SpecFrontmatterService: Sendable {
 
         if let flsh = metadata.flsh {
             lines.append("flsh:")
-            lines.append("  summary: \"\(flsh.summary)\"")
+            lines.append("  summary: \"\(SpecCommandUtilities.escapeYAML(flsh.summary))\"")
             if let duration = flsh.duration {
                 lines.append("  duration: \(duration)")
             }

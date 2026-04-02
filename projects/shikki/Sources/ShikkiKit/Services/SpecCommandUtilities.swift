@@ -57,4 +57,20 @@ public enum SpecCommandUtilities: Sendable {
         }
         return nil
     }
+
+    /// Count `## ` level-2 headings in markdown content.
+    /// Excludes `### ` and deeper headings.
+    public static func countSections(in content: String) -> Int {
+        content.components(separatedBy: "\n")
+            .filter { $0.hasPrefix("## ") && !$0.hasPrefix("### ") }
+            .count
+    }
+
+    /// Escape a string for safe YAML double-quoted value.
+    /// Escapes backslashes first, then double quotes.
+    public static func escapeYAML(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+    }
 }

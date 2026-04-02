@@ -397,11 +397,7 @@ public struct SpecFrontmatterParser: Sendable {
 
     /// Count `## ` level-2 headings in the markdown body.
     func countSections(_ body: String) -> Int {
-        let lines = body.components(separatedBy: "\n")
-        return lines.filter { line in
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            return trimmed.hasPrefix("## ") && !trimmed.hasPrefix("### ")
-        }.count
+        SpecCommandUtilities.countSections(in: body)
     }
 
     // MARK: - Validation

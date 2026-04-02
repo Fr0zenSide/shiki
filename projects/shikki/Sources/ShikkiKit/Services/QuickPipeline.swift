@@ -44,6 +44,8 @@ public struct QuickPipelineResult: Sendable {
     public let newTests: Int
     /// Commit hash if committed, nil if unstaged.
     public let commitHash: String?
+    /// Notes from self-review step, if available.
+    public let reviewNotes: String?
     /// Total pipeline duration in seconds.
     public let duration: TimeInterval
     /// Steps completed (0-4).
@@ -55,6 +57,7 @@ public struct QuickPipelineResult: Sendable {
         testsPassing: Int,
         newTests: Int,
         commitHash: String?,
+        reviewNotes: String? = nil,
         duration: TimeInterval,
         stepsCompleted: Int
     ) {
@@ -63,6 +66,7 @@ public struct QuickPipelineResult: Sendable {
         self.testsPassing = testsPassing
         self.newTests = newTests
         self.commitHash = commitHash
+        self.reviewNotes = reviewNotes
         self.duration = duration
         self.stepsCompleted = stepsCompleted
     }
@@ -113,7 +117,7 @@ public struct ScopeDetector: Sendable {
 
         // Multiple components
         let componentKeywords = ["and", "also", "plus", "both", "all"]
-        let componentCount = componentKeywords.filter { lower.contains($0) }.count
+        let componentCount = componentKeywords.filter { containsWord($0, in: lower) }.count
         if componentCount >= 2 {
             signals.append(.multipleComponents)
         }
@@ -158,6 +162,22 @@ public struct ScopeDetector: Sendable {
         }
 
         return (score: signals.count, signals: signals)
+    }
+
+    /// Check if a word exists at word boundaries in the text.
+    /// Prevents "and" from matching "understand", "band", etc.
+    private func containsWord(_ word: String, in text: String) -> Bool {
+        let boundaries = CharacterSet.alphanumerics.inverted
+        var searchRange = text.startIndex..<text.endIndex
+        while let range = text.range(of: word, range: searchRange) {
+            let beforeOK = range.lowerBound == text.startIndex ||
+                String(text[text.index(before: range.lowerBound)]).rangeOfCharacter(from: boundaries) != nil
+            let afterOK = range.upperBound == text.endIndex ||
+                String(text[range.upperBound]).rangeOfCharacter(from: boundaries) != nil
+            if beforeOK && afterOK { return true }
+            searchRange = range.upperBound..<text.endIndex
+        }
+        return false
     }
 }
 
@@ -258,9 +278,9 @@ public struct QuickPipeline: Sendable {
             implementation: implOutput,
             projectPath: projectPath
         )
-        let reviewOutput: String
+        var reviewNotes: String?
         do {
-            reviewOutput = try await agent.run(prompt: reviewPrompt, timeout: 120)
+            reviewNotes = try await agent.run(prompt: reviewPrompt, timeout: 120)
         } catch {
             // Self-review failure is non-fatal — log and continue
             logger.warning("Self-review failed", metadata: ["error": "\(error)"])
@@ -277,6 +297,7 @@ public struct QuickPipeline: Sendable {
             testsPassing: stats.testsPassing,
             newTests: stats.newTests,
             commitHash: nil, // Caller handles commit
+            reviewNotes: reviewNotes,
             duration: duration,
             stepsCompleted: 3
         )

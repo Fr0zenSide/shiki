@@ -72,13 +72,42 @@ public struct SpecAnnotationParser: Sendable {
                         continue
                     }
 
-                    // Check for content comment line: <!-- ... -->
+                    // Check for content comment line: <!-- ... --> or opening <!-- ...
                     if let commentContent = extractCommentContent(nextTrimmed) {
                         // Make sure it's not a new @note
                         if commentContent.hasPrefix("@note ") {
                             break
                         }
                         contentLines.append(commentContent)
+                        index += 1
+
+                        // If this was an opening <!-- without -->, accumulate until -->
+                        if !nextTrimmed.hasSuffix("-->") {
+                            while index < lines.count {
+                                let contTrimmed = lines[index].trimmingCharacters(in: .whitespaces)
+                                if let multiline = extractMultilineContent(contTrimmed) {
+                                    // Closing --> found
+                                    if !multiline.content.isEmpty {
+                                        contentLines.append(multiline.content)
+                                    }
+                                    index += 1
+                                    break
+                                }
+                                // Middle of multi-line comment (no markers)
+                                if !contTrimmed.isEmpty {
+                                    contentLines.append(contTrimmed)
+                                }
+                                index += 1
+                            }
+                        }
+                        continue
+                    }
+
+                    // Multi-line comment continuation: line ending with -->
+                    if let multiline = extractMultilineContent(nextTrimmed) {
+                        if !multiline.content.isEmpty {
+                            contentLines.append(multiline.content)
+                        }
                         index += 1
                         continue
                     }
@@ -149,13 +178,34 @@ public struct SpecAnnotationParser: Sendable {
     // MARK: - Comment Extraction
 
     /// Extract content from `<!-- ... -->`, returning nil if not a comment.
+    /// Handles single-line comments: `<!-- content here -->`
+    /// For multi-line support, check if line starts with `<!--` without closing `-->`.
     private func extractCommentContent(_ line: String) -> String? {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
-        guard trimmed.hasPrefix("<!--") && trimmed.hasSuffix("-->") else { return nil }
-        let inner = trimmed
-            .dropFirst(4)
-            .dropLast(3)
-            .trimmingCharacters(in: .whitespaces)
-        return inner
+        guard trimmed.hasPrefix("<!--") else { return nil }
+
+        if trimmed.hasSuffix("-->") {
+            // Single-line comment
+            let inner = trimmed
+                .dropFirst(4)
+                .dropLast(3)
+                .trimmingCharacters(in: .whitespaces)
+            return inner
+        }
+
+        // Opening of multi-line comment — return content after <!--
+        let inner = String(trimmed.dropFirst(4)).trimmingCharacters(in: .whitespaces)
+        return inner.isEmpty ? nil : inner
+    }
+
+    /// Check if a line is a multi-line comment continuation or closing.
+    /// Returns (content, isClosing) or nil if not a comment part.
+    private func extractMultilineContent(_ line: String) -> (content: String, isClosing: Bool)? {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasSuffix("-->") {
+            let content = String(trimmed.dropLast(3)).trimmingCharacters(in: .whitespaces)
+            return (content, true)
+        }
+        return nil
     }
 }

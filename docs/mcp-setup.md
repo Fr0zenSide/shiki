@@ -25,9 +25,11 @@ These servers are available when working from the shiki root or any subdirectory
 
 | Server | Purpose | Command |
 |--------|---------|---------|
-| *(none yet)* | — | — |
+| **shikki-db** | ShikkiDB knowledge layer — search, save events, decisions, plans | `shikki-mcp` (local binary at `~/.local/bin/shikki-mcp`) |
 
-> Add shared servers here as the team adopts cross-project tools (e.g., a shared database MCP, CI/CD server, etc.)
+Environment: `SHIKI_DB_URL` (default: `http://localhost:3900`)
+
+> Add more shared servers here as the team adopts cross-project tools.
 
 ## Project-Specific MCP Servers
 

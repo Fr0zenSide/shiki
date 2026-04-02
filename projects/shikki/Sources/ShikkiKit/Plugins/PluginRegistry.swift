@@ -158,6 +158,11 @@ public actor PluginRegistry {
         plugins.count
     }
 
+    /// The Shikki version this registry was initialized with.
+    public var currentVersion: SemanticVersion {
+        shikkiVersion
+    }
+
     // MARK: - Verification
 
     /// Verify a plugin's checksum matches the expected value.
