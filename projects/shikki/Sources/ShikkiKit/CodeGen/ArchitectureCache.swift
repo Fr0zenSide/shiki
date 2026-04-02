@@ -26,6 +26,8 @@ public struct ArchitectureCache: Sendable, Codable {
     public var patterns: [CodePattern]
     /// Test conventions and statistics.
     public var testInfo: TestInfo
+    /// Shared utility functions used across multiple files.
+    public var sharedUtilities: [SharedUtility]
 
     public init(
         projectId: String,
@@ -37,7 +39,8 @@ public struct ArchitectureCache: Sendable, Codable {
         types: [TypeDescriptor],
         dependencyGraph: [String: [String]],
         patterns: [CodePattern],
-        testInfo: TestInfo
+        testInfo: TestInfo,
+        sharedUtilities: [SharedUtility] = []
     ) {
         self.projectId = projectId
         self.projectPath = projectPath
@@ -49,6 +52,7 @@ public struct ArchitectureCache: Sendable, Codable {
         self.dependencyGraph = dependencyGraph
         self.patterns = patterns
         self.testInfo = testInfo
+        self.sharedUtilities = sharedUtilities
     }
 }
 
@@ -157,6 +161,10 @@ public struct TypeDescriptor: Sendable, Codable {
     /// Protocol conformance names.
     public var conformances: [String]
     public var isPublic: Bool
+    /// Method signatures (e.g. "func configure(apiKey: String)").
+    public var methods: [String]
+    /// Computed property signatures (e.g. "var isConfigured: Bool { get }").
+    public var computedProperties: [String]
 
     public init(
         name: String,
@@ -165,7 +173,9 @@ public struct TypeDescriptor: Sendable, Codable {
         module: String = "",
         fields: [String] = [],
         conformances: [String] = [],
-        isPublic: Bool = false
+        isPublic: Bool = false,
+        methods: [String] = [],
+        computedProperties: [String] = []
     ) {
         self.name = name
         self.kind = kind
@@ -174,6 +184,8 @@ public struct TypeDescriptor: Sendable, Codable {
         self.fields = fields
         self.conformances = conformances
         self.isPublic = isPublic
+        self.methods = methods
+        self.computedProperties = computedProperties
     }
 }
 
@@ -231,5 +243,31 @@ public struct TestInfo: Sendable, Codable {
         self.testCount = testCount
         self.mockPattern = mockPattern
         self.fixturePattern = fixturePattern
+    }
+}
+
+// MARK: - Shared Utility
+
+/// A shared utility function referenced across multiple files.
+public struct SharedUtility: Sendable, Codable {
+    /// Utility function name (e.g. "formatDate").
+    public var name: String
+    /// Full function signature.
+    public var signature: String
+    /// File where the utility is defined.
+    public var file: String
+    /// Files where the utility is used.
+    public var usageFiles: [String]
+
+    public init(
+        name: String,
+        signature: String = "",
+        file: String = "",
+        usageFiles: [String] = []
+    ) {
+        self.name = name
+        self.signature = signature
+        self.file = file
+        self.usageFiles = usageFiles
     }
 }

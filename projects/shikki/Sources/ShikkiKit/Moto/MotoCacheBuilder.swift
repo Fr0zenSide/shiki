@@ -206,6 +206,74 @@ public struct MotoCacheBuilder: Sendable {
         return APISurface(modules: modules)
     }
 
+    // MARK: - Method Index
+
+    /// Build a method-level index from an ``ArchitectureCache``.
+    ///
+    /// Extracts function signatures and computed properties from all types,
+    /// plus protocol method requirements.
+    public func buildMethodIndex(from cache: ArchitectureCache) -> MethodIndex {
+        var entries: [MethodIndexEntry] = []
+
+        // Index type methods and computed properties
+        for type in cache.types {
+            for method in type.methods {
+                entries.append(MethodIndexEntry(
+                    typeName: type.name,
+                    signature: method,
+                    kind: .function,
+                    file: type.file,
+                    module: type.module
+                ))
+            }
+            for prop in type.computedProperties {
+                entries.append(MethodIndexEntry(
+                    typeName: type.name,
+                    signature: prop,
+                    kind: .computedProperty,
+                    file: type.file,
+                    module: type.module
+                ))
+            }
+        }
+
+        // Index protocol requirements
+        for proto in cache.protocols {
+            for method in proto.methods {
+                let kind: MethodEntryKind = method.hasPrefix("var ") ? .computedProperty : .protocolRequirement
+                entries.append(MethodIndexEntry(
+                    typeName: proto.name,
+                    signature: method,
+                    kind: kind,
+                    file: proto.file,
+                    module: proto.module
+                ))
+            }
+        }
+
+        return MethodIndex(entries: entries)
+    }
+
+    // MARK: - Utilities Manifest
+
+    /// Build a shared utilities manifest from an ``ArchitectureCache``.
+    ///
+    /// Lists shared helper functions with their usage counts,
+    /// sorted by usage count descending.
+    public func buildUtilitiesManifest(from cache: ArchitectureCache) -> UtilitiesManifest {
+        let utilityEntries = cache.sharedUtilities.map { utility in
+            UtilityEntry(
+                name: utility.name,
+                signature: utility.signature,
+                definitionFile: utility.file,
+                usageCount: utility.usageFiles.count,
+                usageFiles: utility.usageFiles
+            )
+        }.sorted { $0.usageCount > $1.usageCount }
+
+        return UtilitiesManifest(utilities: utilityEntries)
+    }
+
     // MARK: - SHA-256
 
     func sha256Hex(_ data: Data) -> String {
