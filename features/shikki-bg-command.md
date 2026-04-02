@@ -99,39 +99,66 @@ shi bg "prompt" → CLI generates taskId (UUID), saves to ShikiDB (queued), publ
   → Ctrl+B g overlay renders full result with bat/less
 ```
 
-## Test Scenarios
+## TDDP — Test-Driven Development Plan
+
+| Test | BR | Tier | Coverage | Description |
+|------|-----|------|----------|-------------|
+| T-01 | BR-03 | Core (80%) | Unit | Submitting bg task saves to ShikiDB with status "queued", returns task ID |
+| T-02 | BR-01 | Security (100%) | Unit | BackgroundNode uses LMStudioProvider — mock verifies NO cloud provider called |
+| T-03 | BR-02 | Core (80%) | Unit | BackgroundNode calls shiki_get_context with correct project before LLM call |
+| T-04 | BR-04 | Core (80%) | Unit | Completed task publishes NATS event on shikki.bg.result.{taskId} |
+| T-05 | BR-07 | Core (80%) | Unit | Exceeding max parallel (3) queues tasks FIFO, processes when slot opens |
+| T-06 | BR-08 | Smoke (CLI) | Unit | shi bg cancel sets status "cancelled" in ShikiDB, aborts running Task |
+| T-07 | BR-08 | Smoke (CLI) | Unit | shi bg list returns all tasks sorted by submission time |
+| T-08 | BR-10 | Core (80%) | Unit | Results older than TTL excluded from list, pruned on launch |
+| T-09 | BR-06 | Core (80%) | Integration | bg task survives session restart — resumed from ShikiDB state |
+| T-10 | BR-05 | Smoke (CLI) | Integration | tmux pane updates status on NATS progress/result events |
+
+## Wave Dispatch Tree
 
 ```
-T-01: Submitting a bg task saves it to ShikiDB with status "queued" and returns a task ID
-T-02: BackgroundNode uses LMStudioProvider — mock provider verifies no cloud provider is called
-T-03: BackgroundNode recovers context from ShikiDB before calling LLM — mock verifies shiki_get_context called with correct project
-T-04: Completed task publishes NATS event on shikki.bg.result.{taskId} with full response payload
-T-05: Exceeding max parallel tasks (default 3) queues additional tasks and processes them FIFO when slots open
-T-06: shi bg cancel sets task status to "cancelled" in ShikiDB and aborts the running Task
-T-07: shi bg list returns all tasks for the current session sorted by submission time
-T-08: Results older than TTL (24h) are excluded from shi bg list and pruned on next launch
+Wave 1: Core Engine
+  ├── BackgroundTask model (no deps)
+  ├── BackgroundTaskStore (depends: ShikiDB)
+  ├── BackgroundNode actor (depends: LMStudioProvider, BackgroundTaskStore)
+  └── ConcurrencyLimiter (depends: BackgroundTaskStore)
+  Tests: T-01, T-02, T-03, T-05, T-08
+  Gate: swift test --filter Background → all green
+
+Wave 2: CLI + NATS ← BLOCKED BY Wave 1
+  ├── BackgroundCommand (depends: BackgroundNode, BackgroundTaskStore)
+  ├── NATS bg subjects (depends: NATSDispatcher)
+  └── Result notification (depends: BackgroundNode, NATS)
+  Tests: T-04, T-06, T-07, T-09
+  Gate: swift test --filter Background → all green + shi bg "ping" returns result
+
+Wave 3: tmux + Overlay ← BLOCKED BY Wave 2
+  ├── tmux pane renderer (depends: NATS bg subscription)
+  ├── Overlay popup (depends: BackgroundTaskStore.list)
+  └── Settings integration (depends: AppConfig)
+  Tests: T-10
+  Gate: full swift test green + manual tmux verification
 ```
 
 ## Implementation Waves
 
-### Wave 1: Core Engine (P0 for this feature)
-- `BackgroundTask` model: id, prompt, status, result, model, timestamps, TTL
-- `BackgroundTaskStore`: ShikiDB persistence (save, list, get, cancel, prune)
-- `BackgroundNode` actor: context recovery + LMStudioProvider call + result persistence
-- Concurrency limiter (max 3 parallel, FIFO queue)
-- Unit tests: T-01 through T-06
+### Wave 1: Core Engine — BackgroundTask + BackgroundNode + Store
+**Files:** `Kernel/Core/BackgroundTask.swift`, `Kernel/Core/BackgroundTaskStore.swift`, `Kernel/Core/BackgroundNode.swift`, `Kernel/Core/ConcurrencyLimiter.swift`
+**Tests:** `Tests/BackgroundNodeTests.swift` (T-01, T-02, T-03, T-05, T-08)
+**Deps:** LMStudioProvider (exists), ShikiDB (exists)
+**Gate:** `swift test --filter Background` green
 
-### Wave 2: CLI + NATS Integration
-- `BackgroundCommand` (ArgumentParser): `shi bg "prompt"`, `list`, `show <id>`, `cancel <id>`
-- NATS subjects: `shikki.bg.submit`, `shikki.bg.progress.{taskId}`, `shikki.bg.result.{taskId}`
-- Wire `NATSDispatcher` to publish/subscribe bg events
-- Unit tests: T-04, T-07, T-08
+### Wave 2: CLI + NATS ← blocked by W1
+**Files:** `Commands/BackgroundCommand.swift`, extend `NATSDispatcher` with bg subjects
+**Tests:** `Tests/BackgroundCommandTests.swift` (T-04, T-06, T-07, T-09)
+**Deps:** Wave 1, NATSDispatcher (exists)
+**Gate:** `swift test --filter Background` green + `shi bg "ping"` E2E
 
-### Wave 3: tmux Pane + Overlay
-- tmux pane renderer: 3-line status bar, NATS-driven updates
-- Overlay popup (Ctrl+B g): list results, select to view full output
-- Settings.json integration: `bg.maxParallel`, `bg.ttlHours`, `bg.keybind`
-- Integration tests: full flow from `shi bg` to overlay display
+### Wave 3: tmux + Overlay ← blocked by W2
+**Files:** `TUI/BackgroundStatusPane.swift`, `TUI/BackgroundOverlay.swift`
+**Tests:** T-10 (integration)
+**Deps:** Wave 2, TUI primitives (exist)
+**Gate:** full `swift test` green + manual tmux
 
 ## Reuse Audit
 
