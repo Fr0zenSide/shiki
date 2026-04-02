@@ -165,8 +165,7 @@ public actor PluginRunner {
         }
 
         // Wait with timeout
-        let timeoutNanos = UInt64(timeout.components.seconds) * 1_000_000_000
-            + UInt64(timeout.components.attoseconds / 1_000_000_000)
+        let timeoutNanos = UInt64(timeout.totalSeconds * 1_000_000_000)
 
         let completed = await withTaskGroup(of: Bool.self) { group in
             group.addTask {

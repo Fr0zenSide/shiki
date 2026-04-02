@@ -180,10 +180,7 @@ public actor ShikkiKernel {
 
                 // Schedule next tick
                 let interval = service.interval
-                entries[service.id]?.nextDue = now.addingTimeInterval(
-                    Double(interval.components.seconds)
-                    + Double(interval.components.attoseconds) / 1e18
-                )
+                entries[service.id]?.nextDue = now.addingTimeInterval(interval.totalSeconds)
             }
         }
 
@@ -268,9 +265,7 @@ public actor ShikkiKernel {
         var due: [any ManagedService] = []
 
         for (_, entry) in entries {
-            let leewaySeconds = Double(entry.service.leeway.components.seconds)
-                + Double(entry.service.leeway.components.attoseconds) / 1e18
-            let effectiveDue = entry.nextDue.addingTimeInterval(-leewaySeconds)
+            let effectiveDue = entry.nextDue.addingTimeInterval(-entry.service.leeway.totalSeconds)
 
             if now >= effectiveDue {
                 due.append(entry.service)
@@ -310,9 +305,7 @@ public actor ShikkiKernel {
         switch policy {
         case .always(let maxRestarts, let backoff):
             if entry.restartCount <= maxRestarts {
-                let backoffSeconds = Double(backoff.components.seconds)
-                    + Double(backoff.components.attoseconds) / 1e18
-                entry.nextDue = Date().addingTimeInterval(backoffSeconds)
+                entry.nextDue = Date().addingTimeInterval(backoff.totalSeconds)
                 logger.info("Service \(serviceId) restart \(entry.restartCount)/\(maxRestarts) after backoff")
             } else {
                 logger.error("Service \(serviceId) exceeded max restarts (\(maxRestarts))")
@@ -320,9 +313,7 @@ public actor ShikkiKernel {
 
         case .onFailure(let maxRestarts, let backoff):
             if entry.restartCount <= maxRestarts {
-                let backoffSeconds = Double(backoff.components.seconds)
-                    + Double(backoff.components.attoseconds) / 1e18
-                entry.nextDue = Date().addingTimeInterval(backoffSeconds)
+                entry.nextDue = Date().addingTimeInterval(backoff.totalSeconds)
                 logger.info("Service \(serviceId) restart \(entry.restartCount)/\(maxRestarts) after backoff")
             } else {
                 logger.error("Service \(serviceId) exceeded max restarts (\(maxRestarts))")

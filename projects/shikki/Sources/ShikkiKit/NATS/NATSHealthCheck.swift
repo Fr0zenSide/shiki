@@ -90,8 +90,7 @@ public struct NATSHealthCheck: NATSHealthCheckProtocol {
             }
 
             let elapsed = ContinuousClock.now - start
-            let latencyMs = Double(elapsed.components.seconds) * 1000
-                + Double(elapsed.components.attoseconds) / 1e15
+            let latencyMs = elapsed.totalSeconds * 1000
 
             return .healthy(latencyMs: latencyMs)
         } catch {

@@ -194,10 +194,7 @@ public actor NodeRegistry {
 
     /// Nodes that haven't sent a heartbeat within the threshold.
     public func staleNodes(threshold: Duration) -> [NodeIdentity] {
-        let cutoff = Date().addingTimeInterval(
-            -Double(threshold.components.seconds)
-            - Double(threshold.components.attoseconds) / 1e18
-        )
+        let cutoff = Date().addingTimeInterval(-threshold.totalSeconds)
         return nodes.values
             .filter { !$0.isStale && $0.lastSeen < cutoff }
             .map(\.identity)

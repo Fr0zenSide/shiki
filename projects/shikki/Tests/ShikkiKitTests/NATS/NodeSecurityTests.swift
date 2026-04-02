@@ -135,7 +135,8 @@ struct NodeSecurityTests {
             registry: registry,
             nats: nats,
             meshToken: Self.validToken,
-            heartbeatInterval: .milliseconds(50)
+            heartbeatInterval: .milliseconds(50),
+            objectionWindow: .milliseconds(50)
         )
 
         let initialState = await election.state
@@ -192,7 +193,8 @@ struct NodeSecurityTests {
             registry: registry,
             nats: nats,
             meshToken: Self.validToken,
-            heartbeatInterval: .milliseconds(30)
+            heartbeatInterval: .milliseconds(30),
+            objectionWindow: .milliseconds(50)
         )
 
         try await election.start()

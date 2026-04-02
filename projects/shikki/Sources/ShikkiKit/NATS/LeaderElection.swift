@@ -80,6 +80,7 @@ public actor LeaderElection {
     private let meshToken: String
     private let meshTokenHashValue: String
     private let heartbeatInterval: Duration
+    private let objectionWindow: Duration
     private let logger: Logger
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
@@ -98,6 +99,7 @@ public actor LeaderElection {
         nats: any NATSClientProtocol,
         meshToken: String,
         heartbeatInterval: Duration = .seconds(30),
+        objectionWindow: Duration = .seconds(1),
         logger: Logger = Logger(label: "shikki.leader-election")
     ) {
         self.identity = identity
@@ -106,6 +108,7 @@ public actor LeaderElection {
         self.meshToken = meshToken
         self.meshTokenHashValue = MeshTokenProvider.hash(meshToken)
         self.heartbeatInterval = heartbeatInterval
+        self.objectionWindow = objectionWindow
         self.logger = logger
         self.encoder = JSONEncoder()
         self.encoder.dateEncodingStrategy = .iso8601
@@ -165,8 +168,8 @@ public actor LeaderElection {
 
         try await publishPrimaryClaim()
 
-        // Brief pause to allow objections (in production this would be longer)
-        try await Task.sleep(for: .milliseconds(50))
+        // Wait for counter-claims before finalising promotion
+        try await Task.sleep(for: objectionWindow)
 
         // Step 3: PRIMARY — claim accepted
         _state = .primary

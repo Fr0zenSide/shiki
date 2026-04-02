@@ -42,7 +42,8 @@ struct LeaderElectionTests {
             registry: registry,
             nats: nats,
             meshToken: Self.meshToken,
-            heartbeatInterval: .seconds(60)
+            heartbeatInterval: .seconds(60),
+            objectionWindow: .milliseconds(50)
         )
 
         // Start and promote to primary
@@ -93,7 +94,8 @@ struct LeaderElectionTests {
             registry: registry,
             nats: nats,
             meshToken: Self.meshToken,
-            heartbeatInterval: .seconds(60)
+            heartbeatInterval: .seconds(60),
+            objectionWindow: .milliseconds(50)
         )
 
         try await election.start()
@@ -138,7 +140,8 @@ struct LeaderElectionTests {
             registry: registry,
             nats: nats,
             meshToken: Self.meshToken,
-            heartbeatInterval: .seconds(60)
+            heartbeatInterval: .seconds(60),
+            objectionWindow: .milliseconds(50)
         )
 
         try await election.start()
@@ -165,7 +168,8 @@ struct LeaderElectionTests {
             registry: registry,
             nats: nats,
             meshToken: Self.meshToken,
-            heartbeatInterval: .seconds(60)
+            heartbeatInterval: .seconds(60),
+            objectionWindow: .milliseconds(50)
         )
 
         // Still idle — haven't called start()
@@ -189,7 +193,8 @@ struct LeaderElectionTests {
             registry: registry,
             nats: nats,
             meshToken: Self.meshToken,
-            heartbeatInterval: .seconds(60)
+            heartbeatInterval: .seconds(60),
+            objectionWindow: .milliseconds(50)
         )
 
         try await election.start()
@@ -213,7 +218,8 @@ struct LeaderElectionTests {
             registry: registry,
             nats: nats,
             meshToken: Self.meshToken,
-            heartbeatInterval: .seconds(60)
+            heartbeatInterval: .seconds(60),
+            objectionWindow: .milliseconds(50)
         )
 
         try await election.start()
@@ -244,7 +250,8 @@ struct LeaderElectionTests {
             registry: registry,
             nats: nats,
             meshToken: Self.meshToken,
-            heartbeatInterval: .seconds(60)
+            heartbeatInterval: .seconds(60),
+            objectionWindow: .milliseconds(50)
         )
 
         try await election.start()

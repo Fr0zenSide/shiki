@@ -80,7 +80,7 @@ public final class LocalAnswerEngine: AnswerEngineProtocol, @unchecked Sendable 
 
         guard !fusedCitations.isEmpty else {
             let elapsed = ContinuousClock.now - start
-            let latency = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+            let latency = elapsed.totalSeconds
             await emitEvent(query: query, citations: [], latency: latency, source: .system)
             throw AnswerEngineError.noResults(query)
         }
@@ -94,7 +94,7 @@ public final class LocalAnswerEngine: AnswerEngineProtocol, @unchecked Sendable 
         )
 
         let elapsed = ContinuousClock.now - start
-        let latency = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+        let latency = elapsed.totalSeconds
 
         // Confidence: based on top BM25 score (normalized)
         let topScore = bm25Results.first?.score ?? 0
