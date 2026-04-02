@@ -269,6 +269,9 @@ public struct PluginManifest: Sendable, Identifiable, Hashable {
     // Certification
     public let certification: PluginCertification?
 
+    // Sandbox: declared filesystem paths this plugin accesses (BR-06)
+    public let declaredPaths: [String]
+
     public init(
         id: PluginID,
         displayName: String,
@@ -287,7 +290,8 @@ public struct PluginManifest: Sendable, Identifiable, Hashable {
         websiteURL: URL? = nil,
         updatedAt: Date = Date(),
         repositoryURL: URL? = nil,
-        certification: PluginCertification? = nil
+        certification: PluginCertification? = nil,
+        declaredPaths: [String] = []
     ) {
         self.id = id
         self.displayName = displayName
@@ -307,6 +311,7 @@ public struct PluginManifest: Sendable, Identifiable, Hashable {
         self.updatedAt = updatedAt
         self.repositoryURL = repositoryURL
         self.certification = certification
+        self.declaredPaths = declaredPaths
     }
 }
 
@@ -321,6 +326,30 @@ extension PluginManifest: Codable {
         case author, license, description, checksum
         case websiteURL, updatedAt, repositoryURL
         case certification
+        case declaredPaths
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(PluginID.self, forKey: .id)
+        displayName = try container.decode(String.self, forKey: .displayName)
+        version = try container.decode(SemanticVersion.self, forKey: .version)
+        source = try container.decode(PluginSource.self, forKey: .source)
+        commands = try container.decode([PluginCommand].self, forKey: .commands)
+        capabilities = try container.decode([String].self, forKey: .capabilities)
+        dependencies = try container.decode(PluginDependencies.self, forKey: .dependencies)
+        minimumShikkiVersion = try container.decode(SemanticVersion.self, forKey: .minimumShikkiVersion)
+        entryPoint = try container.decode(String.self, forKey: .entryPoint)
+        configSchema = try container.decodeIfPresent([String: String].self, forKey: .configSchema)
+        author = try container.decode(String.self, forKey: .author)
+        license = try container.decode(String.self, forKey: .license)
+        description = try container.decode(String.self, forKey: .description)
+        checksum = try container.decode(String.self, forKey: .checksum)
+        websiteURL = try container.decodeIfPresent(URL.self, forKey: .websiteURL)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        repositoryURL = try container.decodeIfPresent(URL.self, forKey: .repositoryURL)
+        certification = try container.decodeIfPresent(PluginCertification.self, forKey: .certification)
+        declaredPaths = try container.decodeIfPresent([String].self, forKey: .declaredPaths) ?? []
     }
 }
 

@@ -163,6 +163,104 @@ public actor PluginRegistry {
         shikkiVersion
     }
 
+    // MARK: - Plugin State
+
+    /// Runners for active plugins.
+    private var runners: [PluginID: PluginRunner] = [:]
+
+    /// Set of plugin IDs that have been marked as crashed.
+    private var crashedPlugins: Set<PluginID> = []
+
+    // MARK: - Sandbox Operations
+
+    /// Uninstall a plugin: unregister it and remove its scoped data directory (BR-09).
+    ///
+    /// - Parameters:
+    ///   - id: The plugin to uninstall.
+    ///   - pluginsBaseDirectory: Base directory for plugin data (defaults to `~/.shikki/plugins`).
+    /// - Throws: `PluginRegistryError.pluginNotFound` if the plugin is not installed.
+    public func uninstall(id: PluginID, pluginsBaseDirectory: String? = nil) throws {
+        // Unregister first (validates the plugin exists)
+        try unregister(id: id)
+
+        // Remove the plugin's scoped data directory
+        let base = pluginsBaseDirectory ?? Self.defaultPluginsDirectory
+        // Plugin ID is "org/name", map to directory path "org/name/data"
+        let pluginDataDir = (base as NSString)
+            .appendingPathComponent(id.rawValue)
+            .appending("/data")
+        let pluginDir = (base as NSString).appendingPathComponent(id.rawValue)
+
+        // Remove the entire plugin directory (not just data)
+        if fileManager.fileExists(atPath: pluginDir) {
+            try fileManager.removeItem(atPath: pluginDir)
+        }
+
+        // Clean up runner
+        runners.removeValue(forKey: id)
+        crashedPlugins.remove(id)
+    }
+
+    /// Mark a plugin as crashed. Crashed plugins may be automatically disabled.
+    public func markCrashed(id: PluginID) throws {
+        guard plugins[id] != nil else {
+            throw PluginRegistryError.pluginNotFound(id)
+        }
+        crashedPlugins.insert(id)
+    }
+
+    /// Check whether a plugin has been marked as crashed.
+    public func isCrashed(id: PluginID) -> Bool {
+        crashedPlugins.contains(id)
+    }
+
+    /// Execute a plugin command using subprocess isolation (BR-07, BR-10).
+    ///
+    /// - Parameters:
+    ///   - pluginId: The plugin to execute.
+    ///   - arguments: Command arguments to pass.
+    ///   - timeout: Maximum execution time.
+    /// - Returns: The execution result.
+    /// - Throws: `PluginRegistryError.pluginNotFound` if the plugin is not installed.
+    public func execute(
+        pluginId: PluginID,
+        arguments: [String],
+        timeout: Duration = .seconds(30)
+    ) async throws -> PluginExecutionResult {
+        guard let manifest = plugins[pluginId] else {
+            throw PluginRegistryError.pluginNotFound(pluginId)
+        }
+
+        // Get or create runner
+        let runner: PluginRunner
+        if let existing = runners[pluginId] {
+            runner = existing
+        } else {
+            let base = Self.defaultPluginsDirectory
+            let scopeDir = (base as NSString)
+                .appendingPathComponent(manifest.id.rawValue)
+                .appending("/data")
+
+            let newRunner = PluginRunner(
+                pluginId: pluginId,
+                scopeDirectory: scopeDir,
+                declaredPaths: manifest.declaredPaths,
+                certification: manifest.certification?.level ?? .uncertified
+            )
+            runners[pluginId] = newRunner
+            runner = newRunner
+        }
+
+        let result = await runner.execute(arguments: arguments, timeout: timeout)
+
+        // If plugin crashed, record it
+        if !result.succeeded {
+            crashedPlugins.insert(pluginId)
+        }
+
+        return result
+    }
+
     // MARK: - Verification
 
     /// Verify a plugin's checksum matches the expected value.
