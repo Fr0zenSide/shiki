@@ -1,4 +1,5 @@
 import Foundation
+import Logging
 
 // MARK: - ProjectTemplate
 
@@ -91,6 +92,8 @@ public enum RegistryError: Error, Sendable, Equatable {
     case invalidTemplate(String)
     case installFailed(String)
     case registryCorrupted
+    case pathTraversal(String)
+    case executableNotAllowed(String)
 }
 
 // MARK: - TemplateRegistry
@@ -101,6 +104,7 @@ public struct TemplateRegistry: Sendable {
 
     private let registryPath: String
     nonisolated(unsafe) private let fileManager: FileManager
+    private let logger: Logger
 
     /// Default registry location.
     public static var defaultPath: String {
@@ -110,10 +114,12 @@ public struct TemplateRegistry: Sendable {
 
     public init(
         registryPath: String? = nil,
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        logger: Logger = Logger(label: "shikki.template-registry")
     ) {
         self.registryPath = registryPath ?? Self.defaultPath
         self.fileManager = fileManager
+        self.logger = logger
     }
 
     // MARK: - Public API
@@ -202,15 +208,34 @@ public struct TemplateRegistry: Sendable {
 
     /// Apply a template to a directory.
     /// Returns the list of files created.
-    public func apply(templateId: String, to path: String, force: Bool = false) throws -> [String] {
+    ///
+    /// - Parameters:
+    ///   - templateId: The template to apply.
+    ///   - path: Target directory.
+    ///   - force: Overwrite existing files (does NOT bypass path or executable validation).
+    ///   - allowExecutables: Allow creating files with the executable bit set. Defaults to `false`.
+    public func apply(templateId: String, to path: String, force: Bool = false, allowExecutables: Bool = false) throws -> [String] {
         let entry = try get(id: templateId)
         let template = entry.template
 
+        // Validation loop — runs BEFORE any file I/O
+        for file in template.files {
+            try validateRelativePath(file.relativePath, targetDir: path)
+
+            if file.executable && !allowExecutables {
+                throw RegistryError.executableNotAllowed(file.relativePath)
+            }
+        }
+
         var created: [String] = []
 
-        // Apply template files
+        // Apply template files (only reached if all validations pass)
         for file in template.files {
             let filePath = (path as NSString).appendingPathComponent(file.relativePath)
+
+            // Resolve canonical path and verify containment (catches symlink escapes)
+            try resolveCanonicalPath(filePath, targetDir: path)
+
             let dir = (filePath as NSString).deletingLastPathComponent
 
             // Create directory structure
@@ -228,6 +253,7 @@ public struct TemplateRegistry: Sendable {
             try content.write(toFile: filePath, atomically: true, encoding: .utf8)
 
             if file.executable {
+                logger.warning("Creating executable file from template: \(file.relativePath)")
                 try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: filePath)
             }
 
@@ -423,6 +449,50 @@ public struct TemplateRegistry: Sendable {
             ),
             files: []
         )
+    }
+
+    // MARK: - Path Validation
+
+    /// Validate that a relative path contains no `..` components (BR-01).
+    private func validateRelativePath(_ relativePath: String, targetDir: String) throws {
+        let components = (relativePath as NSString).pathComponents
+        for component in components {
+            if component == ".." {
+                throw RegistryError.pathTraversal(relativePath)
+            }
+        }
+    }
+
+    /// Resolve the canonical (real) path and verify it stays within the target directory (BR-02).
+    /// Catches symlink-based escapes where the relative path looks safe but resolves outside.
+    @discardableResult
+    private func resolveCanonicalPath(_ filePath: String, targetDir: String) throws -> String {
+        // Resolve the target directory to its canonical form
+        let canonicalTarget = URL(fileURLWithPath: targetDir).standardized.resolvingSymlinksInPath().path
+
+        // For the file path, resolve as far as possible:
+        // Walk up until we find an existing ancestor, resolve that, then re-append the rest.
+        let fileURL = URL(fileURLWithPath: filePath).standardized
+        var current = fileURL
+        var suffixComponents: [String] = []
+
+        while !fileManager.fileExists(atPath: current.path) && current.path != "/" {
+            suffixComponents.insert(current.lastPathComponent, at: 0)
+            current = current.deletingLastPathComponent()
+        }
+
+        let resolvedAncestor = current.resolvingSymlinksInPath().path
+        var canonicalFile = resolvedAncestor
+        for component in suffixComponents {
+            canonicalFile = (canonicalFile as NSString).appendingPathComponent(component)
+        }
+
+        // The canonical file path must start with the canonical target directory
+        guard canonicalFile.hasPrefix(canonicalTarget + "/") || canonicalFile == canonicalTarget else {
+            throw RegistryError.pathTraversal(fileURL.lastPathComponent)
+        }
+
+        return canonicalFile
     }
 
     // MARK: - Variable Substitution

@@ -263,12 +263,20 @@ extension TemplatesCommand {
         @Flag(name: .long, help: "Overwrite existing files")
         var force: Bool = false
 
+        @Flag(name: .long, help: "Allow creating executable files from templates")
+        var allowExec: Bool = false
+
         func run() throws {
             let registry = TemplateRegistry()
             let targetPath = path ?? FileManager.default.currentDirectoryPath
 
             do {
-                let created = try registry.apply(templateId: id, to: targetPath, force: force)
+                let created = try registry.apply(
+                    templateId: id,
+                    to: targetPath,
+                    force: force,
+                    allowExecutables: allowExec
+                )
 
                 if created.isEmpty {
                     print(styled("Template applied.", .green) + " No new files created (all exist already).")
@@ -283,6 +291,14 @@ extension TemplatesCommand {
                 }
             } catch RegistryError.templateNotFound {
                 print(styled("Error:", .red, .bold) + " Template '\(id)' not found.")
+                throw ExitCode(1)
+            } catch RegistryError.pathTraversal(let path) {
+                print(styled("Error:", .red, .bold) + " Path traversal detected: \(path)")
+                print(styled("  Template contains a file path that escapes the target directory.", .dim))
+                throw ExitCode(1)
+            } catch RegistryError.executableNotAllowed(let path) {
+                print(styled("Error:", .red, .bold) + " Executable file not allowed: \(path)")
+                print(styled("  Use --allow-exec to permit executable files.", .dim))
                 throw ExitCode(1)
             }
         }
