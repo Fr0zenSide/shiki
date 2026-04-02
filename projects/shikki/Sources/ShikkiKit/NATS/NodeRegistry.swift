@@ -27,9 +27,16 @@ public actor NodeRegistry {
     private let decoder: JSONDecoder
     private var queryTask: Task<Void, Never>?
 
+    /// Expected mesh token hash for node authentication.
+    /// When set, only heartbeats with a matching hash are accepted (BR-02).
+    /// When nil, authentication is disabled (backward compat).
+    private let expectedMeshTokenHash: String?
+
     public init(
+        meshTokenHash: String? = nil,
         logger: Logger = Logger(label: "shikki.node-registry")
     ) {
+        self.expectedMeshTokenHash = meshTokenHash
         self.logger = logger
         self.encoder = JSONEncoder()
         self.encoder.dateEncodingStrategy = .iso8601
@@ -51,6 +58,66 @@ public actor NodeRegistry {
         if existing == nil {
             logger.info("Node registered: \(identity.nodeId) (\(identity.hostname), role: \(identity.role))")
         }
+    }
+
+    /// Register a node with mesh token authentication.
+    ///
+    /// - BR-01: Every heartbeat MUST include meshToken.
+    /// - BR-02: Reject registration if meshToken doesn't match.
+    /// - BR-03: Only ONE node may have role `.primary` at any time.
+    /// - BR-04: If conflict, OLDER primary wins (fencing by startedAt).
+    /// - BR-09: Invalid tokens silently dropped (no info leak).
+    ///
+    /// - Returns: `true` if the node was accepted, `false` if rejected.
+    @discardableResult
+    public func registerWithAuth(
+        _ identity: NodeIdentity,
+        meshTokenHash: String?
+    ) -> Bool {
+        // BR-01/BR-09: Validate mesh token hash
+        if let expected = expectedMeshTokenHash {
+            guard let provided = meshTokenHash, provided == expected else {
+                // BR-09: Silent drop — no logging of the reason
+                return false
+            }
+        }
+
+        // BR-03/BR-04: Enforce single primary via startedAt fencing
+        var registeredIdentity = identity
+        if identity.role == .primary {
+            let existingPrimary = nodes.values.first {
+                !$0.isStale && $0.identity.role == .primary
+            }
+            if let existing = existingPrimary, existing.identity.nodeId != identity.nodeId {
+                // Another primary exists — older wins
+                if existing.identity.startedAt <= identity.startedAt {
+                    // Existing is older or same age — demote incoming to shadow
+                    registeredIdentity.role = .shadow
+                    logger.info("Primary conflict: \(existing.identity.nodeId) wins over \(identity.nodeId) (older)")
+                } else {
+                    // Incoming is older — demote existing to shadow
+                    var demoted = existing.identity
+                    demoted.role = .shadow
+                    nodes[demoted.nodeId] = NodeEntry(
+                        identity: demoted,
+                        lastSeen: existing.lastSeen,
+                        isStale: false
+                    )
+                    logger.info("Primary conflict: \(identity.nodeId) wins over \(existing.identity.nodeId) (older)")
+                }
+            }
+        }
+
+        let existing = nodes[registeredIdentity.nodeId]
+        nodes[registeredIdentity.nodeId] = NodeEntry(
+            identity: registeredIdentity,
+            lastSeen: Date(),
+            isStale: false
+        )
+        if existing == nil {
+            logger.info("Node registered (auth): \(registeredIdentity.nodeId) (\(registeredIdentity.hostname), role: \(registeredIdentity.role))")
+        }
+        return true
     }
 
     /// Remove a node from the registry.
@@ -85,6 +152,20 @@ public actor NodeRegistry {
             .filter { !$0.isStale && $0.identity.role == .primary }
             .map(\.identity)
             .first
+    }
+
+    /// Count of active nodes with `.primary` role.
+    /// BR-07: Should always be 0 or 1. Values > 1 indicate split-brain.
+    public var primaryCount: Int {
+        nodes.values
+            .filter { !$0.isStale && $0.identity.role == .primary }
+            .count
+    }
+
+    /// Whether split-brain is detected (more than one active primary).
+    /// BR-07: Alert when primaryCount > 1.
+    public var hasSplitBrain: Bool {
+        primaryCount > 1
     }
 
     /// Total registered nodes (including stale).

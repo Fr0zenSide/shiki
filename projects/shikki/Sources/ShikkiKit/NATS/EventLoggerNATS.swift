@@ -199,6 +199,10 @@ public enum NATSSubjectMapper {
     /// Pending decisions subject.
     public static var decisionsPending: String { "shikki.decisions.pending" }
 
+    /// Primary node claim subject (BR-06).
+    /// Published when a node assumes the primary role via leader election.
+    public static var nodePrimary: String { "shikki.node.primary" }
+
     /// Extract company slug from a NATS subject.
     public static func companySlug(from subject: String) -> String? {
         let parts = subject.split(separator: ".")

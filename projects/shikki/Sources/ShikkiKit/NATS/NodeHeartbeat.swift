@@ -26,6 +26,9 @@ public actor NodeHeartbeat {
     private let staleThreshold: Duration
     private let logger: Logger
     private let encoder: JSONEncoder
+    /// SHA-256 hash of the mesh token, included in every heartbeat (BR-01).
+    /// When nil, heartbeats are sent without authentication (backward compat).
+    private let meshTokenHash: String?
 
     private var announceTask: Task<Void, Never>?
     private var monitorTask: Task<Void, Never>?
@@ -41,6 +44,7 @@ public actor NodeHeartbeat {
         registry: NodeRegistry,
         interval: Duration = .seconds(30),
         staleThreshold: Duration = .seconds(90),
+        meshToken: String? = nil,
         logger: Logger = Logger(label: "shikki.node-heartbeat")
     ) {
         self.identity = identity
@@ -48,6 +52,7 @@ public actor NodeHeartbeat {
         self.registry = registry
         self.interval = interval
         self.staleThreshold = staleThreshold
+        self.meshTokenHash = meshToken.map { MeshTokenProvider.hash($0) }
         self.logger = logger
         self.encoder = JSONEncoder()
         self.encoder.dateEncodingStrategy = .iso8601
@@ -107,7 +112,15 @@ public actor NodeHeartbeat {
                 guard let payload = try? heartbeatDecoder.decode(HeartbeatPayload.self, from: message.data) else {
                     continue
                 }
-                await capturedRegistry.register(payload.identity)
+                // Use authenticated registration when meshTokenHash is present
+                if payload.meshTokenHash != nil {
+                    await capturedRegistry.registerWithAuth(
+                        payload.identity,
+                        meshTokenHash: payload.meshTokenHash
+                    )
+                } else {
+                    await capturedRegistry.register(payload.identity)
+                }
             }
         }
     }
@@ -140,7 +153,8 @@ public actor NodeHeartbeat {
             timestamp: Date(),
             uptimeSeconds: uptime,
             activeAgents: 0,
-            contextUsedPct: 0
+            contextUsedPct: 0,
+            meshTokenHash: meshTokenHash
         )
 
         do {

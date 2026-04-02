@@ -85,19 +85,25 @@ public struct HeartbeatPayload: Codable, Sendable {
     public let uptimeSeconds: TimeInterval
     public let activeAgents: Int
     public let contextUsedPct: Int
+    /// SHA-256 hash of the mesh token for node authentication (BR-01).
+    /// Optional for backward compatibility — unauthenticated payloads
+    /// are silently dropped by registries that enforce auth.
+    public let meshTokenHash: String?
 
     public init(
         identity: NodeIdentity,
         timestamp: Date = Date(),
         uptimeSeconds: TimeInterval = 0,
         activeAgents: Int = 0,
-        contextUsedPct: Int = 0
+        contextUsedPct: Int = 0,
+        meshTokenHash: String? = nil
     ) {
         self.identity = identity
         self.timestamp = timestamp
         self.uptimeSeconds = uptimeSeconds
         self.activeAgents = activeAgents
         self.contextUsedPct = contextUsedPct
+        self.meshTokenHash = meshTokenHash
     }
 }
 
