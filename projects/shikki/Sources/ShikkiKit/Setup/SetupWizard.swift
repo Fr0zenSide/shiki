@@ -265,8 +265,9 @@ public struct SetupWizard: Sendable {
             ".shikki/plugins",
             ".shikki/sessions",
         ]
+        let home = fm.homeDirectoryForCurrentUser.path
         for dir in dirs {
-            let path = fm.currentDirectoryPath + "/" + dir
+            let path = home + "/" + dir
             if !fm.fileExists(atPath: path) {
                 try? fm.createDirectory(atPath: path, withIntermediateDirectories: true)
             }

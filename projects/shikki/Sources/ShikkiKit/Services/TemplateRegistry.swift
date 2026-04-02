@@ -222,6 +222,10 @@ public struct TemplateRegistry: Sendable {
         for file in template.files {
             try validateRelativePath(file.relativePath, targetDir: path)
 
+            // Resolve canonical path in pre-validation to prevent TOCTOU symlink injection
+            let filePath = (path as NSString).appendingPathComponent(file.relativePath)
+            try resolveCanonicalPath(filePath, targetDir: path)
+
             if file.executable && !allowExecutables {
                 throw RegistryError.executableNotAllowed(file.relativePath)
             }
@@ -232,9 +236,6 @@ public struct TemplateRegistry: Sendable {
         // Apply template files (only reached if all validations pass)
         for file in template.files {
             let filePath = (path as NSString).appendingPathComponent(file.relativePath)
-
-            // Resolve canonical path and verify containment (catches symlink escapes)
-            try resolveCanonicalPath(filePath, targetDir: path)
 
             let dir = (filePath as NSString).deletingLastPathComponent
 
