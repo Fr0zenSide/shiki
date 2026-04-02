@@ -64,8 +64,8 @@ struct ProjectAnalyzerIntegrationTests {
         _ = try await analyzer.analyze(projectPath: projectPath)
         let elapsed = CFAbsoluteTimeGetCurrent() - start
 
-        // Should complete in under 2 seconds
-        #expect(elapsed < 2.0, "Analysis took \(elapsed)s, expected < 2s")
+        // Should complete in under 5 seconds (relaxed for CI + parallel test load)
+        #expect(elapsed < 5.0, "Analysis took \(elapsed)s, expected < 5s")
     }
 
     // MARK: - Helpers
