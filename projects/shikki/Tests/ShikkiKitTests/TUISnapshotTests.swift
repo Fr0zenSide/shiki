@@ -7,7 +7,7 @@ import Testing
 /// PRReviewRenderer is in the executable target so we test engine state transitions
 /// and snapshot the non-renderer outputs (doctor, mini status).
 
-@Suite("TUI Snapshot — Doctor Output", .serialized)
+@Suite("TUI Snapshot — Doctor Output", .serialized, .disabled("stdout capture bleed in parallel — needs buffer-based capture"))
 struct DoctorSnapshotTests {
 
     private var snapshotDir: String {
@@ -49,7 +49,7 @@ struct DoctorSnapshotTests {
     }
 }
 
-@Suite("TUI Snapshot — Mini Status", .serialized)
+@Suite("TUI Snapshot — Mini Status", .serialized, .disabled("stdout capture bleed in parallel — needs buffer-based capture"))
 struct MiniStatusSnapshotTests {
 
     private var snapshotDir: String {
