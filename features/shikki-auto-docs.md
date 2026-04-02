@@ -70,6 +70,90 @@ git commit
 | T-11 | BR-09 | Core (80%) | Unit | Architecture overview renders Mermaid diagram from dependencies.json |
 | T-12 | BR-02 | Core (80%) | Unit | Incremental rebuild completes under 2s for single-file change |
 
+### S3 Test Scenarios
+
+```
+T-01 [BR-06, Core 80%]:
+When a single file changes touching one module:
+  → file-to-section mapping resolves via Moto cache module field
+  → only that module's doc section regenerated
+  → other sections untouched (no file write, no timestamp change)
+
+T-02 [BR-03, Core 80%]:
+When .moto-cache/ directory does not exist:
+  → hook checks for manifest.json
+  → file not found, hook exits with code 0
+  → no error output, no warning
+  → commit proceeds normally
+
+T-03 [BR-03, Core 80%]:
+When cache manifest git hash differs from HEAD:
+  → manifest.json parsed, gitHash field extracted
+  → gitHash != current HEAD commit
+  → hook skips generation silently
+  → commit proceeds without doc update
+
+T-04 [BR-07, Core 80%]:
+When a new public type has no doc comment:
+  → type detected in api-surface.json
+  → no /// comment found for type
+  → rendered with "*No description available.*" placeholder
+  → type still appears in generated docs (not skipped)
+
+T-05 [BR-05, Core 80%]:
+When running shikki docs rebuild --all:
+  → all 6 DocSection cases regenerated
+  → each generated file has <!-- AUTO-GENERATED --> header
+  → each generated file has <!-- Sources: ... --> footer
+  → output written to docs/generated/
+
+T-06 [BR-10, Smoke CLI]:
+When running shikki docs coverage on a 60% documented project:
+  → public types and protocols counted
+  → types with /// doc comments counted
+  → "60%" coverage reported
+  → undocumented public symbols listed by name
+
+T-07 [BR-02, Core 80%]:
+When pre-commit hook exceeds 2s timeout:
+  → timeout command kills shikki docs rebuild
+  → warning emitted to stderr: "doc generation skipped (timeout or error)"
+  → commit proceeds without doc update
+  → exit code 0 (never blocks commit)
+
+T-08 [BR-08, Core 80%]:
+When a protocol has 3 method requirements:
+  → source parsed for protocol declaration
+  → all 3 func/var signatures extracted
+  → API reference lists each signature with parameter types
+  → return types included
+
+T-09 [BR-01, Core 80%]:
+When DocGenerator writes a generated doc:
+  → first line is "<!-- AUTO-GENERATED -->"
+  → file written to docs/generated/ (not docs/)
+  → manual docs in docs/ untouched
+
+T-10 [BR-04, Core 80%]:
+When DocGenerator renders a section:
+  → footer comment appended: <!-- Sources: File1.swift, File2.swift -->
+  → source files listed alphabetically
+  → sources derived from Moto cache file field for that section
+
+T-11 [BR-09, Core 80%]:
+When rendering architecture overview:
+  → dependencies.json loaded from Moto cache
+  → Mermaid diagram generated with module nodes and edges
+  → diagram syntax valid (graph TD / graph LR format)
+  → output written to docs/generated/architecture-overview.md
+
+T-12 [BR-02, Core 80%]:
+When incremental rebuild runs for a single-file change:
+  → total execution time < 2 seconds
+  → only affected section rebuilt (not all 6)
+  → file I/O limited to one section write
+```
+
 ## Wave Dispatch Tree
 
 ```

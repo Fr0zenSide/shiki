@@ -79,6 +79,139 @@ Currently `RestartCommand` has all logic inline (tmux interaction, process spawn
 | T-19 | BR-15 | Core (80%) | Unit | `--phase post-swap` skips pre-swap logic, runs Phase 2 only |
 | T-20 | BR-08 | Core (80%) | Unit | `--force` bypasses same-version skip |
 
+### S3 Test Scenarios
+
+```
+T-01 [BR-02,03,05,06, Core 80%]:
+When restarting with a newer binary that passes healthcheck:
+  → checkpoint saved via CheckpointManager
+  → current binary copied to ~/.shikki/bin/shikki.prev
+  → healthcheck runs with --healthcheck flag and returns exit 0
+  → execv() called with new binary path
+  → result is .swapped(oldVersion, newVersion)
+
+T-02 [BR-08, Core 80%]:
+When restarting with same version and no --force flag:
+  → binary version parsed as SemanticVersion
+  → new version == current version detected
+  → result is .skipped("Same version")
+
+T-03 [BR-03, Core 80%]:
+When restarting with a binary whose healthcheck fails:
+  → --healthcheck run returns exit code != 0
+  → no checkpoint saved
+  → no binary copy
+  → result is .aborted("Healthcheck failed")
+
+T-04 [BR-04, Security 100%]:
+When restarting with a binary that has wrong permissions:
+  → file permissions checked (not executable)
+  → result is .aborted("Binary not executable")
+  → no healthcheck attempted
+
+T-05 [BR-14, Core 80%]:
+When restarting while build is in progress:
+  → binary mtime sampled twice within 100ms window
+  → mtime drift detected (file still changing)
+  → result is .aborted("Build in progress")
+
+T-06 [BR-09, Core 80%]:
+When restarting with a downgrade (new < current) and no --force:
+  → SemanticVersion comparison detects downgrade
+  → warning printed to stderr
+  → result is .aborted("Downgrade requires --force")
+
+T-07 [BR-09, Core 80%]:
+When restarting with a downgrade (new < current) and --force:
+  → SemanticVersion comparison detects downgrade
+  → --force bypasses downgrade check
+  → healthcheck runs
+  → result is .swapped(oldVersion, newVersion)
+
+T-08 [BR-01, Core 80%]:
+When restarting but tmux session is gone:
+  → tmux session check returns no active session
+  → result is .aborted("No tmux session")
+  → no orphan processes left behind
+
+T-09 [BR-05, Core 80%]:
+When checkpoint save fails during restart:
+  → CheckpointManager.save() throws (disk full)
+  → swap never attempted
+  → result is .aborted("Checkpoint save failed")
+
+T-10 [BR-13, Security 100%]:
+When execv() syscall fails:
+  → execv() returns error (not Never)
+  → old binary continues running (no crash)
+  → error message emitted to stderr
+  → ShikkiEvent.restartFailed emitted
+
+T-11 [BR-10, Core 80%]:
+When post-swap phase runs after version change:
+  → --phase post-swap detected
+  → SetupGuard.check() called
+  → dependency validation triggered
+  → normal orchestrator loop resumes
+
+T-12 [BR-07, Core 80%]:
+When resolving binary for restart:
+  depending on available binaries:
+    "~/.shikki/bin/shikki" exists → selected (highest priority)
+    ".build/release/shikki" exists, no installed → selected
+    ".build/debug/shikki" exists, no release → selected
+    none exist → .aborted("No binary found")
+
+T-13 [BR-06,18, Security 100%]:
+When creating rollback binary:
+  → current binary copied to ~/.shikki/bin/shikki.prev
+  → SHA-256 of shikki.prev computed
+  → SHA-256 matches original binary hash stored at ~/.shikki/binary.sha256
+
+T-14 [BR-11, Smoke CLI]:
+When --upgrade-deps flag is provided:
+  if --upgrade-deps present:
+    → brew upgrade (or apt upgrade) triggered for managed dependencies
+  otherwise:
+    → no dependency upgrade attempted
+
+T-15 [BR-04, Security 100%]:
+When validating binary magic bytes:
+  if file starts with 0xFEEDFACF:
+    → accepted as valid Mach-O binary
+  if file starts with 0x7F454C46:
+    → accepted as valid ELF binary
+  otherwise:
+    → .aborted("Invalid binary format")
+
+T-16 [BR-12, Security 100%]:
+When restart requires elevated permissions:
+  → no sudo invoked implicitly
+  → instructions printed to stdout with exact sudo command
+  → process exits with non-zero code
+
+T-17 [BR-16, Core 80%]:
+When binary swap succeeds:
+  → ShikkiEvent.restart(oldVersion:newVersion:) emitted on EventBus
+  → event contains both old and new version strings
+
+T-18 [BR-17, Core 80%]:
+When execv() is about to be called:
+  → lockfile file descriptor is NOT closed before execv()
+  → new process inherits the FD (no lock gap)
+
+T-19 [BR-15, Core 80%]:
+When --phase post-swap argument is present:
+  → pre-swap logic skipped entirely (no checkpoint, no binary resolve, no validation)
+  → Phase 2 runs directly (SetupGuard, event emission, orchestrator resume)
+
+T-20 [BR-08, Core 80%]:
+When restarting with same version and --force flag:
+  → same-version check bypassed
+  → healthcheck still runs
+  → result is .swapped(currentVersion, currentVersion)
+```
+
 ## Wave Dispatch Tree
 
 ```

@@ -63,6 +63,101 @@ Shikki has no visibility into how commands are used. The user discovered they in
 | T-13 | BR-05 | Core (80%) | Unit | Chain detection groups ["/spec", "/🌟🧠🌟@t"] as a single chain |
 | T-14 | BR-09 | Smoke (CLI) | Unit | `shikki alias list` shows all aliases with usage count |
 
+### S3 Test Scenarios
+
+```
+T-01 [BR-01, Core 80%]:
+When parsing a conversation with mixed tool invocations:
+  → Skill tool calls captured (command name recorded)
+  → Read tool calls ignored
+  → Write tool calls ignored
+  → Bash tool calls ignored
+  → Agent tool calls ignored
+
+T-02 [BR-07, Security 100%]:
+When capturing a Skill tool invocation:
+  → command name stored (e.g., "/spec")
+  → addressed agent stored if present (e.g., "@t")
+  → command arguments NOT stored (empty/null in event)
+  → no prompt content captured
+
+T-03 [BR-05, Core 80%]:
+When detecting chains from command timestamps:
+  if two commands are within 60s of each other:
+    → grouped into the same chain (same chainId)
+  otherwise (gap > 60s):
+    → second command starts a new chain (new chainId)
+
+T-04 [BR-06, Core 80%]:
+When detecting session boundaries:
+  if inactivity gap < 30 minutes:
+    → commands belong to same session
+  otherwise (gap >= 30 minutes):
+    → new sessionId generated
+    → positionInChain resets to 0
+
+T-05 [BR-02, Core 80%]:
+When 5 identical chains occur within 7 days:
+  → alias suggestion generated for that chain pattern
+  → suggestion includes proposed alias name
+  → suggestion queued for session-end display
+
+T-06 [BR-02, Core 80%]:
+When only 4 identical chains occur within 7 days:
+  → no alias suggestion generated
+  → chain frequency recorded but threshold not met
+
+T-07 [BR-03, Core 80%]:
+When auto-combine correlation reaches 80%+:
+  → suggestion presented to user
+  → requires explicit user confirmation before binding
+  → never auto-binds the alias
+
+T-08 [BR-10, Core 80%]:
+When alias suggestions are ready during an active session:
+  → suggestions held in queue (not displayed)
+  → displayed only at session end summary
+  → never interrupts mid-session workflow
+
+T-09 [BR-04, Security 100%]:
+When telemetry setting is checked:
+  if shikki settings telemetry is OFF (default):
+    → zero data sent to remote endpoints
+    → all data stays in local ShikiDB
+  otherwise (explicitly set to ON):
+    → aggregated weekly counts sent
+
+T-10 [BR-08, Security 100%]:
+When remote telemetry is enabled:
+  → data aggregated into buckets
+  → each bucket requires minimum 5 users (k-anonymity)
+  → buckets with <5 users suppressed from transmission
+
+T-11 [BR-09, Smoke CLI]:
+When rendering the weekly report Practice Memory section:
+  → section contains max 5 lines
+  → includes command frequency, top chain, session stats
+  → no line exceeds terminal width
+
+T-12 [BR-01, Core 80%]:
+When the Stop hook fires at session end:
+  → conversation parsed for Skill tool invocations
+  → CommandInvokedEvent POSTed to ShikiDB for each skill call
+  → events stored in agent_events table
+
+T-13 [BR-05, Core 80%]:
+When chain detection processes ["/spec", "/🌟🧠🌟@t"]:
+  → both commands grouped as a single chain
+  → chain signature is ["spec", "🌟🧠🌟@t"]
+  → frequency incremented for this chain pattern
+
+T-14 [BR-09, Smoke CLI]:
+When running shikki alias list:
+  → all defined aliases listed
+  → each alias shows usage count from ShikiDB
+  → aliases sorted by frequency (most used first)
+```
+
 ## Wave Dispatch Tree
 
 ```

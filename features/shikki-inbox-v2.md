@@ -81,6 +81,95 @@ BR-14: `shikki.bg.result.*` events from `shi bg` background tasks create inbox i
 | T-13 | BR-14 | Core (80%) | Integration | `shikki.bg.result.*` NATS event creates inbox item with bg summary |
 | T-14 | BR-08 | Smoke (CLI) | Unit | `--snooze decision:42 --until 2h` sets snoozed_until correctly |
 
+### S3 Test Scenarios
+
+```
+T-01 [BR-01, Core 80%]:
+When querying inbox on an empty ShikiDB:
+  → computed view returns zero rows
+  → CLI prints "Inbox is empty."
+  → exit code 0
+
+T-02 [BR-03, Core 80%]:
+When a spec exists with status=review:
+  → computed UNION query includes spec in results
+  → returned item has type=spec
+  → title matches spec title from specs table
+
+T-03 [BR-05,07, Core 80%]:
+When a gate exists with failures=3:
+  → urgency_weight set to 30 (blocking penalty)
+  → age component computed from created_at
+  → total computed score >= 60
+
+T-04 [BR-08,11, Core 80%]:
+When archiving an item with --archive spec:foo:
+  → inbox_read_state.archived_at set to current timestamp
+  → subsequent default inbox query returns N-1 items
+  → archived item excluded by WHERE archived_at IS NULL
+
+T-05 [BR-02, Core 80%]:
+When filtering by project with --project shikki:
+  → only entities where project='shikki' returned
+  → entities from other projects (maya, brainy) excluded
+
+T-06 [BR-09,10, Core 80%]:
+When running shikki inbox --count:
+  → COUNT query executes against computed view
+  → result returned in <100ms
+  → count written to ~/.shikki/inbox-count cache file
+
+T-07 [BR-13, Core 80%]:
+When spec.status_changed NATS event fires:
+  → inbox_read_state row inserted for the spec entity
+  → read_at is NULL (unread)
+  → entity appears in next inbox query
+
+T-08 [BR-13, Core 80%]:
+When a NATS event fires for an already-archived entity:
+  → INSERT ON CONFLICT DO NOTHING executes
+  → existing archived_at timestamp preserved
+  → entity remains archived in inbox view
+
+T-09 [BR-08, Core 80%]:
+When an item is snoozed with --snooze for 1 hour:
+  if current time is within snooze window:
+    → item hidden from default inbox query
+  otherwise (snooze expired):
+    → item visible again in inbox query
+    → snoozed_until remains set (audit trail)
+
+T-10 [BR-06, Core 80%]:
+When ShikiDB is unreachable:
+  if ~/.shikki/inbox-count cache exists:
+    → cached count returned
+  otherwise:
+    → "unavailable" message displayed
+    → exit code 0 (no crash)
+
+T-11 [BR-04, Core 80%]:
+When a pending decision exists in decisions table:
+  → computed UNION query includes decision in results
+  → returned item has type=decision
+  → urgency_weight=30 (pending decisions are blocking)
+
+T-12 [BR-12, Core 80%]:
+When an archived item is older than 30 days:
+  → auto-expiry sweep removes the inbox_read_state row
+  → entity no longer appears in --archived view
+
+T-13 [BR-14, Core 80%]:
+When shikki.bg.result.* NATS event fires:
+  → inbox_read_state row inserted with entity_type=bg_result
+  → entity_id matches background task ID
+  → item appears in inbox with bg result summary
+
+T-14 [BR-08, Smoke CLI]:
+When snoozing with --snooze decision:42 --until 2h:
+  → snoozed_until set to now + 2 hours in inbox_read_state
+  → decision:42 hidden from default inbox query for 2 hours
+```
+
 ## 3b. Wave Dispatch Tree
 
 ```

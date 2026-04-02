@@ -50,6 +50,89 @@ The v1 plugin shows agent counts and budget but has no idea *which project* matt
 | T-11 | BR-05 | Core (80%) | Unit | Pin persists across TmuxStateManager save/load cycle |
 | T-12 | BR-06 | Core (80%) | Unit | Custom pin duration from config overrides default 120s |
 
+### S3 Test Scenarios
+
+```
+T-01 [BR-02, Core 80%]:
+When ProjectScorer queries ShikiDB inbox:
+  → HTTP request sent to ShikiDB computed view endpoint
+  → response parsed into per-project urgency scores
+  → projects returned sorted by summed urgency (highest first)
+
+T-02 [BR-03,09, Core 80%]:
+When ShikiDB HTTP request fails:
+  if ~/.shikki/tmux-cache.json exists:
+    → cached scores loaded from file
+    → projects returned from cache
+  otherwise:
+    → empty scores returned (fallback to T-03 rendering)
+  → HTTP timeout enforced at 80ms (never blocks segment)
+
+T-03 [BR-04, Core 80%]:
+When cache is missing and ShikiDB is unreachable:
+  → MiniStatusFormatter renders "?" icon for project segment
+  → no crash, no error output
+  → other segments (git, budget) render normally
+
+T-04 [BR-05,06,07, Core 80%]:
+When a project is pinned with default duration:
+  if pin age < 120 seconds (default):
+    → pinned project shown as active regardless of scores
+  otherwise (pin expired):
+    → pinnedProject cleared from TmuxStateManager
+    → auto-detection resumes (highest-scoring project)
+
+T-05 [BR-08, Core 80%]:
+When 4+ projects have activity:
+  → top 3 projects shown with letter+icon (e.g., S● B○ M○)
+  → remaining projects collapsed as "+N" (e.g., "+1")
+  → total count accurate
+
+T-06 [BR-12, Core 80%]:
+When auto-switch would change active project:
+  if dwell time on current project < 5 minutes:
+    → switch blocked, current project stays active
+  otherwise (dwell time >= 5 minutes):
+    → switch allowed, new highest-scoring project becomes active
+    → lastSwitchAt updated in TmuxStateManager
+
+T-07 [BR-01, Smoke CLI]:
+When segments script is generated:
+  → script references "shi" binary
+  → "shiki" string not present in script
+  → "shikki" string not present in script
+
+T-08 [BR-10, Smoke CLI]:
+When .tmux.conf is reloaded:
+  → segments script uses source-file with unique marker
+  → second reload does not duplicate segment entries
+  → segment count remains unchanged
+
+T-09 [BR-11, Smoke CLI]:
+When shi start runs:
+  → segments script regenerated at ~/.config/shiki/tmux-segments.conf
+  → file contents reflect current configuration
+  → tmux notified to reload config
+
+T-10 [BR-09, Core 80%]:
+When segment callback executes:
+  → total execution time <= 100ms
+  → HTTP timeout set to 80ms (leaves 20ms for rendering)
+  → slow DB response truncated at timeout boundary
+
+T-11 [BR-05, Core 80%]:
+When TmuxStateManager persists and reloads:
+  → pinnedProject survives save/load cycle
+  → pinnedUntil timestamp survives save/load cycle
+  → pinDurationSeconds survives save/load cycle
+
+T-12 [BR-06, Core 80%]:
+When custom pin duration is configured:
+  → ~/.config/shiki/tmux-state.json contains pinDurationSeconds=300
+  → TmuxStateManager uses 300s instead of default 120s
+  → pin expires after 300 seconds
+```
+
 ## Wave Dispatch Tree
 
 ```

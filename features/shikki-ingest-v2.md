@@ -86,6 +86,109 @@ The current `/ingest` pipeline uses WebFetch (HTTP fetch + HTML-to-markdown stri
 | T-14 | BR-07 | Security (100%) | Unit | Browser engine runs with default sandbox — `--no-sandbox` never passed |
 | T-15 | BR-12 | Core (80%) | Unit | Rate limiting: 11th browser-engine ingest within 1 min is queued/rejected |
 
+### S3 Test Scenarios
+
+```
+T-01 [BR-01, Core 80%]:
+When ingesting a URL that has a Moto cache hit:
+  → MotoCacheReader.findType returns cached architecture data
+  → zero HTTP requests made
+  → returned chunks have resolution_method="moto_cache"
+
+T-02 [BR-02, Core 80%]:
+When ingesting a URL already in ShikiDB and younger than 7 days:
+  → source_uri exact match found in ShikiDB
+  → content_hash matches (no change)
+  → cached chunks returned without re-fetch
+  → resolution_method="shikidb_cache"
+
+T-03 [BR-02, Core 80%]:
+When ingesting a URL in ShikiDB but older than 7 days:
+  → source_uri match found but age > 7 days (stale)
+  → re-fetch triggered via appropriate resolution path
+  → new chunks replace stale entries in ShikiDB
+
+T-04 [BR-11, Core 80%]:
+When ingesting a static HTML page (body >500 chars, no SPA markers):
+  → lightweight probe detects full HTML body
+  → WebFetch path used for extraction
+  → chunk metadata contains resolution_method="webfetch"
+
+T-05 [BR-06, Core 80%]:
+When ingesting a React SPA with <div id="root"></div>:
+  → probe response contains SPA marker
+  → browser engine path selected
+  → Playwright renders full JS content
+  → extracted content includes dynamically loaded text
+
+T-06 [BR-04, Core 80%]:
+When browser engine exceeds 15s timeout:
+  → 15s hard timeout fires
+  → browser process killed
+  → probe content used as fallback
+  → warning logged: "Browser timeout, using probe content"
+
+T-07 [BR-06, Core 80%]:
+When Playwright is not installed:
+  → npx playwright returns error
+  → falls back to WebFetch path
+  → warning logged: "Playwright not found, install via npx playwright install chromium"
+
+T-08 [BR-08, Security 100%]:
+When ingesting a blocked URL scheme:
+  depending on scheme:
+    "file:///etc/passwd" → rejected with error "Blocked scheme: file"
+    "data://text/html,..." → rejected with error "Blocked scheme: data"
+    "javascript:alert(1)" → rejected with error "Blocked scheme: javascript"
+  → no fetch attempted in any case
+
+T-09 [BR-09, Security 100%]:
+When target URL redirects cross-origin:
+  if first redirect (e.g., URL shortener):
+    → redirect followed to final destination
+  otherwise (second cross-origin redirect):
+    → navigation blocked with error "Cross-origin redirect chain blocked"
+    → no content extracted
+
+T-10 [BR-05, Security 100%]:
+When rendered DOM exceeds 5MB:
+  → DOM size check triggers at 5MB threshold
+  → browser extraction aborted
+  → probe content used as fallback
+  → warning logged: "DOM size exceeded 5MB limit"
+
+T-11 [BR-11, Core 80%]:
+When ingesting a YouTube URL:
+  → URL pattern matches youtube.com/watch or youtu.be/
+  → routed to yt-dlp extraction path
+  → chunk metadata contains resolution_method="ytdlp"
+
+T-12 [BR-10, Smoke CLI]:
+When running with --dry-run flag:
+  → URL normalized and pattern detected
+  → resolution method printed (e.g., "Would use: browser_engine")
+  → no network fetch performed
+  → exit code 0
+
+T-13 [BR-03, Core 80%]:
+When lightweight probe exceeds 3s timeout:
+  → HTTP HEAD + partial GET times out at 3s
+  → escalates directly to browser engine path
+  → probe timeout logged as reason for escalation
+
+T-14 [BR-07, Security 100%]:
+When browser engine launches Chromium:
+  → --no-sandbox flag is NOT present in launch args
+  → default Chromium sandbox is active
+  → process runs with restricted permissions
+
+T-15 [BR-12, Core 80%]:
+When 11th browser-engine ingest fires within 1 minute:
+  → rate limiter tracks browser-engine invocations per minute
+  → 11th request queued or rejected with "Rate limit: max 10 browser ingests/min"
+  → WebFetch ingests unaffected by rate limit
+```
+
 ## Wave Dispatch Tree
 
 ```
