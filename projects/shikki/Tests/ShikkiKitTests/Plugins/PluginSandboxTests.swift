@@ -252,6 +252,36 @@ struct PluginSandboxTests {
     }
 }
 
+// MARK: - PluginRunner Integration Tests
+
+@Suite("PluginRunner — real subprocess integration")
+struct PluginRunnerIntegrationTests {
+
+    @Test("Integration: PluginRunner spawns real subprocess and captures output")
+    func realSubprocess_echoCaptured() async throws {
+        let fm = FileManager.default
+        let tmpDir = fm.temporaryDirectory
+            .appendingPathComponent("shikki-runner-integration-\(UUID().uuidString)").path
+        try fm.createDirectory(atPath: tmpDir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(atPath: tmpDir) }
+
+        let runner = PluginRunner(
+            pluginId: PluginID("shikki/integration-test"),
+            scopeDirectory: tmpDir
+        )
+
+        // Use /bin/echo (macOS) — /usr/bin/echo does not exist on all systems
+        let result = await runner.execute(
+            arguments: ["/bin/echo", "hello"],
+            timeout: .seconds(10)
+        )
+
+        #expect(result.succeeded, "echo should exit 0")
+        #expect(result.exitCode == 0)
+        #expect(result.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "hello")
+    }
+}
+
 // MARK: - PluginRunner Tests
 
 @Suite("PluginRunner — subprocess isolation")

@@ -257,12 +257,17 @@ struct NodeSecurityTests {
         // Test load throws when env var is not set
         // We cannot safely set env vars in tests, so test the error case
         // by checking MeshTokenProvider.loadFromValue
-        let token = MeshTokenProvider.loadFromValue("my-secure-token")
+        let token = try MeshTokenProvider.loadFromValue("my-secure-token")
         #expect(token == "my-secure-token")
 
         // Empty token should throw
         #expect(throws: MeshTokenError.self) {
             try MeshTokenProvider.validate("")
+        }
+
+        // Too-short token should throw
+        #expect(throws: MeshTokenError.self) {
+            try MeshTokenProvider.loadFromValue("short")
         }
     }
 }

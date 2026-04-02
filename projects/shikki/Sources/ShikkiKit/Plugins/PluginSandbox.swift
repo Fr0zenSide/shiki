@@ -163,12 +163,15 @@ public struct PluginSandbox: Sendable {
 
     // MARK: - Path Resolution
 
-    /// Resolve a path by expanding `~` and collapsing `..` traversals.
+    /// Resolve a path by expanding `~`, collapsing `..` traversals, and resolving symlinks.
+    ///
+    /// Symlinks are resolved so that a link inside the scope directory pointing outside
+    /// is caught by the containment check. Mirrors TemplateRegistry's canonical path pattern.
     private func resolvePath(_ path: String) -> String {
         let expanded = (path as NSString).expandingTildeInPath
-        // Use URL to resolve .. and . components
+        // Use URL to resolve .., ., and symlinks
         let url = URL(fileURLWithPath: expanded)
-        return url.standardized.path
+        return url.standardized.resolvingSymlinksInPath().path
     }
 
     // MARK: - Pattern Matching

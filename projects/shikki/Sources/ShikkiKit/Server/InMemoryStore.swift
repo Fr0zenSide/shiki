@@ -45,6 +45,12 @@ public actor InMemoryStore {
         return enriched
     }
 
+    /// Search memories using simple case-insensitive term matching.
+    ///
+    /// **v1 implementation — intentionally simple.** Scoring is additive per query term
+    /// found in the concatenated string fields, with a 0.5 bonus for exact word-boundary hits.
+    /// This will be replaced with BM25 or FTS (full-text search) when PostgreSQL backing
+    /// is added; the current approach is adequate for the in-memory single-user CLI store.
     public func searchMemories(query: String, projectIds: [String] = [], limit: Int = 20) -> [Data] {
         let queryLower = query.lowercased()
         let queryTerms = queryLower.split(separator: " ").map(String.init)

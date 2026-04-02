@@ -7,6 +7,7 @@ import Foundation
 public enum MeshTokenError: Error, Sendable {
     case notSet
     case empty
+    case tooShort(length: Int)
 }
 
 // MARK: - MeshTokenProvider
@@ -35,16 +36,27 @@ public struct MeshTokenProvider: Sendable {
         return value
     }
 
+    /// Minimum acceptable token length for security.
+    public static let minimumTokenLength = 8
+
     /// Load a token from a provided value (useful for tests and config injection).
-    public static func loadFromValue(_ value: String) -> String {
-        value
+    /// - Throws: `MeshTokenError.empty` if the value is blank.
+    /// - Throws: `MeshTokenError.tooShort` if the value is shorter than `minimumTokenLength`.
+    public static func loadFromValue(_ value: String) throws -> String {
+        try validate(value)
+        return value
     }
 
-    /// Validate that a token is non-empty.
+    /// Validate that a token is non-empty and meets minimum length.
     /// - Throws: `MeshTokenError.empty` if the token is blank.
+    /// - Throws: `MeshTokenError.tooShort` if the token is shorter than `minimumTokenLength`.
     public static func validate(_ token: String) throws {
-        guard !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
             throw MeshTokenError.empty
+        }
+        guard trimmed.count >= minimumTokenLength else {
+            throw MeshTokenError.tooShort(length: trimmed.count)
         }
     }
 
