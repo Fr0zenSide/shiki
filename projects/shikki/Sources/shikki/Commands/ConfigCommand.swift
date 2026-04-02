@@ -2,13 +2,13 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki config` — manage Shikki configuration settings.
+/// `shi config` — manage Shikki configuration settings.
 ///
 /// Examples:
-///   shikki config --telemetry community    # share anonymized outcomes
-///   shikki config --telemetry local        # local only (default)
-///   shikki config --telemetry off          # no collection
-///   shikki config --show                   # show current config
+///   shi config --telemetry community    # share anonymized outcomes
+///   shi config --telemetry local        # local only (default)
+///   shi config --telemetry off          # no collection
+///   shi config --show                   # show current config
 struct ConfigCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "config",

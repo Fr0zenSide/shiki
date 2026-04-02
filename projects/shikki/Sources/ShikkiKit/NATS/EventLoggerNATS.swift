@@ -6,7 +6,7 @@ import Logging
 /// Actor that subscribes to NATS event subjects and feeds events
 /// to an EventRenderer for display.
 ///
-/// Used by `shikki log` for real-time event streaming.
+/// Used by `shi log` for real-time event streaming.
 /// Supports:
 /// - Wildcard subscription (`shikki.events.>`) for all events
 /// - Company-filtered subscription (`shikki.events.{company}.>`)

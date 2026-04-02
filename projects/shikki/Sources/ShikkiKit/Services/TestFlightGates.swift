@@ -278,14 +278,14 @@ public struct UploadGate: ShipGate, Sendable {
 
         // --- Upload Phase ---
         guard let ascConfig = config.asc else {
-            return .fail(reason: "No ASC key configured for \(config.slug). Run: shikki ship --testflight --setup")
+            return .fail(reason: "No ASC key configured for \(config.slug). Run: shi ship --testflight --setup")
         }
 
         // Resolve API key path: Keychain first, then file fallback
         let keyPath = try await resolveKeyPath(config: config, ascConfig: ascConfig, context: context)
         if keyPath == nil {
             return .fail(
-                reason: "API key not found for team \(config.teamID). Run: shikki ship --testflight --setup"
+                reason: "API key not found for team \(config.teamID). Run: shi ship --testflight --setup"
             )
         }
 

@@ -87,7 +87,7 @@ public enum FastPipelineError: Error, Sendable, Equatable {
 // MARK: - FastPipeline
 
 /// The ultimate shortcut: quick + test + pre-pr + ship in one pipeline.
-/// `shikki fast "add error handling"` — one command, zero stops.
+/// `shi fast "add error handling"` — one command, zero stops.
 ///
 /// Design: Composes QuickPipeline + ShipService. Each stage is a gate —
 /// failure at any stage aborts the pipeline. In dry-run mode, all stages

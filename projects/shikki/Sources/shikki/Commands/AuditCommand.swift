@@ -5,9 +5,9 @@ import ShikkiKit
 /// Query the enterprise audit trail.
 ///
 /// Usage:
-///   shikki audit --user bob --since 2026-03-01
-///   shikki audit --project maya --json
-///   shikki audit --tool search --limit 50
+///   shi audit --user bob --since 2026-03-01
+///   shi audit --project maya --json
+///   shi audit --tool search --limit 50
 struct AuditCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "audit",

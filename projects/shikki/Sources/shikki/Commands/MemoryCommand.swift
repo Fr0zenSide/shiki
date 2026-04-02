@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki memory` — Memory migration management.
+/// `shi memory` — Memory migration management.
 /// Subcommands: verify, cleanup, status.
 struct MemoryCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -19,7 +19,7 @@ struct MemoryCommand: AsyncParsableCommand {
 
 // MARK: - Verify
 
-/// `shikki memory verify` — Phase 3: Validate migrated memories match local files.
+/// `shi memory verify` — Phase 3: Validate migrated memories match local files.
 struct MemoryVerifyCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "verify",
@@ -63,7 +63,7 @@ struct MemoryVerifyCommand: AsyncParsableCommand {
 
 // MARK: - Cleanup
 
-/// `shikki memory cleanup` — Phase 4: Archive verified files, remove originals, update MEMORY.md.
+/// `shi memory cleanup` — Phase 4: Archive verified files, remove originals, update MEMORY.md.
 struct MemoryCleanupCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "cleanup",
@@ -136,7 +136,7 @@ struct MemoryCleanupCommand: AsyncParsableCommand {
 
 // MARK: - Status
 
-/// `shikki memory status` — Show current memory migration status.
+/// `shi memory status` — Show current memory migration status.
 struct MemoryStatusCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "status",

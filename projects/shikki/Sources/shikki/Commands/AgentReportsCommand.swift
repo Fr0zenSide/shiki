@@ -5,11 +5,11 @@ import ShikkiKit
 /// Display agent report cards — per-persona effectiveness tracking.
 ///
 /// Examples:
-///   shikki agent-reports                        # all recent report cards
-///   shikki agent-reports --session maya:wave3    # specific session
-///   shikki agent-reports --company maya          # all maya sessions
-///   shikki agent-reports --persona implement     # only implementers
-///   shikki agent-reports --md                    # markdown output
+///   shi agent-reports                        # all recent report cards
+///   shi agent-reports --session maya:wave3    # specific session
+///   shi agent-reports --company maya          # all maya sessions
+///   shi agent-reports --persona implement     # only implementers
+///   shi agent-reports --md                    # markdown output
 struct AgentReportsCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "agent-reports",

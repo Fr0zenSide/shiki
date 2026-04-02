@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki spec read <file>` — Open a spec at the reviewer's last anchor position.
+/// `shi spec read <file>` — Open a spec at the reviewer's last anchor position.
 ///
 /// Finds the reviewer's anchor from frontmatter and opens with `bat` in a new
 /// tmux window at the anchor line. Falls back to beginning if no anchor saved.

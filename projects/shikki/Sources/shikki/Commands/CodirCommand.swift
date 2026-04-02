@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// Executive board summary — alias for `shikki report --codir`.
+/// Executive board summary — alias for `shi report --codir`.
 ///
 /// - BR-R-04: CODIR mode shows project/team aggregates. No individual worker metrics.
 struct CodirCommand: AsyncParsableCommand {

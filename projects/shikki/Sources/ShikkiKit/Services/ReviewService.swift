@@ -18,11 +18,11 @@ public protocol ReviewAnalysisProvider: Sendable {
 
 /// What the review command is operating on.
 public enum ReviewTarget: Sendable, Equatable {
-    /// Single PR review: `shikki review 42`
+    /// Single PR review: `shi review 42`
     case single(Int)
-    /// Batch range: `shikki review --batch 14..18`
+    /// Batch range: `shi review --batch 14..18`
     case batch([Int])
-    /// Pre-PR quality gates: `shikki review --pre-pr`
+    /// Pre-PR quality gates: `shi review --pre-pr`
     case prePR
 }
 

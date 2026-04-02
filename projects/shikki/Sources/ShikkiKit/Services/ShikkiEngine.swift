@@ -9,7 +9,7 @@ public enum ShikkiAction: Equatable, Sendable {
     case blocked                         // STOPPING → wait or cancel in other terminal
 }
 
-/// Result of the shikki stop flow.
+/// Result of the shi stop flow.
 public enum StopAction: Equatable, Sendable {
     case stopped                         // Full stop completed
     case cancelled                       // User pressed Esc

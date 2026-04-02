@@ -6,8 +6,8 @@ import ShikkiKit
 /// ⏪ shows the last checkpoint and offers to restore it.
 ///
 /// Usage:
-///   shikki undo           — show last checkpoint info
-///   shikki undo <uuid>    — (placeholder) restore a specific checkpoint by ID
+///   shi undo           — show last checkpoint info
+///   shi undo <uuid>    — (placeholder) restore a specific checkpoint by ID
 struct UndoCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "undo",

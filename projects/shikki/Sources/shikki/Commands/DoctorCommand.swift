@@ -12,7 +12,7 @@ struct DoctorCommand: AsyncParsableCommand {
     var fix: Bool = false
 
     /// BR-EM-17: Emit shell aliases for all Shikkimoji emoji commands.
-    /// Usage: eval "$(shikki doctor --emit-aliases)"
+    /// Usage: eval "$(shi doctor --emit-aliases)"
     @Flag(name: .long, help: "Emit bash/zsh aliases for all Shikkimoji emoji commands")
     var emitAliases: Bool = false
 
@@ -85,16 +85,16 @@ struct DoctorCommand: AsyncParsableCommand {
         let warnings = results.filter { $0.status == .warning }.count
 
         if fix && !fixableResults.isEmpty {
-            print("\u{1B}[32mFix pass complete.\u{1B}[0m Re-run \u{1B}[1mshikki doctor\u{1B}[0m to verify.")
+            print("\u{1B}[32mFix pass complete.\u{1B}[0m Re-run \u{1B}[1mshi doctor\u{1B}[0m to verify.")
         } else if errors > 0 {
             print("\u{1B}[31m\(errors) error(s)\u{1B}[0m, \(warnings) warning(s)")
             if !fixableResults.isEmpty {
-                print("Run: \u{1B}[1mshikki doctor --fix\u{1B}[0m")
+                print("Run: \u{1B}[1mshi doctor --fix\u{1B}[0m")
             }
         } else if warnings > 0 {
             print("\u{1B}[33m\(warnings) warning(s)\u{1B}[0m — all clear otherwise")
             if !fixableResults.isEmpty {
-                print("Run: \u{1B}[1mshikki doctor --fix\u{1B}[0m")
+                print("Run: \u{1B}[1mshi doctor --fix\u{1B}[0m")
             }
         } else {
             print("\u{1B}[32mAll checks passed\u{1B}[0m")

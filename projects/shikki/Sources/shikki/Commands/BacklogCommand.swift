@@ -153,7 +153,7 @@ struct BacklogCommand: AsyncParsableCommand {
         }
 
         print()
-        print("\(dim)Commands: shikki backlog add \"idea\" | --json | --count | --status <s>\(reset)")
+        print("\(dim)Commands: shi backlog add \"idea\" | --json | --count | --status <s>\(reset)")
     }
 }
 

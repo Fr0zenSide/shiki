@@ -4,7 +4,7 @@ import Foundation
 
 /// Output format for the NATS event renderer.
 public enum NATSRenderFormat: String, Sendable {
-    case compact  // One-line ANSI (default for `shikki log`)
+    case compact  // One-line ANSI (default for `shi log`)
     case detail   // Multi-line with payload details
     case json     // Raw JSON for piping
 }

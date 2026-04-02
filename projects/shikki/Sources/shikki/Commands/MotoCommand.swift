@@ -58,7 +58,7 @@ struct MotoInitCommand: AsyncParsableCommand {
         let motoFilePath = "\(resolvedPath)/.moto"
         if FileManager.default.fileExists(atPath: motoFilePath) {
             printDim("[moto] .moto file already exists at \(motoFilePath)")
-            printDim("[moto] Use 'shikki moto build' to rebuild the cache.")
+            printDim("[moto] Use 'shi moto build' to rebuild the cache.")
             return
         }
 
@@ -121,7 +121,7 @@ struct MotoInitCommand: AsyncParsableCommand {
         print("  Git: \(String(cache.gitHash.prefix(8)))")
         printDim("")
         printDim("  Add .moto-cache/ to .gitignore (or commit for offline use).")
-        printDim("  Run 'shikki moto build' after code changes to refresh.")
+        printDim("  Run 'shi moto build' after code changes to refresh.")
     }
 }
 
@@ -218,7 +218,7 @@ struct MotoStatusCommand: AsyncParsableCommand {
         let motoFilePath = "\(resolvedPath)/.moto"
 
         guard FileManager.default.fileExists(atPath: motoFilePath) else {
-            printDim("[moto] No .moto file found. Run 'shikki moto init' first.")
+            printDim("[moto] No .moto file found. Run 'shi moto init' first.")
             throw ExitCode(1)
         }
 
@@ -263,7 +263,7 @@ struct MotoStatusCommand: AsyncParsableCommand {
                 printWarning("  Integrity: FAILED (\(failures.joined(separator: ", ")))")
             }
         } else {
-            printWarning("  Cache: NOT BUILT (run 'shikki moto build')")
+            printWarning("  Cache: NOT BUILT (run 'shi moto build')")
         }
     }
 }
@@ -293,7 +293,7 @@ struct MotoValidateCommand: AsyncParsableCommand {
         }
 
         guard FileManager.default.fileExists(atPath: "\(cacheOutput)/manifest.json") else {
-            printWarning("[moto] No cache found. Run 'shikki moto init' or 'shikki moto build'.")
+            printWarning("[moto] No cache found. Run 'shi moto init' or 'shi moto build'.")
             throw ExitCode(1)
         }
 
@@ -349,7 +349,7 @@ struct MotoQueryCommand: AsyncParsableCommand {
         switch kind {
         case "type":
             guard let name else {
-                print("Usage: shikki moto query type <TypeName>")
+                print("Usage: shi moto query type <TypeName>")
                 throw ExitCode(1)
             }
             if let result = try mcp.getType(name: name) {
@@ -362,7 +362,7 @@ struct MotoQueryCommand: AsyncParsableCommand {
 
         case "protocol":
             guard let name else {
-                print("Usage: shikki moto query protocol <ProtocolName>")
+                print("Usage: shi moto query protocol <ProtocolName>")
                 throw ExitCode(1)
             }
             if let result = try mcp.getProtocol(name: name) {
@@ -375,7 +375,7 @@ struct MotoQueryCommand: AsyncParsableCommand {
 
         case "pattern":
             guard let name else {
-                print("Usage: shikki moto query pattern <pattern_name>")
+                print("Usage: shi moto query pattern <pattern_name>")
                 throw ExitCode(1)
             }
             if let result = try mcp.getPattern(name: name) {

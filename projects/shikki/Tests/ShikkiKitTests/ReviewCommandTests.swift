@@ -54,10 +54,10 @@ struct ReviewCommandTests {
     @Test("diff output starts with comment header for pipe compatibility")
     func pipeOutputHeader() {
         // The review command emits a comment header before the diff
-        // Format: // shikki review #N: X files, Y/Z reviewed, W pending
-        let header = "// shikki review #14: 5 files, 2/5 reviewed, 3 pending"
+        // Format: // shi review #N: X files, Y/Z reviewed, W pending
+        let header = "// shi review #14: 5 files, 2/5 reviewed, 3 pending"
         #expect(header.hasPrefix("//"))
-        #expect(header.contains("shikki review"))
+        #expect(header.contains("shi review"))
         #expect(header.contains("#14"))
         #expect(header.contains("reviewed"))
         #expect(header.contains("pending"))

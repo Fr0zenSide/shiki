@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki spec` — Spec management hub.
+/// `shi spec` — Spec management hub.
 ///
 /// Subcommands: generate, list, read, review, validate, progress.
 /// Default subcommand: list (shows all specs with status).
@@ -22,7 +22,7 @@ struct SpecCommand: AsyncParsableCommand {
     )
 }
 
-/// `shikki spec generate` — wraps the /md-feature skill into a ShikiCore CLI entry point.
+/// `shi spec generate` — wraps the /md-feature skill into a ShikiCore CLI entry point.
 ///
 /// BR-SP-01: The #1 priority component, first stone of Shikki.
 /// BR-SP-02: Output to ShikiDB (source of truth) + features/*.md (human-readable backup).

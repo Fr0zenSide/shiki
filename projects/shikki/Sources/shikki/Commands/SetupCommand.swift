@@ -28,10 +28,10 @@ struct SetupCommand: AsyncParsableCommand {
         if success {
             try SetupState.markComplete(version: version)
             print()
-            print("\u{1B}[32mSetup complete.\u{1B}[0m Run \u{1B}[1mshikki doctor\u{1B}[0m to verify.")
+            print("\u{1B}[32mSetup complete.\u{1B}[0m Run \u{1B}[1mshi doctor\u{1B}[0m to verify.")
         } else {
             print()
-            print("\u{1B}[31mSetup incomplete.\u{1B}[0m Fix the errors above and re-run \u{1B}[1mshikki setup\u{1B}[0m.")
+            print("\u{1B}[31mSetup incomplete.\u{1B}[0m Fix the errors above and re-run \u{1B}[1mshi setup\u{1B}[0m.")
             throw ExitCode(1)
         }
     }

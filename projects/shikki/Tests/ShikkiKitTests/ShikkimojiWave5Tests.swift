@@ -29,9 +29,9 @@ struct ShikkimojiWave5Tests {
     func testGenerateShellAliases_containsDoctor() {
         let aliases = EmojiRegistry.generateShellAliases()
         // Text alias
-        #expect(aliases.contains("alias sk-doctor='shikki doctor'"))
+        #expect(aliases.contains("alias sk-doctor='shi doctor'"))
         // Emoji alias for 🥕 → doctor
-        #expect(aliases.contains("shikki doctor"))
+        #expect(aliases.contains("shi doctor"))
     }
 
     @Test("generateShellAliases produces valid bash syntax (alias keyword, no bare lines)")

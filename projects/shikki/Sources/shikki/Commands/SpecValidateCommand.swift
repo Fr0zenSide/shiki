@@ -2,8 +2,8 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki spec validate <file>` — Set spec status to "validated".
-/// `shikki spec validate <file> --partial "#section-8"` — Partial validation with anchor.
+/// `shi spec validate <file>` — Set spec status to "validated".
+/// `shi spec validate <file> --partial "#section-8"` — Partial validation with anchor.
 ///
 /// Updates the YAML frontmatter in-place, transitioning the spec's lifecycle status.
 struct SpecValidateCommand: AsyncParsableCommand {

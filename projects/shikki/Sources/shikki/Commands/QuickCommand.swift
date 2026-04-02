@@ -2,16 +2,16 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki quick` — small change, single agent, no spec ceremony.
+/// `shi quick` — small change, single agent, no spec ceremony.
 ///
 /// BR-CA-04: Every user-facing skill gets a Swift entry point.
 /// Maps the /quick-flow skill into a compiled command with typed args,
 /// scope detection, and gate enforcement.
 ///
 /// Usage:
-///   shikki quick "fix the typo in README"
-///   shikki quick "rename var to camelCase" --yolo
-///   shikki quick "add test for edge case" --dry-run
+///   shi quick "fix the typo in README"
+///   shi quick "rename var to camelCase" --yolo
+///   shi quick "add test for edge case" --dry-run
 struct QuickCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "quick",
@@ -50,7 +50,7 @@ struct QuickCommand: AsyncParsableCommand {
                 ))
             }
             FileHandle.standardError.write(Data(
-                "\u{1B}[2mConsider `shikki spec` instead for structured changes.\u{1B}[0m\n".utf8
+                "\u{1B}[2mConsider `shi spec` instead for structured changes.\u{1B}[0m\n".utf8
             ))
             if !yolo {
                 throw ExitCode.failure
@@ -126,7 +126,7 @@ struct QuickCommand: AsyncParsableCommand {
     private func errorMessage(_ error: QuickPipelineError) -> String {
         switch error {
         case .emptyPrompt:
-            return "Empty prompt. Usage: shikki quick \"description of change\""
+            return "Empty prompt. Usage: shi quick \"description of change\""
         case .scopeTooLarge(let score, let signals):
             return "Scope too large (score \(score)): \(signals.joined(separator: ", "))"
         case .agentFailed(let msg):
@@ -134,7 +134,7 @@ struct QuickCommand: AsyncParsableCommand {
         case .testsFailed(let msg):
             return "Tests failed: \(msg)"
         case .escalationRequired(let attempts):
-            return "Escalation required after \(attempts) fix attempts. Use `shikki spec` instead."
+            return "Escalation required after \(attempts) fix attempts. Use `shi spec` instead."
         }
     }
 }

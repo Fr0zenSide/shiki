@@ -23,7 +23,7 @@ public enum WakeReason: Sendable, CustomStringConvertible {
     case dispatchRequested
     /// A service explicitly asked for an early re-tick.
     case serviceNudge(ServiceID)
-    /// External signal (e.g., from DB trigger, MCP call, shikki push).
+    /// External signal (e.g., from DB trigger, MCP call, shi push).
     case externalSignal(String)
 
     public var description: String {

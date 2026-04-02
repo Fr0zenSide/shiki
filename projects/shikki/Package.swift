@@ -6,7 +6,7 @@ let package = Package(
     name: "shikki",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "shikki", targets: ["shikki"]),
+        .executable(name: "shi", targets: ["shi"]),
         .executable(name: "shikki-test", targets: ["shikki-test"]),
         .library(name: "ShikkiKit", targets: ["ShikkiKit"]),
     ],
@@ -26,12 +26,13 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "shikki",
+            name: "shi",
             dependencies: [
                 "ShikkiKit",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Logging", package: "swift-log"),
-            ]
+            ],
+            path: "Sources/shikki"
         ),
         .executableTarget(
             name: "shikki-test",

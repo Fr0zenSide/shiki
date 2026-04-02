@@ -67,7 +67,7 @@ public enum RecommendationPriority: String, Codable, Sendable, Equatable {
 
 // MARK: - CommunityBaseline
 
-/// Community-wide baseline statistics (downloaded via `shikki update --models`).
+/// Community-wide baseline statistics (downloaded via `shi update --models`).
 /// Starts empty — populated when community data becomes available.
 public struct CommunityBaseline: Codable, Sendable, Equatable {
     public let updatedAt: Date

@@ -98,7 +98,7 @@ public struct ArchiveManager: Sendable {
     /// Categorize an archive failure for a human-readable hint.
     public func diagnosisHint(from logContent: String) -> String {
         if logContent.contains("Code Sign error") || logContent.contains("No provisioning profile") {
-            return "Signing issue detected. Run: shikki doctor --signing"
+            return "Signing issue detected. Run: shi doctor --signing"
         }
         if logContent.contains("module") && logContent.contains("not found") {
             return "Missing module. Check your SPM dependencies or framework search paths."

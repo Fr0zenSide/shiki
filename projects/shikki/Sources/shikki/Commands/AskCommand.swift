@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki ask "how does X work?"` -- natural language Q&A over the codebase.
+/// `shi ask "how does X work?"` -- natural language Q&A over the codebase.
 ///
 /// Single-shot retrieval: query -> BM25 + ArchitectureCache -> cited answer.
 /// Fits in one terminal screen. No chat history, no streaming.

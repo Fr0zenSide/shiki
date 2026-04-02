@@ -5,9 +5,9 @@ import ShikkiKit
 /// Interactive Observatory TUI — live dashboard for session oversight.
 ///
 /// Examples:
-///   shikki observatory                 # launch interactive TUI
-///   shikki observatory --snapshot      # one-shot dashboard output
-///   shikki observatory --tab reports   # start on reports tab
+///   shi observatory                 # launch interactive TUI
+///   shi observatory --snapshot      # one-shot dashboard output
+///   shi observatory --tab reports   # start on reports tab
 struct ObservatoryCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "observatory",

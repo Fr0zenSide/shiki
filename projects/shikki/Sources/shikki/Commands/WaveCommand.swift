@@ -7,9 +7,9 @@ import ShikkiKit
 /// Full flow: spec → parse → verify → plan → dispatch → merge → test → fix → done.
 ///
 /// Usage:
-///   shikki wave --spec features/payment.md
-///   shikki wave --spec features/payment.md --dry-run
-///   shikki wave --resume --fix-red
+///   shi wave --spec features/payment.md
+///   shi wave --spec features/payment.md --dry-run
+///   shi wave --resume --fix-red
 struct WaveCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "wave",

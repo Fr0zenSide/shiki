@@ -113,8 +113,8 @@ struct InitCommand: AsyncParsableCommand {
 
         print(styled("Next steps:", .bold))
         print("  1. Review the generated .moto file")
-        print("  2. Run \(styled("shikki doctor", .cyan)) to check your environment")
-        print("  3. Run \(styled("shikki", .cyan)) to start orchestrating")
+        print("  2. Run \(styled("shi doctor", .cyan)) to check your environment")
+        print("  3. Run \(styled("shi", .cyan)) to start orchestrating")
         print()
     }
 }

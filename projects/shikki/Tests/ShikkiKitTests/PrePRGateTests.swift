@@ -638,7 +638,7 @@ struct PrePRRequiredGateTests {
             Issue.record("Expected .fail, got \(result)")
             return
         }
-        #expect(reason.contains("shikki ship --pre-pr"))
+        #expect(reason.contains("shi ship --pre-pr"))
     }
 
     @Test("Fails when branch mismatch")

@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki spec progress` — Show all specs with review progress summary.
+/// `shi spec progress` — Show all specs with review progress summary.
 ///
 /// Displays a dashboard of spec review status with per-status counts
 /// and a progress bar showing validation percentage.

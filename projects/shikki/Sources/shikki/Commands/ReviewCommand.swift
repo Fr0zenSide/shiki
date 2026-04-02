@@ -2,17 +2,17 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki review` — compiled entry point for PR review.
+/// `shi review` — compiled entry point for PR review.
 ///
 /// BR-CA-08: Swift is the authoritative pipeline; pr-review.md is the LLM prompt body.
 /// BR-CA-04: Every user-facing skill gets a Swift entry point.
 /// BR-CA-02: Pre-PR gates are compiled Swift, not markdown.
 ///
 /// Usage:
-///   shikki review 42              -> review a single PR
-///   shikki review --batch 14..18  -> review a range of PRs
-///   shikki review --pre-pr        -> run pre-PR quality gates
-///   shikki review 42 --dry-run    -> preview without side effects
+///   shi review 42              -> review a single PR
+///   shi review --batch 14..18  -> review a range of PRs
+///   shi review --pre-pr        -> run pre-PR quality gates
+///   shi review 42 --dry-run    -> preview without side effects
 struct ReviewCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "review",
@@ -45,9 +45,9 @@ struct ReviewCommand: AsyncParsableCommand {
             throw ValidationError(
                 "Specify a PR number, --batch range, or --pre-pr.\n" +
                 "Examples:\n" +
-                "  shikki review 42\n" +
-                "  shikki review --batch 14..18\n" +
-                "  shikki review --pre-pr"
+                "  shi review 42\n" +
+                "  shi review --batch 14..18\n" +
+                "  shi review --pre-pr"
             )
         }
         if activeCount > 1 {

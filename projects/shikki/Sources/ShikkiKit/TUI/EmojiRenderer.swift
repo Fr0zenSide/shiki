@@ -25,7 +25,7 @@ public enum EmojiRenderer: Sendable {
     // MARK: - Help Table
 
     /// Render a formatted two-column help table of all emoji → command mappings,
-    /// grouped by category. Suitable for `shikki help` output (BR-EM-09).
+    /// grouped by category. Suitable for `shi help` output (BR-EM-09).
     public static func renderHelpTable() -> String {
         var lines: [String] = []
         lines.append("\u{1B}[1mShikkimoji — Emoji Command Shortcuts\u{1B}[0m")

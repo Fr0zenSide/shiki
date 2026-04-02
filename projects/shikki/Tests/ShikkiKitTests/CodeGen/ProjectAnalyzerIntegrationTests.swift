@@ -22,7 +22,7 @@ struct ProjectAnalyzerIntegrationTests {
         #expect(cache.packageInfo.name == "shikki")
         #expect(!cache.packageInfo.targets.isEmpty)
         #expect(cache.packageInfo.targets.contains(where: { $0.name == "ShikkiKit" }))
-        #expect(cache.packageInfo.targets.contains(where: { $0.name == "shikki" }))
+        #expect(cache.packageInfo.targets.contains(where: { $0.name == "shi" }))
         #expect(cache.packageInfo.targets.contains(where: { $0.name == "ShikkiKitTests" }))
 
         // Should find known protocols

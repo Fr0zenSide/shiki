@@ -6,9 +6,9 @@ import ShikkiKit
 /// Emoji alias: 🔇
 ///
 /// Usage:
-///   shikki focus          — show elapsed time (or "not active")
-///   shikki focus 20m      — start focus for 20 minutes
-///   shikki focus stop     — stop focus mode early
+///   shi focus          — show elapsed time (or "not active")
+///   shi focus 20m      — start focus for 20 minutes
+///   shi focus stop     — stop focus mode early
 struct FocusCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "focus",
@@ -49,7 +49,7 @@ struct FocusCommand: AsyncParsableCommand {
                 }
             } else {
                 print("\(ANSI.dim)Focus mode is not active.\(ANSI.reset)")
-                print("  \(ANSI.dim)Usage: shikki focus <duration>  (e.g. shikki focus 20m)\(ANSI.reset)")
+                print("  \(ANSI.dim)Usage: shi focus <duration>  (e.g. shi focus 20m)\(ANSI.reset)")
             }
             return
         }

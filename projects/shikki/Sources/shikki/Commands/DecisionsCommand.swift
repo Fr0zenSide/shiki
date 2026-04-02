@@ -5,10 +5,10 @@ import ShikkiKit
 /// Query and display architecture decisions from the Decision Journal.
 ///
 /// Examples:
-///   shikki decisions                          # all decisions, most recent first
-///   shikki decisions --session maya:spm-wave3 # decisions for a specific session
-///   shikki decisions --category architecture  # only architecture decisions
-///   shikki decisions --chain <uuid>           # show decision chain from root
+///   shi decisions                          # all decisions, most recent first
+///   shi decisions --session maya:spm-wave3 # decisions for a specific session
+///   shi decisions --category architecture  # only architecture decisions
+///   shi decisions --chain <uuid>           # show decision chain from root
 struct DecisionsCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "decisions",

@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki spec review <file>` — Start reviewing a spec, setting status to "review".
+/// `shi spec review <file>` — Start reviewing a spec, setting status to "review".
 ///
 /// Adds the reviewer to the frontmatter with verdict "reading" and
 /// transitions the spec status from draft to review.

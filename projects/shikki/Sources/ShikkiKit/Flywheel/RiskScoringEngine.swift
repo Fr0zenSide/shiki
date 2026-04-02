@@ -73,7 +73,7 @@ public enum RiskTier: String, Codable, Sendable, Equatable, Comparable {
 
 /// Configurable weights for each heuristic signal.
 /// These start as hardcoded defaults and can be replaced by
-/// community-trained weights via `shikki update --models`.
+/// community-trained weights via `shi update --models`.
 public struct RiskWeights: Codable, Sendable, Equatable {
     public var churnWeight: Double
     public var complexityWeight: Double

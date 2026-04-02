@@ -2,9 +2,9 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki diagnostic` — Recover recent work context from ShikiDB,
+/// `shi diagnostic` — Recover recent work context from ShikiDB,
 /// local checkpoints, and git for humans and agents.
-/// Also accessible as `shikki doctor --context`.
+/// Also accessible as `shi doctor --context`.
 struct DiagnosticCommand: AsyncParsableCommand {
     /// Default recovery window when no checkpoint or --from is specified.
     static let defaultRecoveryWindowSeconds: TimeInterval = 3600 // 1 hour
@@ -82,7 +82,7 @@ struct DiagnosticCommand: AsyncParsableCommand {
         // BR-15: If all sources failed
         if context.confidence.overall == 0 && context.timeline.isEmpty {
             FileHandle.standardError.write(
-                Data("No context available. Run `shikki doctor` to check environment health.\n".utf8)
+                Data("No context available. Run `shi doctor` to check environment health.\n".utf8)
             )
         }
     }

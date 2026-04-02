@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki spec-migrate` — Migrate spec files to v2 enhanced frontmatter.
+/// `shi spec-migrate` — Migrate spec files to v2 enhanced frontmatter.
 ///
 /// Scans `features/` for .md files and adds missing v2 metadata fields:
 /// progress, updated, tags, flsh block, reviewers, and normalizes status.

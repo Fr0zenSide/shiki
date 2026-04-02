@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki fast` — the ultimate shortcut: quick + test + pre-pr + ship.
+/// `shi fast` — the ultimate shortcut: quick + test + pre-pr + ship.
 ///
 /// BR-CA-06: Emoji alias 🌪️ maps to `fast`.
 /// BR-CA-08: Swift code is the authoritative definition.
@@ -11,9 +11,9 @@ import ShikkiKit
 /// in one pipeline with zero user interaction.
 ///
 /// Usage:
-///   shikki fast "add error handling to API"
-///   shikki fast "fix off-by-one in pagination" --dry-run
-///   shikki 🌪️ "hotfix typo"
+///   shi fast "add error handling to API"
+///   shi fast "fix off-by-one in pagination" --dry-run
+///   shi 🌪️ "hotfix typo"
 struct FastCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "fast",

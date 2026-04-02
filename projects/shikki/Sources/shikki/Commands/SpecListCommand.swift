@@ -2,9 +2,9 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki spec list` — List all specs in features/ with status, progress, and reviewer.
+/// `shi spec list` — List all specs in features/ with status, progress, and reviewer.
 ///
-/// Supports filtering by lifecycle state: `shikki spec list --status draft`.
+/// Supports filtering by lifecycle state: `shi spec list --status draft`.
 /// Output markers: validated, partial/rework, draft, implementing, shipped.
 struct SpecListCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(

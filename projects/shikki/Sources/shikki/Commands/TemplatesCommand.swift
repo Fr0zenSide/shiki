@@ -70,8 +70,8 @@ extension TemplatesCommand {
                     print()
                 }
 
-                print(styled("Use `shikki templates info <id>` for details.", .dim))
-                print(styled("Use `shikki templates apply <id>` to apply a template.", .dim))
+                print(styled("Use `shi templates info <id>` for details.", .dim))
+                print(styled("Use `shi templates apply <id>` to apply a template.", .dim))
             } catch RegistryError.registryCorrupted {
                 print(styled("Error:", .red, .bold) + " Template registry is corrupted.")
                 print(styled("  Delete ~/.config/shikki/templates/index.json and try again.", .dim))
@@ -177,11 +177,11 @@ extension TemplatesCommand {
                 }
 
                 print()
-                print(styled("Apply with: shikki templates apply \(id)", .dim))
+                print(styled("Apply with: shi templates apply \(id)", .dim))
 
             } catch RegistryError.templateNotFound {
                 print(styled("Error:", .red, .bold) + " Template '\(id)' not found.")
-                print(styled("  Use `shikki templates list` to see available templates.", .dim))
+                print(styled("  Use `shi templates list` to see available templates.", .dim))
                 throw ExitCode(1)
             }
         }
@@ -240,7 +240,7 @@ extension TemplatesCommand {
             // GitHub install requires network -- placeholder for v1
             print(styled("GitHub install coming soon.", .yellow))
             print(styled("  For now, download the template JSON and use:", .dim))
-            print(styled("  shikki templates install ./path/to/template.json", .dim))
+            print(styled("  shi templates install ./path/to/template.json", .dim))
         }
     }
 }

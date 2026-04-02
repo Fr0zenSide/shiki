@@ -230,7 +230,7 @@ public enum AppConfigError: Error, CustomStringConvertible {
     public var description: String {
         switch self {
         case .fileNotFound(let path):
-            return "App configuration not found at \(path). Create it with: shikki ship --testflight --setup"
+            return "App configuration not found at \(path). Create it with: shi ship --testflight --setup"
         case .missingField(let slug, let field):
             return "App '\(slug)' is missing required field '\(field)' in apps.toml"
         case .unknownApp(let slug, let available):

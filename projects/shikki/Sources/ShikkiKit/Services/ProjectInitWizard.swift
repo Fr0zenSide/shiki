@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - InitResult
 
-/// The outcome of running `shikki init`.
+/// The outcome of running `shi init`.
 public struct InitResult: Sendable, Equatable {
     public let motoFile: MotoFile
     public let filesCreated: [String]
@@ -343,7 +343,7 @@ public struct ProjectInitWizard: Sendable {
     /// The pre-commit hook content that enforces git flow.
     static let gitFlowPreCommitHook = """
     #!/bin/sh
-    # Git Flow Guard — installed by shikki init
+    # Git Flow Guard — installed by shi init
     # Reject direct commits on develop/main. Only merge commits allowed.
 
     BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)

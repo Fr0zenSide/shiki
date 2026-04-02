@@ -128,7 +128,7 @@ public enum ChainParser: Sendable {
                 let entry = EmojiRegistry.lookup(step.emoji)
                 if entry?.isDestructive == true {
                     return .error(
-                        "Destructive commands cannot be chained. Run `shikki \(step.emoji)` separately."
+                        "Destructive commands cannot be chained. Run `shi \(step.emoji)` separately."
                     )
                 }
             }

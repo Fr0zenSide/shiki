@@ -57,7 +57,7 @@ struct ShipCommand: AsyncParsableCommand {
                 Data("Error: --why is required. Every release needs a reason.\n".utf8)
             )
             FileHandle.standardError.write(
-                Data("Usage: shikki ship --why \"reason\" [--dry-run] [--testflight]\n".utf8)
+                Data("Usage: shi ship --why \"reason\" [--dry-run] [--testflight]\n".utf8)
             )
             throw ExitCode.failure
         }
@@ -224,7 +224,7 @@ struct ShipCommand: AsyncParsableCommand {
 
     // MARK: - Pre-PR Pipeline
 
-    /// Run pre-PR quality gates and persist status for later `shikki ship` validation.
+    /// Run pre-PR quality gates and persist status for later `shi ship` validation.
     private func runPrePR() async throws {
         let projectRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         let branch = try detectBranch()
@@ -317,7 +317,7 @@ struct ShipCommand: AsyncParsableCommand {
                 Data("\u{1B}[1m\u{1B}[32m--- Pre-PR Passed ---\u{1B}[0m \(String(format: "%.1fs", totalElapsed))\n".utf8)
             )
             FileHandle.standardError.write(
-                Data("  Status saved. Run `shikki ship --why \"...\"` to proceed.\n".utf8)
+                Data("  Status saved. Run `shi ship --why \"...\"` to proceed.\n".utf8)
             )
         } else {
             FileHandle.standardError.write(
@@ -328,7 +328,7 @@ struct ShipCommand: AsyncParsableCommand {
                 FileHandle.standardError.write(Data("  Reason: \(reason)\n".utf8))
             }
             FileHandle.standardError.write(
-                Data("  Fix the issues and run `shikki ship --pre-pr` again.\n".utf8)
+                Data("  Fix the issues and run `shi ship --pre-pr` again.\n".utf8)
             )
         }
         FileHandle.standardError.write(Data("\n".utf8))

@@ -124,7 +124,7 @@ public struct SystemProcessLauncher: NATSProcessLauncher {
 /// - Track process via PID file
 /// - Health check integration
 ///
-/// Used by `shikki start` and `shikki stop`.
+/// Used by `shi start` and `shi stop`.
 public actor NATSServerManager {
 
     private let processLauncher: NATSProcessLauncher

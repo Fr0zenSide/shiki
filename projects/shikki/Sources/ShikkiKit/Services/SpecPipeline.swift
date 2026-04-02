@@ -10,7 +10,7 @@ public enum SpecInput: Sendable, Equatable {
     case freeText(String)
     /// Backlog item UUID reference.
     case backlogItem(String)
-    /// Shorthand backlog reference (#N from `shikki backlog` list).
+    /// Shorthand backlog reference (#N from `shi backlog` list).
     case shorthand(Int)
 }
 

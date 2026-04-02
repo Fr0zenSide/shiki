@@ -30,7 +30,7 @@ struct ContextCommand: AsyncParsableCommand {
         let store = CacheStore()
 
         guard let cache = try store.load(projectId: projectId) else {
-            print("\u{1B}[31m[error]\u{1B}[0m No cache found for '\(projectId)'. Run: shikki ingest <path>")
+            print("\u{1B}[31m[error]\u{1B}[0m No cache found for '\(projectId)'. Run: shi ingest <path>")
             throw ExitCode.failure
         }
 

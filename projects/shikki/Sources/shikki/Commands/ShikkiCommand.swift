@@ -5,12 +5,12 @@ import ShikkiKit
 @main
 struct ShikkiCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "shikki",
+        commandName: "shi",
         abstract: "Shikki — unified orchestrator command. Auto-detects state: start, resume, or attach.",
         discussion: EmojiRenderer.renderHelpTable(),
-        version: "shikki 0.3.0-pre",
+        version: "shi 0.3.0-pre",
         subcommands: [
-            // New shikki stop with countdown
+            // New shi stop with countdown
             ShikkiStopCommand.self,
             // Bootstrap
             SetupCommand.self,
@@ -105,7 +105,7 @@ struct ShikkiCommand: AsyncParsableCommand {
                 if let suggestion = TypoCorrector.suggest(firstArg) {
                     // BR-43: Never auto-execute stop (enforced by TypoCorrector)
                     print("Unknown command: '\(firstArg)'.")
-                    print("  \u{1B}[2m↪ Did you mean `shikki \(suggestion.corrected)`?\u{1B}[0m")
+                    print("  \u{1B}[2m↪ Did you mean `shi \(suggestion.corrected)`?\u{1B}[0m")
                     _exit(1)
                 }
             }

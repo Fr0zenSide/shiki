@@ -8,10 +8,10 @@ import ShikkiKit
 /// Rendering and review tracking belong to shiki-qa (external tool).
 ///
 /// Usage:
-///   shikki pr 6                    → JSON summary to stdout
-///   shikki pr 6 --diff | delta     → architecture-ordered diff
-///   shikki pr 6 | jq '.files[]'   → pipe to jq
-///   shikki pr 6 --build            → force-rebuild cache
+///   shi pr 6                    → JSON summary to stdout
+///   shi pr 6 --diff | delta     → architecture-ordered diff
+///   shi pr 6 | jq '.files[]'   → pipe to jq
+///   shi pr 6 --build            → force-rebuild cache
 struct PRCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "pr",
@@ -277,7 +277,7 @@ struct PRCommand: AsyncParsableCommand {
         }
 
         let cacheData: [String: Any] = [
-            "_command": "shikki pr \(number) --from \(from ?? "develop")",
+            "_command": "shi pr \(number) --from \(from ?? "develop")",
             "_diffSpec": diffSpec,
             "_builtAt": Date().iso8601,
             "files": files,

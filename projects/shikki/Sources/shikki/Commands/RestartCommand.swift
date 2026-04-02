@@ -26,9 +26,9 @@ struct RestartCommand: AsyncParsableCommand {
     /// Extract version string from parent command configuration.
     private static let currentVersion: String = {
         let raw = ShikkiCommand.configuration.version ?? "0.0.0"
-        // Strip "shikki " prefix if present (e.g. "shikki 0.3.0-pre" → "0.3.0-pre")
-        if raw.hasPrefix("shikki ") {
-            return String(raw.dropFirst("shikki ".count))
+        // Strip "shi " prefix if present (e.g. "shi 0.3.0-pre" → "0.3.0-pre")
+        if raw.hasPrefix("shi ") {
+            return String(raw.dropFirst("shi ".count))
         }
         return raw
     }()

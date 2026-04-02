@@ -78,7 +78,7 @@ extension FlywheelCommand {
             let engine = RiskScoringEngine()
 
             if files.isEmpty {
-                print("\u{1B}[2mUsage: shikki flywheel risk <file1> [file2...] [--verbose]\u{1B}[0m")
+                print("\u{1B}[2mUsage: shi flywheel risk <file1> [file2...] [--verbose]\u{1B}[0m")
                 print("\u{1B}[2mScores file changes using heuristic risk engine.\u{1B}[0m")
                 return
             }

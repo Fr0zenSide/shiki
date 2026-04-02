@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki plugins` — Manage Shikki plugins: list, install, uninstall, verify.
+/// `shi plugins` — Manage Shikki plugins: list, install, uninstall, verify.
 struct PluginsCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "plugins",
@@ -42,7 +42,7 @@ extension PluginsCommand {
 
             if plugins.isEmpty {
                 print("\u{1B}[2mNo plugins installed.\u{1B}[0m")
-                print("  Install a plugin: shikki plugins install <path-or-url>")
+                print("  Install a plugin: shi plugins install <path-or-url>")
                 return
             }
 
@@ -109,7 +109,7 @@ extension PluginsCommand {
             if source.hasPrefix("http://") || source.hasPrefix("https://") {
                 // Marketplace URL — not yet implemented
                 print("\u{1B}[33mMarketplace installation not yet available.\u{1B}[0m")
-                print("  Use a local path instead: shikki plugins install /path/to/plugin")
+                print("  Use a local path instead: shi plugins install /path/to/plugin")
                 throw ExitCode(1)
             }
 

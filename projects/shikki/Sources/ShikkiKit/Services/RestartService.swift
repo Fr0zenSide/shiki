@@ -84,7 +84,7 @@ public struct RestartService: Sendable {
 
         // BR-01: tmux session must exist
         guard tmuxRunning else {
-            return .aborted(reason: "No tmux session running — use 'shikki start' first")
+            return .aborted(reason: "No tmux session running — use 'shi start' first")
         }
 
         // BR-07: Resolve new binary

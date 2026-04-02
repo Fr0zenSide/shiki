@@ -390,7 +390,7 @@ public struct PrePRRequiredGate: ShipGate, Sendable {
     public func evaluate(context: ShipContext) async throws -> GateResult {
         guard let status = try statusStore.load() else {
             return .fail(
-                reason: "Pre-PR gates have not been run. Run `shikki ship --pre-pr` first."
+                reason: "Pre-PR gates have not been run. Run `shi ship --pre-pr` first."
             )
         }
 
@@ -399,16 +399,16 @@ public struct PrePRRequiredGate: ShipGate, Sendable {
                 return .fail(
                     reason: "Pre-PR status is for branch '\(status.branch)', "
                         + "but current branch is '\(context.branch)'. "
-                        + "Run `shikki ship --pre-pr` first."
+                        + "Run `shi ship --pre-pr` first."
                 )
             }
             if !status.passed {
                 return .fail(
-                    reason: "Pre-PR gates did not pass. Run `shikki ship --pre-pr` to fix quality gates first."
+                    reason: "Pre-PR gates did not pass. Run `shi ship --pre-pr` to fix quality gates first."
                 )
             }
             return .fail(
-                reason: "Pre-PR status has expired. Run `shikki ship --pre-pr` first."
+                reason: "Pre-PR status has expired. Run `shi ship --pre-pr` first."
             )
         }
 

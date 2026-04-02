@@ -152,7 +152,7 @@ struct InboxCommand: AsyncParsableCommand {
         }
 
         Swift.print()
-        Swift.print("\u{1B}[2mPipe to review: shikki review inbox | Filtered: shikki inbox --prs\u{1B}[0m")
+        Swift.print("\u{1B}[2mPipe to review: shi review inbox | Filtered: shi inbox --prs\u{1B}[0m")
     }
 
     private func typeSymbol(_ type: InboxItem.ItemType) -> String {

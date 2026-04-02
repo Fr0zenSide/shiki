@@ -60,7 +60,7 @@ public protocol NATSHealthCheckProtocol: Sendable {
 ///   4. Expect PONG\r\n
 ///   5. Measure round-trip latency
 ///
-/// Used by `shikki doctor` and `shikki status`.
+/// Used by `shi doctor` and `shi status`.
 public struct NATSHealthCheck: NATSHealthCheckProtocol {
 
     private let host: String

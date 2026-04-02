@@ -10,10 +10,10 @@ public enum EmojiRouter: Sendable {
     /// Returns the original args unchanged if no emoji match is found.
     ///
     /// Examples:
-    ///   ["shikki", "🥕"]           → ["shikki", "doctor"]
-    ///   ["shikki", "🔍", "CRDTs"] → ["shikki", "research", "CRDTs"]
-    ///   ["shikki", "doctor"]       → ["shikki", "doctor"] (passthrough)
-    ///   ["shikki"]                 → ["shikki"] (passthrough)
+    ///   ["shi", "🥕"]           → ["shi", "doctor"]
+    ///   ["shi", "🔍", "CRDTs"] → ["shi", "research", "CRDTs"]
+    ///   ["shi", "doctor"]       → ["shi", "doctor"] (passthrough)
+    ///   ["shi"]                 → ["shi"] (passthrough)
     public static func rewrite(_ args: [String]) -> [String] {
         guard args.count >= 2 else { return args }
 

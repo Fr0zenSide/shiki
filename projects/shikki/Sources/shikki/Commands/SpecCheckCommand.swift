@@ -2,7 +2,7 @@ import ArgumentParser
 import Foundation
 import ShikkiKit
 
-/// `shikki spec-check` — Parse, validate, and optionally compile S3 spec files.
+/// `shi spec-check` — Parse, validate, and optionally compile S3 spec files.
 ///
 /// Reads an S3 (Shiki Spec Syntax) file, validates its structure, reports
 /// diagnostics, and can generate Swift Testing @Test stubs.
