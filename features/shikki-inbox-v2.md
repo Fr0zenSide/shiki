@@ -62,6 +62,58 @@ BR-13: Board → inbox bridge: `shikki.agent.completed`, `shikki.agent.failed`, 
 BR-14: `shikki.bg.result.*` events from `shi bg` background tasks create inbox items with the bg result summary.
 ```
 
+## 3a. TDDP — Test-Driven Development Plan
+
+| Test | BR | Tier | Type | Description |
+|------|-----|------|------|-------------|
+| T-01 | BR-01 | Core (80%) | Unit | Fresh inbox on empty DB returns "Inbox is empty.", exit 0 |
+| T-02 | BR-03 | Core (80%) | Unit | Spec with status=review appears in computed query with type=spec |
+| T-03 | BR-05,07 | Core (80%) | Unit | Gate with failures=3 gets urgency_weight=30, computed score >= 60 |
+| T-04 | BR-08,11 | Core (80%) | Unit | `--archive spec:foo` sets archived_at, default view shows N-1 |
+| T-05 | BR-02 | Core (80%) | Unit | `--project shikki` filters returns shikki items only |
+| T-06 | BR-09,10 | Core (80%) | Unit | Count fast path returns correct count in <100ms |
+| T-07 | BR-13 | Core (80%) | Integration | `spec.status_changed` NATS event creates read_state row with read_at=NULL |
+| T-08 | BR-13 | Core (80%) | Integration | Existing archived row preserved on entity update (DO NOTHING) |
+| T-09 | BR-08 | Core (80%) | Unit | Snooze lifecycle: hidden during snooze window, visible after expiry |
+| T-10 | BR-06 | Core (80%) | Integration | ShikiDB unreachable — returns cached count or "unavailable" |
+| T-11 | BR-04 | Core (80%) | Unit | Pending decisions appear in inbox computed query |
+| T-12 | BR-12 | Core (80%) | Unit | Archived items auto-expire after 30 days |
+| T-13 | BR-14 | Core (80%) | Integration | `shikki.bg.result.*` NATS event creates inbox item with bg summary |
+| T-14 | BR-08 | Smoke (CLI) | Unit | `--snooze decision:42 --until 2h` sets snoozed_until correctly |
+
+## 3b. Wave Dispatch Tree
+
+```
+Wave 1: Schema + Computed Query
+  ├── inbox_read_state table migration
+  ├── InboxQueryBuilder (UNION computed view)
+  ├── InboxReadStateRepository (upsert/read/archive/snooze CRUD)
+  └── Update InboxManager to use computed query
+  Tests: T-01, T-02, T-03, T-04, T-05, T-06, T-09, T-11, T-12
+  Gate: swift test --filter Inbox → all green
+
+Wave 2: NATS Subscriber ← BLOCKED BY Wave 1
+  ├── InboxSubscriber (spec/decision/gate/agent/bg subjects)
+  ├── Insert-if-not-exists on event, preserve existing state
+  └── Wire into ShikiCore event emission sites
+  Tests: T-07, T-08, T-10, T-13
+  Gate: swift test --filter Inbox → all green + NATS integration verified
+
+Wave 3: CLI Enhancements ← BLOCKED BY Wave 1
+  ├── --project, --company, --archive, --snooze flags
+  ├── --archived flag for viewing archived items
+  └── Status line cache: write .shikki/inbox-count
+  Tests: T-05, T-14
+  Gate: swift test --filter Inbox → all green
+
+Wave 4: PR Sync + Polish ← BLOCKED BY Wave 2
+  ├── PRSyncSource (gh pr list upsert, stale auto-archive)
+  ├── --type multi-value filter
+  └── 30-day archived expiry sweep
+  Tests: T-12 (E2E)
+  Gate: full swift test green + shikki inbox manual verification
+```
+
 ---
 
 ## 4. Data Model
@@ -153,27 +205,32 @@ Output format unchanged from v1 (type badge + urgency score + title + company ta
 ## 7. Implementation Waves
 
 ### Wave 1: Schema + Computed Query (P0)
-- `inbox_read_state` table migration in ShikiDB
-- `InboxQueryBuilder` -- computed UNION query with filters
-- `InboxReadStateRepository` -- upsert/read/archive/snooze CRUD
-- Update `InboxManager` to use computed query instead of live source polling
-- **Tests**: 4 (query correctness, project filter, archive hides, count fast path)
+- **Files**: `ShikkiKit/Services/InboxQueryBuilder.swift`, `ShikkiKit/Services/InboxReadStateRepository.swift`, ShikiDB migration
+- **Tests**: T-01, T-02, T-03, T-04, T-05, T-06, T-09, T-11, T-12
+- **BRs**: BR-01, BR-02, BR-03, BR-04, BR-05, BR-07, BR-08, BR-09, BR-10, BR-11, BR-12
+- **Deps**: ShikiDB (exists), InboxManager (exists)
+- **Gate**: `swift test --filter Inbox` green
 
-### Wave 2: NATS Subscriber (P0)
-- `InboxSubscriber` -- subscribes to `shikki.spec.*`, `shikki.decision.*`, `shikki.gate.*`
-- On event: insert-if-not-exists into `inbox_read_state`, preserve existing state
-- Wire into ShikiCore event emission sites
-- **Tests**: 3 (new entity = unread row, existing row preserved, unknown event ignored)
+### Wave 2: NATS Subscriber (P0) ← BLOCKED BY Wave 1
+- **Files**: `ShikkiKit/Services/InboxSubscriber.swift`, ShikiCore event wiring
+- **Tests**: T-07, T-08, T-10, T-13
+- **BRs**: BR-06, BR-13, BR-14
+- **Deps**: Wave 1 (InboxReadStateRepository), NATSDispatcher (exists)
+- **Gate**: `swift test --filter Inbox` green + NATS integration verified
 
-### Wave 3: CLI Enhancements (P1)
-- `--project`, `--company` filters, `--archive`, `--snooze` subcommands, `--archived` flag
-- Status line cache: write `.shikki/inbox-count` on every call
-- **Tests**: 2 (project filter, archive round-trip)
+### Wave 3: CLI Enhancements (P1) ← BLOCKED BY Wave 1
+- **Files**: `Commands/InboxCommand.swift` (extend)
+- **Tests**: T-05, T-14
+- **BRs**: BR-02, BR-08
+- **Deps**: Wave 1 (InboxQueryBuilder, InboxReadStateRepository)
+- **Gate**: `swift test --filter Inbox` green
 
-### Wave 4: PR Sync + Polish (P1)
-- `PRSyncSource` -- upserts from `gh pr list` on demand, stale auto-archive (>7d)
-- `--type` accepts multiple values, 30-day archived expiry
-- **Tests**: 2 (PR sync upsert, stale auto-archive)
+### Wave 4: PR Sync + Polish (P1) ← BLOCKED BY Wave 2
+- **Files**: `ShikkiKit/Services/PRSyncSource.swift`
+- **Tests**: T-12 (E2E)
+- **BRs**: BR-06, BR-12
+- **Deps**: Wave 2 (InboxSubscriber), `gh` CLI
+- **Gate**: full `swift test` green + `shikki inbox` manual verification
 
 ---
 

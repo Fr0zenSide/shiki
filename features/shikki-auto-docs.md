@@ -53,6 +53,50 @@ git commit
 9. **BR-09**: Architecture overview uses the dependency graph from `dependencies.json` to render a Mermaid diagram.
 10. **BR-10**: `shikki docs coverage` reports the percentage of public types/protocols with doc comments. Target: 80% for core modules, 50% for CLI.
 
+## TDDP — Test-Driven Development Plan
+
+| Test | BR | Tier | Type | Description |
+|------|-----|------|------|-------------|
+| T-01 | BR-06 | Core (80%) | Unit | Single file change touching one module — only that section regenerated |
+| T-02 | BR-03 | Core (80%) | Unit | No `.moto-cache/` directory — hook exits silently, no error |
+| T-03 | BR-03 | Core (80%) | Unit | Cache manifest git hash differs from HEAD — hook skips generation |
+| T-04 | BR-07 | Core (80%) | Unit | New public type without doc comment — renders `*No description available.*` |
+| T-05 | BR-05 | Core (80%) | Unit | `shikki docs rebuild --all` — all 6 sections regenerated, footer comments updated |
+| T-06 | BR-10 | Smoke (CLI) | Unit | `shikki docs coverage` on 60% documented project — reports 60%, lists undocumented |
+| T-07 | BR-02 | Core (80%) | Integration | Pre-commit hook exceeds 2s timeout — warning emitted, commit proceeds |
+| T-08 | BR-08 | Core (80%) | Unit | Protocol with 3 method requirements — API reference lists all 3 signatures |
+| T-09 | BR-01 | Core (80%) | Unit | Generated docs have `<!-- AUTO-GENERATED -->` header |
+| T-10 | BR-04 | Core (80%) | Unit | Generated doc footer contains `<!-- Sources: ... -->` traceability comment |
+| T-11 | BR-09 | Core (80%) | Unit | Architecture overview renders Mermaid diagram from dependencies.json |
+| T-12 | BR-02 | Core (80%) | Unit | Incremental rebuild completes under 2s for single-file change |
+
+## Wave Dispatch Tree
+
+```
+Wave 1: DocGenerator Core + CLI
+  ├── DocGenerator (reads Moto cache, renders sections)
+  ├── DocSection enum + file-to-section mapping
+  ├── DocTemplate (per-section render functions)
+  └── DocsCommand (shikki docs rebuild --all, --section X)
+  Tests: T-01, T-04, T-05, T-08, T-09, T-10
+  Gate: swift test --filter Doc → all green
+
+Wave 2: Incremental Rebuild + Pre-Commit Hook ← BLOCKED BY Wave 1
+  ├── --changed --files flag on DocsCommand
+  ├── pre-commit-docs.sh hook (timeout + guards)
+  ├── File-to-section mapping via Moto cache module/file fields
+  └── Stale cache detection (git hash mismatch)
+  Tests: T-02, T-03, T-07, T-12
+  Gate: swift test --filter Doc → all green + hook integration verified
+
+Wave 3: Coverage Report + Mermaid Diagrams ← BLOCKED BY Wave 1
+  ├── shikki docs coverage command
+  ├── Mermaid dependency graph in architecture-overview.md
+  └── CLI reference from ArgumentParser source parsing
+  Tests: T-06, T-11
+  Gate: full swift test green
+```
+
 ## Generated vs Manual
 
 | Generated (docs/generated/) | Manual (docs/) |
@@ -130,26 +174,28 @@ No Mustache, no Stencil, no external dependency. Each section is a Swift functio
 
 ## Implementation Waves
 
-### Wave 1: DocGenerator core + CLI (P0)
-- `DocGenerator.swift` — reads Moto cache, renders sections
-- `DocSection.swift` — enum + file-to-section mapping from module field
-- `DocTemplate.swift` — per-section render functions
-- `DocsCommand.swift` — `shikki docs rebuild --all`, `--section X`
-- Tests: T1, T4, T5, T8
+### Wave 1: DocGenerator Core + CLI (P0)
+- **Files**: `ShikkiKit/Docs/DocGenerator.swift`, `ShikkiKit/Docs/DocSection.swift`, `ShikkiKit/Docs/DocTemplate.swift`, `Commands/DocsCommand.swift`
+- **Tests**: T-01, T-04, T-05, T-08, T-09, T-10
+- **BRs**: BR-01, BR-04, BR-05, BR-06, BR-07, BR-08
+- **Deps**: MotoCacheReader (exists)
+- **Gate**: `swift test --filter Doc` green
 - **Deliverable**: `shikki docs rebuild --all` produces 5 generated docs from cache
 
-### Wave 2: Incremental rebuild + pre-commit hook (P0)
-- `--changed --files` flag on DocsCommand
-- `pre-commit-docs.sh` hook with timeout + guards
-- File-to-section mapping via Moto cache module/file fields
-- Tests: T1, T2, T3, T7
+### Wave 2: Incremental Rebuild + Pre-Commit Hook (P0) ← BLOCKED BY Wave 1
+- **Files**: `Commands/DocsCommand.swift` (extend), `hooks/pre-commit-docs.sh`
+- **Tests**: T-02, T-03, T-07, T-12
+- **BRs**: BR-02, BR-03, BR-06
+- **Deps**: Wave 1 (DocGenerator, DocSection)
+- **Gate**: `swift test --filter Doc` green + hook integration verified
 - **Deliverable**: commits auto-include updated docs for changed files
 
-### Wave 3: Coverage report + Mermaid diagrams (P1)
-- `shikki docs coverage` command
-- Mermaid dependency graph in architecture-overview.md
-- CLI reference generation from ArgumentParser source parsing
-- Tests: T6
+### Wave 3: Coverage Report + Mermaid Diagrams (P1) ← BLOCKED BY Wave 1
+- **Files**: `ShikkiKit/Docs/DocCoverageReporter.swift`, `Commands/DocsCommand.swift` (extend)
+- **Tests**: T-06, T-11
+- **BRs**: BR-09, BR-10
+- **Deps**: Wave 1 (DocGenerator), dependencies.json
+- **Gate**: full `swift test` green
 - **Deliverable**: coverage metric + visual architecture doc
 
 ## @shi Mini-Challenge

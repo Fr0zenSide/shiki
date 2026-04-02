@@ -33,6 +33,50 @@ The v1 plugin shows agent counts and budget but has no idea *which project* matt
 | BR-11 | `shi start` regenerates the segments script at `~/.config/shiki/tmux-segments.conf` |
 | BR-12 | Auto-switch minimum dwell time: 5 minutes before changing active project (prevents jitter) |
 
+## TDDP — Test-Driven Development Plan
+
+| Test | BR | Tier | Type | Description |
+|------|-----|------|------|-------------|
+| T-01 | BR-02 | Core (80%) | Unit | ProjectScorer returns ranked projects from mock ShikiDB response |
+| T-02 | BR-03,09 | Core (80%) | Unit | ProjectScorer falls back to cached scores when HTTP fails (80ms timeout) |
+| T-03 | BR-04 | Core (80%) | Unit | MiniStatusFormatter renders `?` when cache missing and DB unreachable |
+| T-04 | BR-05,06,07 | Core (80%) | Unit | Pin expires after configured duration, auto-detection resumes |
+| T-05 | BR-08 | Core (80%) | Unit | Multi-project display shows max 3 icons, collapses 4th+ as `+N` |
+| T-06 | BR-12 | Core (80%) | Unit | Auto-switch blocked when dwell time < 5 min, allowed when >= 5 min |
+| T-07 | BR-01 | Smoke (CLI) | Unit | Segments script references `shi` binary, not `shiki` or `shikki` |
+| T-08 | BR-10 | Smoke (CLI) | Integration | `.tmux.conf` reload does not duplicate segments |
+| T-09 | BR-11 | Smoke (CLI) | Integration | `shi start` regenerates segments script at correct path |
+| T-10 | BR-09 | Core (80%) | Unit | Each segment callback returns within 100ms (mock HTTP <=80ms) |
+| T-11 | BR-05 | Core (80%) | Unit | Pin persists across TmuxStateManager save/load cycle |
+| T-12 | BR-06 | Core (80%) | Unit | Custom pin duration from config overrides default 120s |
+
+## Wave Dispatch Tree
+
+```
+Wave 1: ProjectScorer + Cache
+  ├── ProjectScorer (ShikiDB inbox query, urgency scoring)
+  ├── tmux-cache.json read/write
+  └── HTTP timeout enforcement (80ms)
+  Tests: T-01, T-02, T-03, T-10
+  Gate: swift test --filter ProjectScorer → all green
+
+Wave 2: TmuxStateManager + MiniStatusFormatter ← BLOCKED BY Wave 1
+  ├── pinnedProject, pinnedUntil, pinDurationSeconds fields
+  ├── pin() and clearPinIfExpired() methods
+  ├── shouldSwitch() with 5-min dwell time
+  └── formatMultiProject (top 3 icons + +N collapse)
+  Tests: T-04, T-05, T-06, T-11, T-12
+  Gate: swift test --filter Tmux → all green
+
+Wave 3: TmuxCommand + shi start ← BLOCKED BY Wave 2
+  ├── shi tmux install / uninstall subcommands
+  ├── Idempotent segments script generation
+  ├── shi start hooks segment generation
+  └── Binary name = shi (not shiki/shikki)
+  Tests: T-07, T-08, T-09
+  Gate: full swift test green + manual tmux verification
+```
+
 ## Status Bar Mockups
 
 Single project (Shikki active, 2 agents working):
@@ -72,24 +116,25 @@ Legend: First letter = project initial, `●` = active/working, `○` = idle/bac
 ## Implementation Waves
 
 ### Wave 1: ProjectScorer + Cache (2 files, ~120 LOC)
+- **Files**: `ShikkiKit/Services/ProjectScorer.swift`, `Tests/ShikkiKitTests/ProjectScorerTests.swift`
+- **Tests**: T-01, T-02, T-03, T-10
+- **BRs**: BR-02, BR-03, BR-04, BR-09
+- **Deps**: BackendClient (exists), ShikiDB (exists)
+- **Gate**: `swift test --filter ProjectScorer` green
 
-- `ProjectScorer.swift`: query `POST /api/memories/search` with inbox filter, parse urgency scores, write `~/.shikki/tmux-cache.json` on success, read cache on failure
-- Enforce BR-03 (fallback to cache), BR-04 (missing cache = `?`), BR-09 (80ms timeout)
-- Unit tests: scorer with mock HTTP, cache hit, cache miss, timeout fallback
+### Wave 2: TmuxStateManager + MiniStatusFormatter (~80 LOC) ← BLOCKED BY Wave 1
+- **Files**: `ShikkiKit/Services/TmuxStateManager.swift` (extend), `ShikkiKit/Services/MiniStatusFormatter.swift` (extend)
+- **Tests**: T-04, T-05, T-06, T-11, T-12
+- **BRs**: BR-05, BR-06, BR-07, BR-08, BR-12
+- **Deps**: Wave 1 (ProjectScorer)
+- **Gate**: `swift test --filter Tmux` green
 
-### Wave 2: TmuxStateManager + MiniStatusFormatter extensions (~80 LOC)
-
-- Add `pinnedProject: String?`, `pinnedUntil: Date?`, `pinDurationSeconds: Int` (default 120), `lastSwitchAt: Date?` to persisted state
-- Add `pin(_:)` and `clearPinIfExpired()` methods to TmuxStateManager
-- Extend `MiniStatusFormatter` with `formatMultiProject(projects:maxIcons:...)` — renders top 3 icons, collapses rest as `+N` (BR-08)
-- Enforce BR-05/06/07 (pin lifecycle), BR-12 (5-min dwell check in `shouldSwitch()`)
-
-### Wave 3: TmuxCommand + shi start integration (~60 LOC)
-
-- `TmuxCommand.swift`: `shi tmux install` generates idempotent segments script at `~/.config/shiki/tmux-segments.conf` with `source-file` guard, `shi tmux uninstall` removes it
-- Hook `shi start` to call segment generation (BR-11)
-- Script always references `shi` binary (BR-01), uses `set-option -g status-right` with `#(shi status --mini)` and `#(shi status --git)` calls
-- Enforce BR-10 (idempotent — script uses `if-shell` guard or overwrites deterministically)
+### Wave 3: TmuxCommand + shi start integration (~60 LOC) ← BLOCKED BY Wave 2
+- **Files**: `Commands/TmuxCommand.swift`, `shi start` hook
+- **Tests**: T-07, T-08, T-09
+- **BRs**: BR-01, BR-10, BR-11
+- **Deps**: Wave 2 (TmuxStateManager, MiniStatusFormatter)
+- **Gate**: full `swift test` green + manual tmux verification
 
 ## Test Scenarios
 

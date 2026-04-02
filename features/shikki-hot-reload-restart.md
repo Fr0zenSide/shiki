@@ -54,6 +54,58 @@ Currently `RestartCommand` has all logic inline (tmux interaction, process spawn
 | BR-17 | Lockfile MUST NOT be released before `execv()` — new process inherits the file descriptor |
 | BR-18 | SHA-256 of the running binary MUST be stored at `~/.shikki/binary.sha256` and compared pre-swap |
 
+## TDDP — Test-Driven Development Plan
+
+| Test | BR | Tier | Type | Description |
+|------|-----|------|------|-------------|
+| T-01 | BR-02,03,05,06 | Core (80%) | Unit | Happy path — newer binary, healthcheck passes → `.swapped` |
+| T-02 | BR-08 | Core (80%) | Unit | Same version — no `--force` → `.skipped` |
+| T-03 | BR-03 | Core (80%) | Unit | Healthcheck fails (exit code != 0) → `.aborted` |
+| T-04 | BR-04 | Security (100%) | Unit | Wrong permissions (not executable) → `.aborted` |
+| T-05 | BR-14 | Core (80%) | Unit | Build in progress (mtime drift <100ms) → `.aborted` |
+| T-06 | BR-09 | Core (80%) | Unit | Downgrade without `--force` → `.aborted` |
+| T-07 | BR-09 | Core (80%) | Unit | Downgrade with `--force` → `.swapped` |
+| T-08 | BR-01 | Core (80%) | Unit | tmux session gone → `.aborted`, no orphan processes |
+| T-09 | BR-05 | Core (80%) | Unit | Checkpoint save fails (disk full) → `.aborted` before swap |
+| T-10 | BR-13 | Security (100%) | Unit | `execv()` fails — old binary continues, error message emitted |
+| T-11 | BR-10 | Core (80%) | Integration | Post-swap dep check on version bump → SetupGuard.check() runs |
+| T-12 | BR-07 | Core (80%) | Unit | Binary resolution priority: installed > release > debug |
+| T-13 | BR-06,18 | Security (100%) | Unit | Rollback binary created — `shikki.prev` matches original SHA-256 |
+| T-14 | BR-11 | Smoke (CLI) | Unit | `--upgrade-deps` triggers brew upgrade; absent = no upgrade |
+| T-15 | BR-04 | Security (100%) | Unit | Magic bytes validation rejects non-Mach-O/non-ELF files |
+| T-16 | BR-12 | Security (100%) | Unit | No `sudo` invoked — prints instructions and exits |
+| T-17 | BR-16 | Core (80%) | Integration | Successful swap emits `ShikkiEvent.restart(oldVersion:newVersion:)` |
+| T-18 | BR-17 | Core (80%) | Unit | Lockfile FD not released before `execv()` |
+| T-19 | BR-15 | Core (80%) | Unit | `--phase post-swap` skips pre-swap logic, runs Phase 2 only |
+| T-20 | BR-08 | Core (80%) | Unit | `--force` bypasses same-version skip |
+
+## Wave Dispatch Tree
+
+```
+Wave 1: RestartService + BinarySwapper + Validation
+  ├── BinarySwapping protocol + PosixBinarySwapper + MockBinarySwapper
+  ├── SemanticVersion parser + comparison
+  ├── Binary validation (permissions, magic bytes, SHA-256, mtime drift)
+  └── RestartService core logic (checkpoint, resolve, validate, swap)
+  Tests: T-01, T-02, T-03, T-04, T-05, T-06, T-07, T-09, T-12, T-13, T-15, T-18, T-20
+  Gate: swift test --filter RestartService → all green
+
+Wave 2: CLI + Flags ← BLOCKED BY Wave 1
+  ├── RestartCommand refactor (delegate to RestartService)
+  ├── --force, --upgrade-deps, --phase flags
+  └── No-sudo enforcement (print + exit)
+  Tests: T-14, T-16, T-19
+  Gate: swift test --filter Restart → all green
+
+Wave 3: Integration — Event + SetupGuard + tmux ← BLOCKED BY Wave 1
+  ├── Wire SetupGuard.check() on post-swap
+  ├── Emit ShikkiEvent.restart on EventBus
+  ├── execv() failure graceful degradation
+  └── tmux session preservation check
+  Tests: T-08, T-10, T-11, T-17
+  Gate: full swift test green + manual restart verification
+```
+
 ## Architecture
 
 ### Two-Phase Restart
@@ -144,24 +196,30 @@ One level only. Overwritten on every successful restart.
 | 13 | Rollback binary created | BR-06 | `shikki.prev` matches SHA |
 | 14 | `--upgrade-deps` triggers brew upgrade | BR-11 | Upgrade runs only with flag |
 
-## Implementation Plan
+## Implementation Waves
 
-### Wave 1: RestartService + BinarySwapper (~200 LOC)
-- `Sources/ShikkiKit/Services/RestartService.swift` — core logic
-- `Sources/ShikkiKit/Protocols/BinarySwapping.swift` — protocol + PosixBinarySwapper
+### Wave 1: RestartService + BinarySwapper + Validation (~250 LOC)
+- **Files**: `Sources/ShikkiKit/Protocols/BinarySwapping.swift`, `Sources/ShikkiKit/Services/RestartService.swift`, `Sources/ShikkiKit/Models/SemanticVersion.swift`
+- **Tests**: `Tests/ShikkiKitTests/RestartServiceTests.swift` (T-01..T-07, T-09, T-12, T-13, T-15, T-18, T-20)
+- **BRs**: BR-02, BR-03, BR-04, BR-05, BR-06, BR-07, BR-08, BR-09, BR-14, BR-17, BR-18
+- **Deps**: CheckpointManager (exists), ShellExecuting (exists)
+- **Gate**: `swift test --filter RestartService` green
 
-### Wave 2: RestartCommand refactor + CLI flags (~50 LOC delta)
-- `Sources/shikki/Commands/RestartCommand.swift` — delegate to RestartService, add `--upgrade-deps`, `--force`, `--phase`
+### Wave 2: CLI + Flags ← BLOCKED BY Wave 1 (~80 LOC delta)
+- **Files**: `Sources/shikki/Commands/RestartCommand.swift`
+- **Tests**: `Tests/ShikkiKitTests/RestartServiceTests.swift` (T-14, T-16, T-19)
+- **BRs**: BR-11, BR-12, BR-15
+- **Deps**: Wave 1 (RestartService)
+- **Gate**: `swift test --filter Restart` green
 
-### Wave 3: Tests (~350 LOC)
-- `Tests/ShikkiKitTests/RestartServiceTests.swift` — 14 scenarios with MockBinarySwapper
+### Wave 3: Integration ← BLOCKED BY Wave 1 (~120 LOC)
+- **Files**: `Sources/ShikkiKit/Services/RestartService.swift` (extend), `Sources/shikki/Commands/RestartCommand.swift` (extend)
+- **Tests**: `Tests/ShikkiKitTests/RestartServiceTests.swift` (T-08, T-10, T-11, T-17)
+- **BRs**: BR-01, BR-10, BR-13, BR-16
+- **Deps**: Wave 1 (RestartService), SetupGuard (exists), EventBus (exists)
+- **Gate**: full `swift test` green + manual restart verification
 
-### Wave 4: Integration
-- Wire `SetupGuard.check()` post-swap path
-- Emit `ShikkiEvent.restart` on EventBus
-- Extract `SemanticVersion` to shared type if needed
-
-**Total estimate**: 3 new files + 1 modified, ~600 LOC
+**Total estimate**: 4 new files + 1 modified, ~450 LOC + ~350 LOC tests
 
 ## @Daimyo Decisions Needed
 

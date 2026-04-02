@@ -44,6 +44,66 @@ Shikki has no visibility into how commands are used. The user discovered they in
 | BR-09 | Weekly report "Practice Memory" section is max 5 lines |
 | BR-10 | Alias suggestions appear only at session end summary, never mid-session |
 
+## TDDP — Test-Driven Development Plan
+
+| Test | BR | Tier | Type | Description |
+|------|-----|------|------|-------------|
+| T-01 | BR-01 | Core (80%) | Unit | Only Skill tool invocations are captured — Read/Write/Bash/Agent ignored |
+| T-02 | BR-07 | Security (100%) | Unit | No command arguments captured — command name + agent only |
+| T-03 | BR-05 | Core (80%) | Unit | Commands within 60s belong to same chain; >60s gap starts new chain |
+| T-04 | BR-06 | Core (80%) | Unit | 30min inactivity gap starts new session boundary |
+| T-05 | BR-02 | Core (80%) | Unit | 5+ identical chains in 7 days triggers alias suggestion |
+| T-06 | BR-02 | Core (80%) | Unit | 4 identical chains in 7 days does NOT trigger suggestion |
+| T-07 | BR-03 | Core (80%) | Unit | Auto-combine suggestion at 80%+ correlation requires user confirmation |
+| T-08 | BR-10 | Core (80%) | Unit | Alias suggestions appear only at session end, never mid-session |
+| T-09 | BR-04 | Security (100%) | Unit | Remote telemetry default OFF — no data sent without explicit opt-in |
+| T-10 | BR-08 | Security (100%) | Unit | Remote telemetry uses k-anonymity (min 5 users per bucket) |
+| T-11 | BR-09 | Smoke (CLI) | Unit | Weekly report "Practice Memory" section is max 5 lines |
+| T-12 | BR-01 | Core (80%) | Integration | Stop hook parses conversation and POSTs command_invoked events to ShikiDB |
+| T-13 | BR-05 | Core (80%) | Unit | Chain detection groups ["/spec", "/🌟🧠🌟@t"] as a single chain |
+| T-14 | BR-09 | Smoke (CLI) | Unit | `shikki alias list` shows all aliases with usage count |
+
+## Wave Dispatch Tree
+
+```
+Wave 1: Capture Hook + ShikiDB Events
+  ├── practice-memory-capture.sh (Stop hook)
+  ├── CommandInvokedEvent model
+  └── ShikiDB POST via MCP (command_invoked events)
+  Tests: T-01, T-02, T-09, T-12
+  Gate: swift test --filter PracticeMemory → all green
+
+Wave 2: Chain Detection ← BLOCKED BY Wave 1
+  ├── DetectedChain model
+  ├── Chain window logic (60s grouping)
+  ├── Session boundary logic (30min gap)
+  └── Recurring chain detection (5+ in 7d)
+  Tests: T-03, T-04, T-05, T-06, T-07, T-08, T-13
+  Gate: swift test --filter Chain → all green
+
+Wave 3: Weekly Report ← BLOCKED BY Wave 2
+  ├── ShikiDB query for command frequency + chains
+  ├── "Practice Memory" section renderer
+  └── Alias suggestion when threshold met
+  Tests: T-11
+  Gate: swift test --filter PracticeMemory → all green
+
+Wave 4: Alias System ← BLOCKED BY Wave 2
+  ├── shikki alias <name> '<chain>' command
+  ├── aliases.json persistence
+  ├── Built-in aliases (/🔥)
+  └── shikki alias list with usage count
+  Tests: T-14
+  Gate: full swift test green
+
+Wave 5: Remote Telemetry (future, P2) ← BLOCKED BY Wave 1
+  ├── Opt-in toggle via shikki settings
+  ├── k-anonymity aggregation
+  └── Weekly count reporting
+  Tests: T-09, T-10
+  Gate: security audit + swift test green
+```
+
 ## Data Model
 
 ```swift
@@ -86,36 +146,42 @@ Trend: ▁▃▅▇ command diversity ↑ — 3 new commands this week
 New alias available: `shikki alias forge 'spec,🌟🧠🌟@t'`
 ```
 
-## Implementation Plan
+## Implementation Waves
 
 ### Wave 1: Capture Hook + ShikiDB Events (~100 LOC)
-- Claude Code `Stop` hook that parses conversation for Skill tool calls
-- Extracts command names (strips args)
-- POSTs `command_invoked` events to ShikiDB via MCP
-- Script: `~/.claude/hooks/practice-memory-capture.sh`
+- **Files**: `~/.claude/hooks/practice-memory-capture.sh`, `ShikkiKit/Models/CommandInvokedEvent.swift`
+- **Tests**: T-01, T-02, T-09, T-12
+- **BRs**: BR-01, BR-04, BR-07
+- **Deps**: ShikiDB MCP (exists)
+- **Gate**: `swift test --filter PracticeMemory` green
 
-### Wave 2: Chain Detection (~150 LOC)
-- Batch analysis at session end
-- Group commands within 60s window
-- Detect recurring chains (5+ in 7 days)
-- Store `chain_detected` events in ShikiDB
+### Wave 2: Chain Detection (~150 LOC) ← BLOCKED BY Wave 1
+- **Files**: `ShikkiKit/Services/ChainDetector.swift`, `ShikkiKit/Models/DetectedChain.swift`
+- **Tests**: T-03, T-04, T-05, T-06, T-07, T-08, T-13
+- **BRs**: BR-02, BR-03, BR-05, BR-06, BR-10
+- **Deps**: Wave 1 (CommandInvokedEvent), ShikiDB
+- **Gate**: `swift test --filter Chain` green
 
-### Wave 3: Weekly Report Integration (~80 LOC)
-- Query ShikiDB for command frequency + chains
-- Render "Practice Memory" section in `/report` output
-- Include alias suggestions when threshold met
+### Wave 3: Weekly Report Integration (~80 LOC) ← BLOCKED BY Wave 2
+- **Files**: `ShikkiKit/Services/PracticeMemoryReporter.swift`
+- **Tests**: T-11
+- **BRs**: BR-09
+- **Deps**: Wave 2 (ChainDetector), Report service (exists)
+- **Gate**: `swift test --filter PracticeMemory` green
 
-### Wave 4: Alias System (~120 LOC)
-- `shikki alias <name> '<chain>'` — create custom alias
-- Aliases stored in `~/.shikki/aliases.json`
-- Built-in aliases: `/🔥` = brainstorm+challenge+team
-- `shikki alias list` — show all aliases with usage count
+### Wave 4: Alias System (~120 LOC) ← BLOCKED BY Wave 2
+- **Files**: `Commands/AliasCommand.swift`, `~/.shikki/aliases.json`
+- **Tests**: T-14
+- **BRs**: BR-03 (confirmation gate)
+- **Deps**: Wave 2 (DetectedChain)
+- **Gate**: full `swift test` green
 
-### Wave 5: Remote Telemetry (future, P2)
-- Opt-in via `shikki settings telemetry on`
-- Aggregated weekly counts to Umami or ShikiDB remote
-- k-anonymity: only report if 5+ users share same pattern
-- Dashboard at analytics.shikki.dev (future)
+### Wave 5: Remote Telemetry (future, P2) ← BLOCKED BY Wave 1
+- **Files**: `ShikkiKit/Services/TelemetryService.swift`
+- **Tests**: T-09, T-10
+- **BRs**: BR-04, BR-08
+- **Deps**: Wave 1, Umami/ShikiDB remote
+- **Gate**: security audit + `swift test` green
 
 **Total estimate:** 4 waves now (~450 LOC), Wave 5 post-release
 

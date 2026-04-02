@@ -66,6 +66,57 @@ The current `/ingest` pipeline uses WebFetch (HTTP fetch + HTML-to-markdown stri
 - **BR-11**: Every successful ingest records `resolution_method` in chunk metadata (`moto_cache`, `shikidb_cache`, `browser_engine`, `webfetch`, `ytdlp`, `git_clone`).
 - **BR-12**: Rate limiting: maximum 10 browser-engine ingests per minute (Chromium is heavy). WebFetch has no limit.
 
+## TDDP — Test-Driven Development Plan
+
+| Test | BR | Tier | Type | Description |
+|------|-----|------|------|-------------|
+| T-01 | BR-01 | Core (80%) | Unit | Moto cache hit — returns cached chunks, zero network calls |
+| T-02 | BR-02 | Core (80%) | Unit | ShikiDB dedup fresh (<7d) — returns cached chunks, no re-fetch |
+| T-03 | BR-02 | Core (80%) | Unit | ShikiDB dedup stale (>7d) — triggers re-fetch via resolution chain |
+| T-04 | BR-11 | Core (80%) | Unit | Static HTML page — WebFetch path, resolution_method=webfetch |
+| T-05 | BR-06 | Core (80%) | Integration | React SPA (`<div id="root">`) — browser engine path, full content rendered |
+| T-06 | BR-04 | Core (80%) | Unit | Browser timeout (>15s) — falls back to probe content, logs warning |
+| T-07 | BR-06 | Core (80%) | Unit | Playwright not installed — falls to WebFetch, logs install suggestion |
+| T-08 | BR-08 | Security (100%) | Unit | Blocked URL scheme (`file://`, `data://`, `javascript:`) — rejected, no fetch |
+| T-09 | BR-09 | Security (100%) | Unit | Cross-origin redirect after first hop — blocked with error |
+| T-10 | BR-05 | Security (100%) | Unit | DOM size bomb (>5MB) — extraction aborted, falls to probe content |
+| T-11 | BR-11 | Core (80%) | Unit | YouTube URL — routed to yt-dlp path, resolution_method=ytdlp |
+| T-12 | BR-10 | Smoke (CLI) | Unit | `--dry-run` shows resolution method without fetching |
+| T-13 | BR-03 | Core (80%) | Unit | Lightweight probe completes within 3s; timeout escalates to browser |
+| T-14 | BR-07 | Security (100%) | Unit | Browser engine runs with default sandbox — `--no-sandbox` never passed |
+| T-15 | BR-12 | Core (80%) | Unit | Rate limiting: 11th browser-engine ingest within 1 min is queued/rejected |
+
+## Wave Dispatch Tree
+
+```
+Wave 1: Resolution Chain + Moto Integration
+  ├── IngestResolver (URL normalization, pattern detection, routing)
+  ├── MotoCacheIngestAdapter (MotoCacheReader → IngestChunk)
+  ├── moto-sources.json registry (URL-to-cache mapping)
+  ├── ShikiDB dedup check (source_uri + content_hash)
+  ├── SPA marker detection in probe response
+  └── --dry-run flag
+  Tests: T-01, T-02, T-03, T-08, T-11, T-12, T-13
+  Gate: swift test --filter Ingest → all green
+
+Wave 2: Browser Engine ← BLOCKED BY Wave 1
+  ├── BrowserRenderer protocol + PlaywrightRenderer
+  ├── scripts/ingest-browser.js (Playwright extraction)
+  ├── LightpandaRenderer (behind --browser flag)
+  ├── Timeout handling (15s), DOM size cap (5MB), rate limiting (10/min)
+  └── Fallback chain: browser timeout → probe → error
+  Tests: T-04, T-05, T-06, T-07, T-09, T-10, T-14, T-15
+  Gate: swift test --filter Ingest → all green + security checks verified
+
+Wave 3: Observability ← BLOCKED BY Wave 2
+  ├── resolution_method metadata on all chunks
+  ├── Content completeness scoring
+  ├── shikki ingest stats CLI command
+  └── Auto-escalation tuning
+  Tests: integration tests with recorded fixtures
+  Gate: full swift test green + completeness benchmarks
+```
+
 ## URL Pattern Detection
 
 | Pattern | Detection Signal | Resolution |
@@ -138,30 +189,26 @@ func checkMotoCache(for url: URL) -> [IngestChunk]? {
 ## Implementation Waves
 
 ### Wave 1: Resolution Chain + Moto Integration (P0)
-- `IngestResolver` — URL normalization, pattern detection, resolution routing
-- `MotoCacheIngestAdapter` — convert MotoCacheReader output to IngestChunk format
-- `moto-sources.json` registry — URL-to-cache-path mapping
-- SPA marker detection in probe response
-- `--dry-run` shows resolution path
-- Tests: T1, T2, T3, T8, T11, T12
-- **Tier**: 80% coverage on resolver, smoke on CLI integration
+- **Files**: `ShikkiKit/Services/IngestResolver.swift`, `ShikkiKit/Services/MotoCacheIngestAdapter.swift`, `moto-sources.json`
+- **Tests**: T-01, T-02, T-03, T-08, T-11, T-12, T-13
+- **BRs**: BR-01, BR-02, BR-03, BR-08, BR-10, BR-11
+- **Deps**: MotoCacheReader (exists), ShikiDB (exists), WebFetch (exists)
+- **Gate**: `swift test --filter Ingest` green
 
-### Wave 2: Browser Engine Integration (P0)
-- `BrowserRenderer` protocol with `PlaywrightRenderer` conformance
-- `scripts/ingest-browser.js` — Playwright extraction script
-- Timeout handling (15s), DOM size cap (5MB), rate limiting (10/min)
-- Fallback chain: browser timeout → probe content → error
-- `LightpandaRenderer` conformance (behind `--browser lightpanda` flag)
-- Tests: T4, T5, T6, T7, T9, T10
-- **Tier**: 80% coverage on renderers, 100% on security checks (URL scheme, sandbox)
+### Wave 2: Browser Engine Integration (P0) ← BLOCKED BY Wave 1
+- **Files**: `ShikkiKit/Protocols/BrowserRenderer.swift`, `ShikkiKit/Services/PlaywrightRenderer.swift`, `ShikkiKit/Services/LightpandaRenderer.swift`, `scripts/ingest-browser.js`
+- **Tests**: T-04, T-05, T-06, T-07, T-09, T-10, T-14, T-15
+- **BRs**: BR-04, BR-05, BR-06, BR-07, BR-09, BR-12
+- **Deps**: Wave 1 (IngestResolver), Playwright CLI
+- **Tier**: 80% coverage on renderers, 100% on security checks (URL scheme, sandbox, redirect)
+- **Gate**: `swift test --filter Ingest` green + security checks verified
 
-### Wave 3: Observability + Tuning (P1)
-- `resolution_method` metadata on all chunks — audit which path each URL took
-- Content completeness scoring — compare rendered vs raw token counts
-- Ingest analytics: success rate per resolution method, average latency, failure reasons
-- `shikki ingest stats` CLI command — show resolution method distribution
-- Auto-escalation tuning: adjust SPA marker list based on observed false negatives
-- Tests: integration tests with recorded fixtures, completeness benchmarks
+### Wave 3: Observability + Tuning (P1) ← BLOCKED BY Wave 2
+- **Files**: `ShikkiKit/Services/IngestAnalytics.swift`, `Commands/IngestStatsCommand.swift`
+- **Tests**: integration tests with recorded fixtures, completeness benchmarks
+- **BRs**: BR-11 (metadata persistence)
+- **Deps**: Wave 2 (BrowserRenderer), IngestResolver
+- **Gate**: full `swift test` green + completeness benchmarks passing
 
 ## @shi Mini-Challenge
 
