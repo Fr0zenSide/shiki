@@ -217,7 +217,7 @@ struct InMemoryAuditStoreTests {
 // MARK: - AuditLogger Tests
 
 @Suite("AuditLogger")
-struct AuditLoggerTests {
+struct AuditLoggerSafetyTests {
 
     @Test("logs tool call and persists event")
     func logToolCall() async throws {
@@ -424,7 +424,7 @@ struct BudgetSnapshotTests {
 // MARK: - BudgetACL Tests
 
 @Suite("BudgetACL")
-struct BudgetACLTests {
+struct BudgetACLSafetyTests {
 
     private func makeClock() -> FixedBudgetClock {
         FixedBudgetClock(
@@ -616,7 +616,7 @@ struct SecurityAnomalyTests {
 // MARK: - SecurityPatternDetector Tests
 
 @Suite("SecurityPatternDetector")
-struct SecurityPatternDetectorTests {
+struct SecurityPatternDetectorSafetyTests {
 
     @Test("detects bulk extraction")
     func bulkExtraction() async {

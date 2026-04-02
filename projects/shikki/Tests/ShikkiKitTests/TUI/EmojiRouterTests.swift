@@ -1,48 +1,36 @@
 import Testing
 @testable import ShikkiKit
 
-@Suite("EmojiRouter — Emoji→Command Rewriting (BR-EM-01)")
-struct EmojiRouterTests {
+@Suite("EmojiRouter+Registry — Extended TUI Routing (BR-EM-01/02)")
+struct EmojiRouterExtendedTests {
 
-    // MARK: - Single Emoji Resolution
+    // MARK: - Router: Single Emoji Resolution
 
-    @Test("Single emoji resolves to correct command — 🌟 → challenge")
+    @Test("🌟 rewrites to challenge")
     func singleEmojiChallenge() {
         let result = EmojiRouter.rewrite(["shi", "🌟"])
         #expect(result == ["shi", "challenge"])
     }
 
-    @Test("Single emoji resolves — 🥕 → doctor")
-    func singleEmojiDoctor() {
-        let result = EmojiRouter.rewrite(["shi", "🥕"])
-        #expect(result == ["shi", "doctor"])
-    }
-
-    @Test("Single emoji resolves — 🚀 → wave")
+    @Test("🚀 rewrites to wave")
     func singleEmojiWave() {
         let result = EmojiRouter.rewrite(["shi", "🚀"])
         #expect(result == ["shi", "wave"])
     }
 
-    @Test("Single emoji resolves — 🧠 → brain")
+    @Test("🧠 rewrites to brain")
     func singleEmojiBrain() {
         let result = EmojiRouter.rewrite(["shi", "🧠"])
         #expect(result == ["shi", "brain"])
     }
 
-    @Test("Single emoji resolves — 📊 → board")
+    @Test("📊 rewrites to board")
     func singleEmojiBoard() {
         let result = EmojiRouter.rewrite(["shi", "📊"])
         #expect(result == ["shi", "board"])
     }
 
-    // MARK: - Passthrough (Non-Emoji Input)
-
-    @Test("Text command passes through unchanged")
-    func textCommandPassthrough() {
-        let result = EmojiRouter.rewrite(["shi", "doctor"])
-        #expect(result == ["shi", "doctor"])
-    }
+    // MARK: - Router: Passthrough (Non-Emoji Input)
 
     @Test("Unknown emoji passes through unchanged")
     func unknownEmojiPassthrough() {
@@ -50,25 +38,15 @@ struct EmojiRouterTests {
         #expect(result == ["shi", "💀"])
     }
 
-    @Test("Empty args returns unchanged")
-    func emptyArgsPassthrough() {
-        let result = EmojiRouter.rewrite(["shi"])
-        #expect(result == ["shi"])
+    @Test("Multi-character emoji string does not resolve (not single char)")
+    func multiCharStringNoResolve() {
+        // Compound emojis like 🐰🥕 in a single arg are two characters
+        // EmojiRouter only handles single-character emoji in args[1]
+        let result = EmojiRouter.rewrite(["shi", "🐰🥕"])
+        #expect(result == ["shi", "🐰🥕"])
     }
 
-    @Test("No args returns unchanged")
-    func noArgsPassthrough() {
-        let result = EmojiRouter.rewrite([])
-        #expect(result == [])
-    }
-
-    // MARK: - Args Preservation
-
-    @Test("Emoji with trailing args preserves them")
-    func emojiWithTrailingArgs() {
-        let result = EmojiRouter.rewrite(["shi", "🔍", "CRDTs"])
-        #expect(result == ["shi", "research", "CRDTs"])
-    }
+    // MARK: - Router: Args Preservation
 
     @Test("Emoji with multiple trailing args preserves all")
     func emojiWithMultipleArgs() {
@@ -76,20 +54,9 @@ struct EmojiRouterTests {
         #expect(result == ["shi", "spec", "new-feature", "--force"])
     }
 
-    // MARK: - Mixed Emoji + Text
+    // MARK: - Registry: Category Coverage
 
-    @Test("Multi-character emoji string does not resolve (not single char)")
-    func multiCharStringNoResolve() {
-        // Compound emojis like 🐰🥕 in a single arg are multi-character
-        // EmojiRouter only handles single-character emoji in args[1]
-        let result = EmojiRouter.rewrite(["shi", "🐰🥕"])
-        // 🐰🥕 is two characters, so candidate.count != 1, passes through
-        #expect(result == ["shi", "🐰🥕"])
-    }
-
-    // MARK: - Registry Coverage
-
-    @Test("Registry contains all expected categories")
+    @Test("Registry contains all six expected categories")
     func registryCategories() {
         let categories = Set(EmojiRegistry.all.map { $0.category })
         #expect(categories.contains(.diagnostic))
@@ -98,60 +65,115 @@ struct EmojiRouterTests {
         #expect(categories.contains(.signals))
         #expect(categories.contains(.navigation))
         #expect(categories.contains(.meta))
+        #expect(categories.count == 6)
     }
 
-    @Test("Registry byEmoji lookup returns entry for registered emoji")
+    // MARK: - Registry: Lookup Methods
+
+    @Test("byEmoji lookup returns entry for registered emoji")
     func registryByEmojiLookup() {
         let entry = EmojiRegistry.byEmoji["🥕".precomposedStringWithCanonicalMapping]
         #expect(entry != nil)
         #expect(entry?.command == "doctor")
     }
 
-    @Test("Registry byCommand returns primary emoji for command")
+    @Test("byCommand returns primary emoji for command")
     func registryByCommandLookup() {
         let emoji = EmojiRegistry.byCommand["doctor"]
         #expect(emoji == "🥕")
     }
 
-    @Test("Registry resolve handles VS16 normalization")
+    @Test("resolve handles VS16 normalization (✏️ → spec)")
     func registryResolveVS16() {
-        // ✏️ has VS16 (\u{FE0F})
         let command = EmojiRegistry.resolve("✏️")
         #expect(command == "spec")
     }
 
-    @Test("Registry allEntries returns non-empty list")
-    func registryAllEntries() {
-        let entries = EmojiRegistry.allEntries()
-        #expect(entries.count > 20)
+    @Test("resolve returns nil for unregistered emoji")
+    func registryResolveUnknown() {
+        #expect(EmojiRegistry.resolve("🦄") == nil)
     }
 
-    @Test("Registry starterKit has exactly 5 items")
+    @Test("lookup by Character finds registered entry")
+    func registryLookupCharacter() {
+        let entry = EmojiRegistry.lookup("🚀" as Character)
+        #expect(entry != nil)
+        #expect(entry?.command == "wave")
+    }
+
+    @Test("lookup by Character returns nil for unregistered")
+    func registryLookupCharacterUnknown() {
+        let entry = EmojiRegistry.lookup("💀" as Character)
+        #expect(entry == nil)
+    }
+
+    // MARK: - Registry: Clock Face Variants
+
+    @Test("All 12 clock face emojis resolve to schedule")
+    func clockFacesResolveToSchedule() {
+        let clocks = ["🕐", "🕑", "🕒", "🕓", "🕔", "🕕",
+                      "🕖", "🕗", "🕘", "🕙", "🕚", "🕛"]
+        for clock in clocks {
+            #expect(
+                EmojiRegistry.resolve(clock) == "schedule",
+                "\(clock) should resolve to schedule"
+            )
+        }
+    }
+
+    @Test("Timer emojis resolve to schedule")
+    func timerEmojisResolveToSchedule() {
+        #expect(EmojiRegistry.resolve("⏱️") == "schedule")
+        #expect(EmojiRegistry.resolve("⏲️") == "schedule")
+    }
+
+    // MARK: - Registry: Starter Kit
+
+    @Test("Starter kit has exactly 5 items in correct order")
     func registryStarterKit() {
         #expect(EmojiRegistry.starterKit.count == 5)
-        #expect(EmojiRegistry.starterKit[0].emoji == "🥕")
-        #expect(EmojiRegistry.starterKit[0].command == "doctor")
+        #expect(EmojiRegistry.starterKit[0] == (emoji: "🥕", command: "doctor"))
+        #expect(EmojiRegistry.starterKit[1] == (emoji: "🌡️", command: "status"))
+        #expect(EmojiRegistry.starterKit[2] == (emoji: "📊", command: "board"))
+        #expect(EmojiRegistry.starterKit[3] == (emoji: "🚀", command: "wave"))
+        #expect(EmojiRegistry.starterKit[4] == (emoji: "📃", command: "help"))
     }
 
-    @Test("Clock face emoji resolves to schedule")
-    func clockFaceResolvesToSchedule() {
-        let command = EmojiRegistry.resolve("🕐")
-        #expect(command == "schedule")
-    }
+    // MARK: - Registry: Shell Aliases
 
     @Test("Shell alias generation produces valid output")
     func shellAliasGeneration() {
         let aliases = EmojiRegistry.generateShellAliases()
         #expect(aliases.contains("alias sk-doctor='shi doctor'"))
+        #expect(aliases.contains("alias sk-wave='shi wave'"))
         #expect(aliases.contains("sk-🥕"))
     }
 
-    @Test("Destructive entries are marked correctly")
+    @Test("Shell alias generation deduplicates text aliases")
+    func shellAliasDeduplicate() {
+        let aliases = EmojiRegistry.generateShellAliases()
+        // "doctor" appears multiple times in registry (🥕, 🐰, 🐰🥕, 🥕🐰)
+        // but sk-doctor alias should appear only once
+        let lines = aliases.components(separatedBy: "\n")
+        let doctorAliases = lines.filter { $0 == "alias sk-doctor='shi doctor'" }
+        #expect(doctorAliases.count == 1)
+    }
+
+    // MARK: - Registry: Destructive Entries
+
+    @Test("Destructive entries are flagged correctly")
     func destructiveEntries() {
         let destructive = EmojiRegistry.all.filter { $0.isDestructive }
         #expect(destructive.count >= 2)
-        let commands = destructive.map { $0.command }
+        let commands = Set(destructive.map { $0.command })
         #expect(commands.contains("invalidate"))
         #expect(commands.contains("undo"))
+    }
+
+    @Test("Non-destructive entries are the majority")
+    func nonDestructiveEntries() {
+        let nonDestructive = EmojiRegistry.all.filter { !$0.isDestructive }
+        let destructive = EmojiRegistry.all.filter { $0.isDestructive }
+        #expect(nonDestructive.count > destructive.count)
     }
 }
