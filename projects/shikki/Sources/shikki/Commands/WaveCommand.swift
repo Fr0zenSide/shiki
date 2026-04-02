@@ -260,6 +260,16 @@ struct WaveCommand: AsyncParsableCommand {
                 print("[fix] Iteration \(iter) done: fixed \(fixed), remaining \(remaining)")
             case .noProgress(let iter):
                 print("[fix] No progress in iteration \(iter) — stopping")
+            case .regression(let iter, let delta):
+                print("[fix] Regression in iteration \(iter): \(abs(delta)) more failures — rolling back")
+            case .contractViolation(let iter, let issues):
+                print("[fix] Contract violation in iteration \(iter): \(issues.joined(separator: ", ")) — rolling back")
+            case .testFileModification(let iter, let files):
+                print("[fix] Test files modified in iteration \(iter): \(files.joined(separator: ", ")) — rolling back")
+            case .exhausted(let remaining):
+                print("[fix] All iterations exhausted, \(remaining.count) failures remain")
+            case .timedOut(let iter):
+                print("[fix] Iteration \(iter) timed out — rolling back")
             }
         }
 
