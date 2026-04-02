@@ -92,6 +92,25 @@ struct SpecValidateCommand: AsyncParsableCommand {
         metadata.status = .validated
         metadata.progress = "\(sectionCount)/\(sectionCount)"
 
+        // Capture validated-commit from git HEAD
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = ["rev-parse", "HEAD"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        if let _ = try? process.run() {
+            process.waitUntilExit()
+            if process.terminationStatus == 0 {
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                let commit = String(data: data, encoding: .utf8)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                if let commit, !commit.isEmpty {
+                    metadata.validatedCommit = commit
+                }
+            }
+        }
+
         // Update reviewer
         if let idx = metadata.reviewers.firstIndex(where: { $0.who == reviewer }) {
             metadata.reviewers[idx].verdict = .validated

@@ -315,6 +315,11 @@ public struct SpecFrontmatterService: Sendable {
         let relatesTo = dict["relates-to"] as? [String]
         let tags = dict["tags"] as? [String]
 
+        // Tracking fields
+        let epicBranch = dict["epic-branch"] as? String
+        let validatedCommit = dict["validated-commit"] as? String
+        let testRunId = dict["test-run-id"] as? String
+
         return SpecMetadata(
             title: title,
             status: status,
@@ -329,6 +334,9 @@ public struct SpecFrontmatterService: Sendable {
             relatesTo: relatesTo,
             tags: tags,
             flsh: flsh,
+            epicBranch: epicBranch,
+            validatedCommit: validatedCommit,
+            testRunId: testRunId,
             filename: filename
         )
     }
@@ -360,6 +368,16 @@ public struct SpecFrontmatterService: Sendable {
         }
         if let authors = metadata.authors {
             lines.append("authors: \"\(SpecCommandUtilities.escapeYAML(authors))\"")
+        }
+
+        if let epicBranch = metadata.epicBranch {
+            lines.append("epic-branch: \(epicBranch)")
+        }
+        if let validatedCommit = metadata.validatedCommit {
+            lines.append("validated-commit: \(validatedCommit)")
+        }
+        if let testRunId = metadata.testRunId {
+            lines.append("test-run-id: \(testRunId)")
         }
 
         if !metadata.reviewers.isEmpty {

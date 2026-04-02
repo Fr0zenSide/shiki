@@ -74,6 +74,11 @@ public struct SpecFrontmatterParser: Sendable {
         let updated = fields["updated"]?.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
         let authors = fields["authors"]?.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
 
+        // Tracking fields
+        let epicBranch = fields["epic-branch"]?.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+        let validatedCommit = fields["validated-commit"]?.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+        let testRunId = fields["test-run-id"]?.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+
         // Array fields
         let dependsOn = parseArrayField(yaml, key: "depends-on")
         let relatesTo = parseArrayField(yaml, key: "relates-to")
@@ -99,6 +104,9 @@ public struct SpecFrontmatterParser: Sendable {
             relatesTo: relatesTo.isEmpty ? nil : relatesTo,
             tags: tags.isEmpty ? nil : tags,
             flsh: flsh,
+            epicBranch: epicBranch,
+            validatedCommit: validatedCommit,
+            testRunId: testRunId,
             totalSections: totalSections
         )
     }

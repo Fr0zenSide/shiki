@@ -136,6 +136,13 @@ public struct SpecMetadata: Codable, Sendable, Equatable {
     public var tags: [String]?
     public var flsh: SpecFlshBlock?
 
+    /// The git branch name for the epic this spec belongs to.
+    public var epicBranch: String?
+    /// The git commit hash at which this spec was validated.
+    public var validatedCommit: String?
+    /// The test run identifier that verified this spec's implementation.
+    public var testRunId: String?
+
     /// The filename (not full path) of the spec, set during parsing.
     public var filename: String?
 
@@ -156,6 +163,9 @@ public struct SpecMetadata: Codable, Sendable, Equatable {
         relatesTo: [String]? = nil,
         tags: [String]? = nil,
         flsh: SpecFlshBlock? = nil,
+        epicBranch: String? = nil,
+        validatedCommit: String? = nil,
+        testRunId: String? = nil,
         filename: String? = nil,
         totalSections: Int = 0
     ) {
@@ -172,6 +182,9 @@ public struct SpecMetadata: Codable, Sendable, Equatable {
         self.relatesTo = relatesTo
         self.tags = tags
         self.flsh = flsh
+        self.epicBranch = epicBranch
+        self.validatedCommit = validatedCommit
+        self.testRunId = testRunId
         self.filename = filename
         self.totalSections = totalSections
     }
@@ -181,6 +194,9 @@ public struct SpecMetadata: Codable, Sendable, Equatable {
         case authors, reviewers, tags, flsh, filename, totalSections
         case dependsOn = "depends-on"
         case relatesTo = "relates-to"
+        case epicBranch = "epic-branch"
+        case validatedCommit = "validated-commit"
+        case testRunId = "test-run-id"
     }
 
     // MARK: - Computed
