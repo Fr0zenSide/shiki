@@ -421,13 +421,20 @@ struct FixEngineTests {
 // MARK: - Event Collector (thread-safe)
 
 final class FixEventCollector: @unchecked Sendable {
+    private let lock = NSLock()
     private var _events: [FixProgressEvent] = []
 
     func append(_ event: FixProgressEvent) {
+        lock.lock()
         _events.append(event)
+        lock.unlock()
     }
 
-    var events: [FixProgressEvent] { _events }
+    var events: [FixProgressEvent] {
+        lock.lock()
+        defer { lock.unlock() }
+        return _events
+    }
 }
 
 // MARK: - Mock Fix Agent Runner
