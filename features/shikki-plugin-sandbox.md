@@ -1,3 +1,13 @@
+---
+title: "Shikki Plugin/Template Sandbox Security"
+status: draft
+priority: P0
+project: shikki
+created: 2026-03-30
+authors: ["@Daimyo"]
+tags: [security, plugins, sandbox, isolation]
+---
+
 # Feature: Shikki Plugin/Template Sandbox Security
 > Created: 2026-03-30 | Status: Phase 3 — Business Rules | Owner: @Daimyo
 

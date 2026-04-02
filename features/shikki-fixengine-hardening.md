@@ -1,3 +1,13 @@
+---
+title: "FixEngine Hardening"
+status: implementing
+priority: P0
+project: shikki
+created: 2026-03-30
+authors: ["@Daimyo"]
+tags: [security, codegen, fixengine]
+---
+
 # Feature: FixEngine Hardening
 > Created: 2026-03-30 | Status: Phase 5b — Implementation Ready | Owner: @Daimyo
 

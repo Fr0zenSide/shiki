@@ -1,3 +1,13 @@
+---
+title: "Shikki Node Security — Auth + Leader Election"
+status: draft
+priority: P0
+project: shikki
+created: 2026-03-30
+authors: ["@Daimyo"]
+tags: [security, nats, leader-election, authentication]
+---
+
 # Feature: Shikki Node Security — Auth + Leader Election
 > Created: 2026-03-30 | Status: Phase 3 — Business Rules | Owner: @Daimyo
 

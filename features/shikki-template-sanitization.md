@@ -1,3 +1,13 @@
+---
+title: "Template Path Sanitization"
+status: implementing
+priority: P0
+project: shikki
+created: 2026-03-30
+authors: ["@Daimyo"]
+tags: [security, templates, path-traversal, sanitization]
+---
+
 # Feature: Template Path Sanitization
 > Created: 2026-03-30 | Status: Phase 5b — Implementation Ready | Owner: @Daimyo
 

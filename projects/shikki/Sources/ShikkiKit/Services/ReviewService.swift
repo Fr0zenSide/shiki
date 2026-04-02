@@ -420,6 +420,7 @@ public struct ReviewService: Sendable {
                     do {
                         return try await self.review(prNumber: number, dryRun: dryRun)
                     } catch {
+                        self.logger.error("Review failed for PR", metadata: ["pr": "\(number)", "error": "\(error)"])
                         return nil
                     }
                 }

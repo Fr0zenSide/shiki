@@ -124,7 +124,7 @@ public struct SlopScanGate: ShipGate, Sendable {
             guard !file.contains("..") else { continue }
             let fullPath = "\(rootPath)/\(file)"
             // Verify the resolved path is within the project root
-            let resolved = URL(fileURLWithPath: fullPath).standardized.path
+            let resolved = URL(fileURLWithPath: fullPath).resolvingSymlinksInPath().path
             guard resolved.hasPrefix(rootPath) else { continue }
             let catResult = try await context.shell(
                 "cat \(shellEscape(resolved)) 2>/dev/null"

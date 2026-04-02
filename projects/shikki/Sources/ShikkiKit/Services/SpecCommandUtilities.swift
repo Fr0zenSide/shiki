@@ -67,10 +67,12 @@ public enum SpecCommandUtilities: Sendable {
     }
 
     /// Escape a string for safe YAML double-quoted value.
-    /// Escapes backslashes first, then double quotes.
+    /// Escapes backslashes first, then double quotes, newlines, and tabs.
     public static func escapeYAML(_ value: String) -> String {
         value
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\t", with: "\\t")
     }
 }
