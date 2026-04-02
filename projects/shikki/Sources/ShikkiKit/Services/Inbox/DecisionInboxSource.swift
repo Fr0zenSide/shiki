@@ -47,67 +47,6 @@ public struct DecisionInboxSource: InboxDataSource {
     }
 }
 
-/// Fetches completed but unreviewed tasks from the backend API.
-public struct TaskInboxSource: InboxDataSource {
-    public var sourceType: InboxItem.ItemType { .task }
-
-    private let client: BackendClientProtocol
-
-    public init(client: BackendClientProtocol) {
-        self.client = client
-    }
-
-    public func fetch(filters: InboxFilters) async throws -> [InboxItem] {
-        if let types = filters.types, !types.contains(.task) { return [] }
-
-        // The backend doesn't have a dedicated completed-unreviewed endpoint,
-        // so we fetch via dispatcher queue and filter client-side.
-        // In v1, this source returns empty — it requires task_queue API extensions
-        // that will be added when the backlog manager backend is implemented.
-        return []
-    }
-}
-
-/// Fetches ship gate results (completed/failed pipeline runs).
-public struct GateInboxSource: InboxDataSource {
-    public var sourceType: InboxItem.ItemType { .gate }
-
-    private let client: BackendClientProtocol
-
-    public init(client: BackendClientProtocol) {
-        self.client = client
-    }
-
-    public func fetch(filters: InboxFilters) async throws -> [InboxItem] {
-        if let types = filters.types, !types.contains(.gate) { return [] }
-
-        // Gate source requires pipeline_runs API which will be added
-        // when the ship pipeline backend is fully connected.
-        // In v1, this source returns empty.
-        return []
-    }
-}
-
-/// Fetches specs awaiting review from backlog items with status=ready + associated spec file.
-public struct SpecInboxSource: InboxDataSource {
-    public var sourceType: InboxItem.ItemType { .spec }
-
-    private let shellRunner: ShellRunner
-
-    public init(shellRunner: ShellRunner = DefaultShellRunner()) {
-        self.shellRunner = shellRunner
-    }
-
-    public func fetch(filters: InboxFilters) async throws -> [InboxItem] {
-        if let types = filters.types, !types.contains(.spec) { return [] }
-
-        // Spec source requires backlog_items API (ready items with spec files).
-        // In v1, this source returns empty — will be populated when
-        // BacklogManager + backend Wave 1 are implemented.
-        return []
-    }
-}
-
 // MARK: - Date Parsing Helper
 
 func parseAge(from isoString: String) -> TimeInterval {
