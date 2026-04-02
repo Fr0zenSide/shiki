@@ -1,5 +1,6 @@
 import ArgumentParser
 import Foundation
+import ShikkiKit
 
 struct RestartCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -13,7 +14,35 @@ struct RestartCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Workspace root path (auto-detected if omitted)")
     var workspace: String?
 
+    @Flag(name: .long, help: "Force restart even if same version or downgrade")
+    var force: Bool = false
+
+    @Flag(name: .long, help: "Trigger dependency upgrade after swap")
+    var upgradeDeps: Bool = false
+
+    @Option(name: .long, help: "Restart phase (internal use: post-swap)")
+    var phase: String?
+
+    /// Extract version string from parent command configuration.
+    private static let currentVersion: String = {
+        let raw = ShikkiCommand.configuration.version ?? "0.0.0"
+        // Strip "shikki " prefix if present (e.g. "shikki 0.3.0-pre" → "0.3.0-pre")
+        if raw.hasPrefix("shikki ") {
+            return String(raw.dropFirst("shikki ".count))
+        }
+        return raw
+    }()
+
     func run() async throws {
+        let version = Self.currentVersion
+
+        // Phase 2: post-swap — run SetupGuard check and resume
+        if phase == "post-swap" {
+            let guard_ = SetupGuard(currentVersion: version)
+            await guard_.check(command: "restart")
+            return
+        }
+
         let workspacePath = resolveWorkspaceForRestart()
 
         guard tmuxSessionExists(session) else {
@@ -23,7 +52,45 @@ struct RestartCommand: AsyncParsableCommand {
 
         print("\u{1B}[33mRestarting Shiki orchestrator...\u{1B}[0m")
 
-        // Find orchestrator window
+        // Resolve the current binary path
+        let currentBinaryPath = ProcessInfo.processInfo.arguments.first ?? ""
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+
+        // Create RestartService with injected dependencies
+        var service = RestartService(
+            checkpointManager: CheckpointManager(),
+            setupGuard: SetupGuard(currentVersion: version),
+            binarySwapper: PosixBinarySwapper(),
+            shellExecutor: DefaultShellExecutor(),
+            currentVersion: version,
+            currentBinaryPath: currentBinaryPath,
+            shikkiBinDir: "\(home)/.shikki/bin",
+            buildReleaseDir: "\(workspacePath)/projects/shikki/.build/release",
+            buildDebugDir: "\(workspacePath)/projects/shikki/.build/debug",
+            tmuxSession: session,
+            tmuxRunning: true
+        )
+
+        let result = try await service.restart(force: force, upgradeDeps: upgradeDeps)
+
+        switch result {
+        case .swapped(let oldVersion, let newVersion):
+            // We should never reach here in prod — execv replaces the process
+            print("  \u{1B}[32mSwapped \(oldVersion) → \(newVersion)\u{1B}[0m")
+        case .skipped(let reason):
+            print("  \u{1B}[2m\(reason)\u{1B}[0m")
+        case .aborted(let reason):
+            print("  \u{1B}[31m\(reason)\u{1B}[0m")
+
+            // Fall back to legacy restart (send keys to tmux)
+            print("  \u{1B}[33mFalling back to legacy restart...\u{1B}[0m")
+            try legacyRestart(workspacePath: workspacePath)
+        }
+    }
+
+    // MARK: - Legacy Restart (fallback)
+
+    private func legacyRestart(workspacePath: String) throws {
         guard let orchPane = findOrchestratorPane(session) else {
             print("  \u{1B}[31mCould not find orchestrator window\u{1B}[0m")
             return
@@ -31,7 +98,6 @@ struct RestartCommand: AsyncParsableCommand {
 
         // Send Ctrl-C to stop current heartbeat
         try shellExec("tmux", arguments: ["send-keys", "-t", orchPane, "C-c"])
-        try await Task.sleep(for: .seconds(1))
 
         // Resolve binary path
         let binaryPath = "\(workspacePath)/projects/shikki/.build/debug/shikki"
@@ -46,6 +112,8 @@ struct RestartCommand: AsyncParsableCommand {
 
         print("  \u{1B}[32mOrchestrator restarted (session preserved)\u{1B}[0m")
     }
+
+    // MARK: - tmux Helpers
 
     private func tmuxSessionExists(_ name: String) -> Bool {
         let process = Process()
