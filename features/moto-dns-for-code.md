@@ -1,7 +1,7 @@
 ---
 title: "Originate — DNS for Code: Pre-Computed Project Cache Standard"
-status: brainstorm
-priority: P1
+status: implementing
+priority: P0
 project: shikki-ecosystem
 created: 2026-03-26
 co-designed-with: "@Daimyo + @team brainstorm"
@@ -512,3 +512,184 @@ How ShikkiCore discovers and consumes `.hanko` files:
 3. **Schema governance**: Who owns the cache schema version? OBYW.one? A foundation? Community RFC?
 4. **Shikki integration**: Should Shikki consume `.hanko` files natively in the CodeGen pipeline, making it the first reference consumer?
 5. **License for the standard**: MIT (max adoption) or Apache-2.0 (patent protection)?
+
+---
+
+## Business Rules
+
+```
+BR-01: Every project with a .moto dotfile MUST have a pre-computed cache queryable via MCP
+BR-02: Cache MUST include method-level indexing (not just types) — function signatures, computed properties, parameters
+BR-03: Cache MUST be incrementally rebuildable — only re-index files changed since last build (mtime tracking)
+BR-04: MCP interface MUST expose: type lookup, method search, protocol listing, dependency graph, duplicate detection
+BR-05: .moto dotfile MUST be the single entry point — contains cache endpoint, version, schema, branches
+BR-06: Remote cache resolution MUST work over NATS — query other nodes' .moto caches
+BR-07: Utilities manifest MUST list shared helpers with usage counts for dispatch context scoping
+BR-08: Duplicate detector MUST flag identical method signatures across files (excluding test files)
+BR-09: Cache format MUST be JSON (protocols.json, types.json, methods.json, utilities.json, manifest.json)
+BR-10: When .moto exists for an ingest target, ShikiDB stores ONLY a pointer (summary + motoRef), never full content
+```
+
+## TDDP — Test Summary Table
+
+| Test | BR | Tier | Type | Scenario |
+|------|-----|------|------|----------|
+| T-01 | BR-01 | Core (80%) | Unit | When project has .moto → cache queryable |
+| T-02 | BR-02 | Core (80%) | Unit | When building cache → method signatures indexed |
+| T-03 | BR-02 | Core (80%) | Unit | When building cache → computed properties indexed |
+| T-04 | BR-03 | Core (80%) | Unit | When file changed → only that file re-indexed |
+| T-05 | BR-03 | Core (80%) | Unit | When force rebuild → all files re-indexed |
+| T-06 | BR-04 | Core (80%) | Unit | When MCP query type → returns type descriptor |
+| T-07 | BR-07 | Core (80%) | Unit | When building utilities → usage counts correct |
+| T-08 | BR-08 | Core (80%) | Unit | When duplicates exist → detected across files |
+| T-09 | BR-08 | Core (80%) | Unit | When duplicate in test file → ignored |
+| T-10 | BR-09 | Core (80%) | Unit | When cache saved → round-trip load returns same |
+| T-11 | BR-10 | Core (80%) | Integration | When ingesting .moto resource → pointer only in ShikiDB |
+| T-12 | BR-06 | Core (80%) | Integration | When NATS query for remote .moto → response received |
+
+### S3 Test Scenarios
+
+```
+T-01 [BR-01, Core 80%]:
+When project has a .moto dotfile:
+  → MotoCacheBuilder produces valid cache directory
+  → MCP interface responds to queries
+  → cache endpoint matches .moto dotfile value
+
+T-02 [BR-02, Core 80%]:
+When building method-level index from Swift source:
+  → function signatures captured (name, params, return type)
+  → parent type recorded for each method
+  → file path and line range stored
+
+T-03 [BR-02, Core 80%]:
+When building method-level index:
+  → computed properties captured (name, type, parent)
+  → protocol requirements captured separately from implementations
+
+T-04 [BR-03, Core 80%]:
+When a single file changed since last build:
+  if mtime differs from cached snapshot:
+    → only that file re-indexed
+    → other files preserved from cache
+  if mtime unchanged:
+    → file skipped entirely
+
+T-05 [BR-03, Core 80%]:
+When force rebuild requested:
+  → all files re-indexed regardless of mtime
+  → new snapshot replaces old completely
+
+T-06 [BR-04, Core 80%]:
+When MCP receives type lookup query:
+  depending on query type:
+    "search by name" → matching TypeDescriptors returned
+    "list protocols" → all protocol types returned
+    "dependency graph" → module dependencies returned
+    "duplicates" → DuplicateGroup results returned
+
+T-07 [BR-07, Core 80%]:
+When building utilities manifest:
+  → shared helper functions listed with usage counts
+  → sorted by usage count descending
+  → file path included for each utility
+
+T-08 [BR-08, Core 80%]:
+When two files contain identical method signature:
+  → DuplicateDetector flags both with group ID
+  → output includes: signature, file paths, line numbers
+
+T-09 [BR-08, Core 80%]:
+When duplicate method exists in test file:
+  if path contains "Tests/" or filename ends with "Tests.swift":
+    → ignored by DuplicateDetector
+  otherwise:
+    → flagged as duplicate
+
+T-10 [BR-09, Core 80%]:
+When cache is built, saved, and reloaded:
+  → loaded cache matches built cache exactly
+  → all types, methods, utilities, protocols preserved
+  → JSON format valid and parseable
+
+T-11 [BR-10, Core 80%]:
+When /ingest targets a resource with .moto cache:
+  → ShikiDB stores: tiny summary + motoRef URI
+  → ShikiDB does NOT store full content
+  → full context retrieval goes through .moto at query time
+
+T-12 [BR-06, Core 80%]:
+When querying remote node's .moto cache via NATS:
+  → request published to shikki.moto.query.{nodeId}
+  → remote node responds with cached data
+  → local node receives and uses response
+```
+
+## Wave Dispatch Tree
+
+```
+Wave 1: Cache Engine (DONE — already shipped)
+  ├── MotoCacheBuilder (type + method indexing)
+  ├── MotoCacheReader (queries)
+  ├── MotoDotfile (parser)
+  ├── MethodIndex + UtilitiesManifest + DuplicateDetector
+  └── CacheInvalidationTracker (incremental rebuild)
+  Input:  Swift source files
+  Output: .moto-cache/ directory with JSON files
+  Tests:  T-01..T-10 (58 tests already passing)
+  Gate:   swift test --filter Moto → 58/58 green ✅
+  ║
+  ╠══ Wave 2: MCP Interface (DONE — already shipped)
+  ║   ├── MotoMCPInterface (15 MCP tools)
+  ║   └── Query routing (type/method/protocol/deps/duplicates)
+  ║   Input:  .moto-cache/ JSON files
+  ║   Output: MCP tool responses
+  ║   Tests:  MotoMCPTests
+  ║   Gate:   swift test --filter Moto → green ✅
+  ║
+  ╠══ Wave 3: Ingest Integration ← BLOCKED BY Wave 1
+  ║   ├── MotoCacheIngestAdapter (convert cache → IngestChunk)
+  ║   ├── moto-sources.json registry (GitHub URL → local cache path)
+  ║   └── ShikiDB pointer-only storage for .moto resources
+  ║   Input:  .moto-cache/ + ingest URL
+  ║   Output: ShikiDB entry (pointer, not copy)
+  ║   Tests:  T-11
+  ║   Gate:   /ingest on .moto resource stores pointer only
+  ║
+  ╚══ Wave 4: NATS Remote Resolution ← BLOCKED BY Wave 2
+      ├── shikki.moto.query.{nodeId} subject
+      ├── Remote cache query/response protocol
+      └── Local fallback when remote unavailable
+      Input:  NATS query from another node
+      Output: cached data response via NATS
+      Tests:  T-12
+      Gate:   two-node query integration test
+```
+
+## Implementation Waves
+
+### Wave 1: Cache Engine — DONE ✅
+**Files:** `Moto/MotoCacheBuilder.swift`, `Moto/MethodIndex.swift`, `Moto/UtilitiesManifest.swift`, `Moto/DuplicateDetector.swift`, `Moto/CacheInvalidationTracker.swift`
+**Tests:** T-01..T-10 (58 tests, all passing)
+**BRs:** BR-01, BR-02, BR-03, BR-07, BR-08, BR-09
+**Gate:** `swift test --filter Moto` → 58/58 green ✅
+
+### Wave 2: MCP Interface — DONE ✅
+**Files:** `Moto/MotoMCPInterface.swift`
+**Tests:** MotoMCPTests
+**BRs:** BR-04, BR-05
+**Gate:** `swift test --filter Moto` → green ✅
+
+### Wave 3: Ingest Integration ← BLOCKED BY Wave 1
+**Files:** `Extensions/Inbox/MotoCacheIngestAdapter.swift` (NEW), `Moto/moto-sources.json` (NEW)
+**Tests:** T-11
+**BRs:** BR-10
+**Deps:** Wave 1, Ingest v2 spec
+**Gate:** `/ingest` on .moto resource stores pointer only in ShikiDB
+
+### Wave 4: NATS Remote Resolution ← BLOCKED BY Wave 2
+**Files:** extend `Moto/MotoMCPInterface.swift`, `NATS/MotoQueryHandler.swift` (NEW)
+**Tests:** T-12
+**BRs:** BR-06
+**Deps:** Wave 2, NATS distributed dispatch
+**Gate:** two-node .moto query works end-to-end
