@@ -33,16 +33,6 @@ struct ShikiServerTests {
         return (data, response as! HTTPURLResponse)
     }
 
-    private func patch(_ url: URL, body: [String: Any]) async throws -> (Data, HTTPURLResponse) {
-        var request = URLRequest(url: url)
-        request.httpMethod = "PATCH"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, response) = try await URLSession.shared.data(for: request)
-        return (data, response as! HTTPURLResponse)
-    }
-
     // MARK: - 1. Health check returns 200 with {"ok": true}
 
     @Test("Health check returns 200 with ok true")
@@ -152,10 +142,10 @@ struct ShikiServerTests {
         #expect(events.count == 2)
     }
 
-    // MARK: - 5. GET /api/decisions returns stored decisions
+    // MARK: - 5. Decisions queryable via /api/events?type=decision
 
-    @Test("GET decisions returns stored decisions")
-    func getDecisionsReturnsStored() async throws {
+    @Test("Decisions queryable via events endpoint with type filter")
+    func getDecisionsViaEvents() async throws {
         let (server, port) = try await startServer()
         defer { server.stop() }
 
@@ -171,13 +161,14 @@ struct ShikiServerTests {
             ] as [String: Any],
         ])
 
-        let decisionsURL = URL(string: "http://127.0.0.1:\(port)/api/decisions")!
-        let (data, response) = try await get(decisionsURL)
+        // Query via unified events endpoint with type filter
+        let eventsURL = URL(string: "http://127.0.0.1:\(port)/api/events?type=decision")!
+        let (data, response) = try await get(eventsURL)
 
         #expect(response.statusCode == 200)
         let decisions = try JSONSerialization.jsonObject(with: data) as! [[String: Any]]
         #expect(decisions.count == 1)
-        #expect(decisions[0]["question"] as? String == "Use Swift or Rust?")
+        #expect(decisions[0]["type"] as? String == "decision")
     }
 
     // MARK: - 6. Server starts on configurable port
@@ -244,10 +235,10 @@ struct ShikiServerTests {
         #expect(json["error"] as? String != nil)
     }
 
-    // MARK: - 9. POST /api/plans stores and GET retrieves
+    // MARK: - 9. Plans queryable via /api/events?type=plan
 
-    @Test("Plans CRUD via data-sync and GET")
-    func plansCRUD() async throws {
+    @Test("Plans queryable via events endpoint with type filter")
+    func plansViaEvents() async throws {
         let (server, port) = try await startServer()
         defer { server.stop() }
 
@@ -261,13 +252,14 @@ struct ShikiServerTests {
             ] as [String: Any],
         ])
 
-        let plansURL = URL(string: "http://127.0.0.1:\(port)/api/plans")!
-        let (data, response) = try await get(plansURL)
+        // Query via unified events endpoint with type filter
+        let eventsURL = URL(string: "http://127.0.0.1:\(port)/api/events?type=plan")!
+        let (data, response) = try await get(eventsURL)
 
         #expect(response.statusCode == 200)
         let plans = try JSONSerialization.jsonObject(with: data) as! [[String: Any]]
         #expect(plans.count == 1)
-        #expect(plans[0]["title"] as? String == "Migration plan")
+        #expect(plans[0]["type"] as? String == "plan")
     }
 
     // MARK: - 10. Unknown route returns 404
@@ -283,5 +275,116 @@ struct ShikiServerTests {
         #expect(response.statusCode == 404)
         let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
         #expect(json["error"] as? String != nil)
+    }
+
+    // MARK: - 11. Dead orchestrator routes return 404
+
+    @Test("Dead orchestrator routes return 404")
+    func deadOrchestratorRoutes404() async throws {
+        let (server, port) = try await startServer()
+        defer { server.stop() }
+
+        let deadPaths = [
+            "/api/orchestrator/status",
+            "/api/orchestrator/board",
+            "/api/orchestrator/stale",
+            "/api/orchestrator/ready",
+            "/api/orchestrator/dispatcher-queue",
+            "/api/orchestrator/report",
+        ]
+
+        for path in deadPaths {
+            let url = URL(string: "http://127.0.0.1:\(port)\(path)")!
+            let (_, response) = try await get(url)
+            #expect(response.statusCode == 404, "Expected 404 for \(path)")
+        }
+    }
+
+    // MARK: - 12. Dead backlog/company/transcript routes return 404
+
+    @Test("Dead backlog, company, and transcript routes return 404")
+    func deadStubRoutes404() async throws {
+        let (server, port) = try await startServer()
+        defer { server.stop() }
+
+        let deadPaths = [
+            "/api/backlog",
+            "/api/backlog/count",
+            "/api/companies",
+            "/api/session-transcripts",
+            "/api/decisions",
+        ]
+
+        for path in deadPaths {
+            let url = URL(string: "http://127.0.0.1:\(port)\(path)")!
+            let (_, response) = try await get(url)
+            #expect(response.statusCode == 404, "Expected 404 for \(path)")
+        }
+    }
+
+    // MARK: - 13. Events filter by projectId
+
+    @Test("Events filter by projectId")
+    func eventsFilterByProjectId() async throws {
+        let (server, port) = try await startServer()
+        defer { server.stop() }
+
+        let syncURL = URL(string: "http://127.0.0.1:\(port)/api/data-sync")!
+        _ = try await post(syncURL, body: [
+            "type": "heartbeat", "projectId": "proj-a", "payload": ["x": 1],
+        ])
+        _ = try await post(syncURL, body: [
+            "type": "heartbeat", "projectId": "proj-b", "payload": ["x": 2],
+        ])
+
+        let url = URL(string: "http://127.0.0.1:\(port)/api/events?projectId=proj-a")!
+        let (data, response) = try await get(url)
+        #expect(response.statusCode == 200)
+        let events = try JSONSerialization.jsonObject(with: data) as! [[String: Any]]
+        #expect(events.count == 1)
+        #expect(events[0]["projectId"] as? String == "proj-a")
+    }
+
+    // MARK: - 14. Events respect limit parameter
+
+    @Test("Events respect limit parameter")
+    func eventsRespectLimit() async throws {
+        let (server, port) = try await startServer()
+        defer { server.stop() }
+
+        let syncURL = URL(string: "http://127.0.0.1:\(port)/api/data-sync")!
+        for i in 0..<10 {
+            _ = try await post(syncURL, body: [
+                "type": "tick", "payload": ["i": i],
+            ])
+        }
+
+        let url = URL(string: "http://127.0.0.1:\(port)/api/events?limit=3")!
+        let (data, response) = try await get(url)
+        #expect(response.statusCode == 200)
+        let events = try JSONSerialization.jsonObject(with: data) as! [[String: Any]]
+        #expect(events.count == 3)
+    }
+
+    // MARK: - 15. Context events stored via unified events
+
+    @Test("Context events stored via unified events")
+    func contextEventsViaUnifiedStore() async throws {
+        let (server, port) = try await startServer()
+        defer { server.stop() }
+
+        let syncURL = URL(string: "http://127.0.0.1:\(port)/api/data-sync")!
+        _ = try await post(syncURL, body: [
+            "type": "context_session_start",
+            "projectId": "proj-d",
+            "payload": ["sessionId": "sess-1"],
+        ])
+
+        let url = URL(string: "http://127.0.0.1:\(port)/api/events?type=context_session_start")!
+        let (data, response) = try await get(url)
+        #expect(response.statusCode == 200)
+        let events = try JSONSerialization.jsonObject(with: data) as! [[String: Any]]
+        #expect(events.count == 1)
+        #expect(events[0]["type"] as? String == "context_session_start")
     }
 }

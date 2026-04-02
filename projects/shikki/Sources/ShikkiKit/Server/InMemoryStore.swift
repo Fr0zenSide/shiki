@@ -5,16 +5,14 @@ import Foundation
 /// Uses Swift actor isolation for safe concurrent access. Stores entries
 /// as serialized JSON `Data` to satisfy strict Sendable requirements.
 ///
-/// This is v1 storage — good enough for local dev and single-user CLI.
-/// PostgreSQL migration is a later phase.
+/// v2: Unified events collection. All event types (decisions, plans, contexts,
+/// heartbeats, etc.) go into the same `events` array and are filtered by `type`
+/// field on query. Memories remain separate (different query pattern — text search).
 public actor InMemoryStore {
-    // Each collection stores entries as serialized JSON Data.
-    // This avoids `[String: Any]` crossing actor boundaries (not Sendable in Swift 6).
+    // Unified event storage — everything goes here.
     private var events: [Data] = []
+    // Memories use text search, so they stay separate.
     private var memories: [Data] = []
-    private var decisions: [Data] = []
-    private var plans: [Data] = []
-    private var contexts: [Data] = []
 
     public init() {}
 
@@ -90,68 +88,10 @@ public actor InMemoryStore {
         return Array(scored.prefix(limit).map(\.entry))
     }
 
-    // MARK: - Decisions
-
-    public func addDecision(_ json: Data) -> Data {
-        let enriched = enrichEntry(json)
-        decisions.append(enriched)
-        return enriched
-    }
-
-    public func getDecisions(limit: Int = 100) -> [Data] {
-        Array(decisions.suffix(limit))
-    }
-
-    public func updateDecision(id: String, updates: Data) -> Data? {
-        guard let index = decisions.firstIndex(where: { field($0, "id") == id }) else {
-            return nil
-        }
-        // Merge updates into existing entry
-        if var existing = deserialize(decisions[index]),
-           let updateDict = deserialize(updates) {
-            for (key, value) in updateDict {
-                existing[key] = value
-            }
-            existing["updated_at"] = ISO8601DateFormatter().string(from: Date())
-            if let merged = serialize(existing) {
-                decisions[index] = merged
-                return merged
-            }
-        }
-        return nil
-    }
-
-    // MARK: - Plans
-
-    public func addPlan(_ json: Data) -> Data {
-        let enriched = enrichEntry(json)
-        plans.append(enriched)
-        return enriched
-    }
-
-    public func getPlans(limit: Int = 100) -> [Data] {
-        Array(plans.suffix(limit))
-    }
-
-    // MARK: - Contexts
-
-    public func saveContext(_ json: Data) -> Data {
-        let enriched = enrichEntry(json)
-        contexts.append(enriched)
-        return enriched
-    }
-
-    public func getContexts(sessionId: String? = nil, limit: Int = 20) -> [Data] {
-        var result = contexts
-        if let sessionId {
-            result = result.filter { field($0, "sessionId") == sessionId }
-        }
-        return Array(result.suffix(limit))
-    }
-
     // MARK: - Data Sync (unified ingest)
 
     /// Route a data-sync payload to the appropriate collection based on `type`.
+    /// All types go to events except `memory` which goes to the memories collection.
     public func ingest(type: String, projectId: String?, payload: Data) -> Data {
         // Enrich payload with type and projectId
         var dict = deserialize(payload) ?? [:]
@@ -164,12 +104,6 @@ public actor InMemoryStore {
         switch type {
         case "memory":
             return addMemory(enrichedData)
-        case "decision":
-            return addDecision(enrichedData)
-        case "plan":
-            return addPlan(enrichedData)
-        case "context", "context_compaction", "context_session_start", "context_session_end":
-            return saveContext(enrichedData)
         default:
             return addEvent(enrichedData)
         }
