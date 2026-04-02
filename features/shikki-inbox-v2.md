@@ -58,6 +58,8 @@ BR-09: `shikki inbox --count` returns in <100ms via COUNT query.
 BR-10: Status line reads from `.shikki/inbox-count` cache, updated on each `shikki inbox` call.
 BR-11: `shikki inbox --archive {type}:{id}` sets archived_at in inbox_read_state.
 BR-12: Archived items auto-expire after 30 days.
+BR-13: Board → inbox bridge: `shikki.agent.completed`, `shikki.agent.failed`, `shikki.agent.stuck` NATS events create inbox items automatically. Agent finished = "Review agent output", build failed = "Build broken on {branch}", rate limit = "{N} tasks queued, retry at {time}".
+BR-14: `shikki.bg.result.*` events from `shi bg` background tasks create inbox items with the bg result summary.
 ```
 
 ---
@@ -113,6 +115,11 @@ Inbox is a NATS subscriber. Events trigger `inbox_read_state` inserts for new en
 | `shikki.spec.status_changed` | Spec -> draft/review/implementing | INSERT read_state if not exists |
 | `shikki.decision.pending` | New decision | INSERT read_state if not exists |
 | `shikki.gate.completed` | Gate run finishes | INSERT read_state if not exists |
+| `shikki.agent.completed` | Agent finished work | INSERT read_state (type: agent_result) |
+| `shikki.agent.failed` | Agent crashed/failed | INSERT read_state (type: agent_alert, urgency +30) |
+| `shikki.agent.stuck` | Agent idle > threshold | INSERT read_state (type: agent_alert) |
+| `shikki.bg.result.*` | Background task result | INSERT read_state (type: bg_result) |
+| `shikki.ratelimit.*` | Rate limit hit | INSERT read_state (type: system_alert) |
 | (on `shikki inbox`) | gh auth OK | PRSyncSource upserts; stale PRs (>7d) auto-archive |
 
 ```sql
