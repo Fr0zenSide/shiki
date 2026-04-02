@@ -101,18 +101,82 @@ shi bg "prompt" → CLI generates taskId (UUID), saves to ShikiDB (queued), publ
 
 ## TDDP — Test-Driven Development Plan
 
-| Test | BR | Tier | Coverage | Description |
-|------|-----|------|----------|-------------|
-| T-01 | BR-03 | Core (80%) | Unit | Submitting bg task saves to ShikiDB with status "queued", returns task ID |
-| T-02 | BR-01 | Security (100%) | Unit | BackgroundNode uses LMStudioProvider — mock verifies NO cloud provider called |
-| T-03 | BR-02 | Core (80%) | Unit | BackgroundNode calls shiki_get_context with correct project before LLM call |
-| T-04 | BR-04 | Core (80%) | Unit | Completed task publishes NATS event on shikki.bg.result.{taskId} |
-| T-05 | BR-07 | Core (80%) | Unit | Exceeding max parallel (3) queues tasks FIFO, processes when slot opens |
-| T-06 | BR-08 | Smoke (CLI) | Unit | shi bg cancel sets status "cancelled" in ShikiDB, aborts running Task |
-| T-07 | BR-08 | Smoke (CLI) | Unit | shi bg list returns all tasks sorted by submission time |
-| T-08 | BR-10 | Core (80%) | Unit | Results older than TTL excluded from list, pruned on launch |
-| T-09 | BR-06 | Core (80%) | Integration | bg task survives session restart — resumed from ShikiDB state |
-| T-10 | BR-05 | Smoke (CLI) | Integration | tmux pane updates status on NATS progress/result events |
+| Test | BR | Tier | Type | Scenario |
+|------|-----|------|------|----------|
+| T-01 | BR-03 | Core (80%) | Unit | When submitting bg task → saved queued + ID returned |
+| T-02 | BR-01 | Security (100%) | Unit | When executing → LMStudioProvider only, zero cloud calls |
+| T-03 | BR-02 | Core (80%) | Unit | When executing → shiki_get_context called before LLM |
+| T-04 | BR-04 | Core (80%) | Unit | When task completes → NATS event published |
+| T-05 | BR-07 | Core (80%) | Unit | When max parallel exceeded → queued FIFO |
+| T-06 | BR-08 | Smoke (CLI) | Unit | When cancel → status "cancelled", task aborted |
+| T-07 | BR-08 | Smoke (CLI) | Unit | When list → all tasks sorted by submission time |
+| T-08 | BR-10 | Core (80%) | Unit | When TTL expired → excluded from list, pruned |
+| T-09 | BR-06 | Core (80%) | Integration | When session restarts → bg task resumed from ShikiDB |
+| T-10 | BR-05 | Smoke (CLI) | Integration | When NATS event received → tmux pane updates |
+
+### S3 Test Scenarios
+
+```
+T-01 [BR-03, Core 80%]:
+When submitting a bg task with a valid prompt:
+  → task saved to ShikiDB with status "queued"
+  → task ID returned (UUID format)
+  → model field set to LM Studio model name
+
+T-02 [BR-01, Security 100%]:
+When BackgroundNode executes a prompt:
+  if LMStudioProvider is available:
+    → uses LMStudioProvider exclusively
+    → NO cloud provider called (mock verifies zero Claude API calls)
+  otherwise:
+    → task queued with status "waiting_for_provider"
+
+T-03 [BR-02, Core 80%]:
+When BackgroundNode starts processing:
+  → shiki_get_context called with correct project ID
+  → shiki_search called with prompt keywords
+  → recovered context injected as system prompt before LLM call
+
+T-04 [BR-04, Core 80%]:
+When bg task completes successfully:
+  → NATS event published on shikki.bg.result.{taskId}
+  → event payload contains: taskId, response, model, duration
+  → bg_result saved to ShikiDB
+
+T-05 [BR-07, Core 80%]:
+When 4th bg task submitted with maxParallel=3:
+  → 4th task status is "queued" (not "running")
+  → when slot opens (task 1 completes):
+    → 4th task transitions to "running" (FIFO)
+
+T-06 [BR-08, Smoke CLI]:
+When running shi bg cancel 2:
+  → task #2 status set to "cancelled" in ShikiDB
+  → running Task aborted (if in progress)
+  → tmux pane shows "#2 ✗ cancelled"
+
+T-07 [BR-08, Smoke CLI]:
+When running shi bg list:
+  → all tasks for current session returned
+  → sorted by submission time ascending
+  → columns: id, status, elapsed, prompt (truncated)
+
+T-08 [BR-10, Core 80%]:
+When bg results older than TTL (24h default):
+  → excluded from shi bg list output
+  → pruned from ShikiDB on next shi launch
+
+T-09 [BR-06, Core 80%]:
+When session crashes and restarts:
+  → ShikiDB queried for tasks with status "running" or "queued"
+  → "running" tasks reset to "queued" (retry)
+  → BackgroundNode resumes processing queue
+
+T-10 [BR-05, Smoke CLI]:
+When NATS shikki.bg.result.{taskId} event received:
+  → tmux bg pane updates task row: "⟳ run" → "✓ done"
+  → elapsed time finalized
+```
 
 ## Wave Dispatch Tree
 
