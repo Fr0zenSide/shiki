@@ -1,0 +1,145 @@
+---
+title: "shi bg — Background AI Node with Local LLM"
+status: draft
+priority: P2
+project: shikki
+created: 2026-04-02
+authors: "@Daimyo vision"
+tags: [cli, local-llm, background, productivity]
+---
+
+# Feature: `shi bg` — Background AI Node with Local LLM
+> Created: 2026-04-02 | Status: Draft | Owner: @Daimyo
+
+## Context
+
+Claude rate limits halt all productivity. When Opus hits its cap, the user stares at a timer. Meanwhile, a local LLM (LM Studio) sits idle on the same machine, perfectly capable of handling research, analysis, and review tasks — just not orchestration-grade work.
+
+`shi bg` turns idle time into throughput. Background nodes use exclusively local LLMs to process prompts asynchronously while the main session continues (or waits for rate limits to lift). Context comes from ShikiDB, not the current Claude session, making bg nodes fully independent and session-survivable.
+
+**Existing infrastructure** (all built):
+- `LMStudioProvider` — OpenAI-compatible local LLM client (`ShikkiKit/Providers/LMStudioProvider.swift`)
+- `FallbackProviderChain` — provider failover chain (`ShikkiKit/Providers/FallbackProviderChain.swift`)
+- `NATSDispatcher` — pub/sub task dispatch with progress tracking (`ShikkiKit/NATS/NATSDispatcher.swift`)
+- ShikiDB — persistent memory with `shiki_search`, `shiki_get_context`, `shiki_save_event`
+
+## Problem
+
+Rate limits on cloud LLMs create dead time. Research questions, code reviews, security analyses, and "think about this" prompts do not require Opus-grade intelligence. They need context + a competent model + time. Local LLMs provide all three, but there is no way to dispatch work to them from the Shikki CLI. The user must manually open LM Studio, paste context, and copy results back.
+
+## Synthesis
+
+**Goal**: `shi bg "prompt"` spawns an autonomous background node that uses local LLM, recovers context from ShikiDB, processes the prompt, persists the result, and notifies the main session — all without consuming cloud API tokens.
+
+**Scope**:
+- `BackgroundNode` actor: lifecycle management, LMStudioProvider integration, ShikiDB context recovery
+- `BackgroundTaskStore`: ShikiDB-backed persistence for bg tasks and results
+- CLI subcommands: `shi bg "prompt"`, `shi bg list`, `shi bg show <id>`, `shi bg cancel <id>`
+- tmux status pane: persistent bg task tracker
+- NATS notification: `shikki.bg.result.{taskId}` event on completion
+- Overlay display: keybind-triggered popup showing bg results
+
+**Out of scope**:
+- Multi-turn bg conversations (single prompt/response only for v1)
+- Bg nodes using cloud providers (local LLM only — this is the contract)
+- Automatic prompt routing (user explicitly chooses `shi bg` vs normal prompt)
+
+**Dependencies**:
+- `LMStudioProvider` (exists)
+- `FallbackProviderChain` (exists — bg nodes use local-only chain)
+- `NATSDispatcher` (exists — extend with `shikki.bg.*` subjects)
+- ShikiDB `shiki_save_event` / `shiki_get_context` (exists)
+
+## Business Rules
+
+```
+BR-01: bg nodes MUST use LMStudioProvider exclusively — never Claude or any cloud provider
+BR-02: Context MUST be recovered from ShikiDB (shiki_get_context + shiki_search), never from the current Claude session
+BR-03: Results MUST be saved to ShikiDB as bg_result event type with full prompt, response, model, and duration
+BR-04: Main node MUST be notified via NATS subject shikki.bg.result.{taskId} when a bg task completes
+BR-05: A persistent tmux pane MUST track all bg tasks for the session: id, status (queued/running/done/failed), elapsed time
+BR-06: bg tasks MUST survive session restart — state persisted in ShikiDB, resumable on next shi launch
+BR-07: Maximum parallel bg tasks is configurable (default: 3) — additional tasks queue with FIFO ordering
+BR-08: CLI MUST support: shi bg "prompt", shi bg list, shi bg show <id>, shi bg cancel <id>
+BR-09: Results overlay MUST be accessible via configurable keybind (default: Ctrl+B g) in tmux
+BR-10: bg results MUST have a TTL (default: 24h, configurable via settings.json) — expired results are pruned from ShikiDB
+```
+
+## CLI Interface
+
+```bash
+shi bg "analyze the security of our NATS auth"       # → bg#1 queued (model: qwen2.5-coder-32b)
+shi bg --project shikki "review PluginRegistry"       # → bg#2 queued (context: 5 memories)
+shi bg list                                           # table: id, status, prompt, elapsed
+shi bg show 1                                         # full result in pager (bat/less)
+shi bg cancel 3                                       # → bg#3 cancelled
+```
+
+## tmux Pane Design
+
+The bg status pane sits in the existing Shikki tmux layout (bottom-right, 3 lines tall):
+
+```
+┌─ bg tasks ──────────────────────────────────┐
+│ #1 ✓ done   2m14s  security of NATS auth    │
+│ #2 ⟳ run    0m47s  PluginRegistry injection  │
+│ #3 ◌ queue  —      event bus vs jetstream    │
+└─────────────────────────────────────────────┘
+```
+
+Updates via NATS `shikki.bg.progress.{taskId}` — no polling.
+
+## Architecture
+
+```
+shi bg "prompt" → CLI generates taskId (UUID), saves to ShikiDB (queued), publishes NATS shikki.bg.submit
+  → BackgroundNode actor: shiki_get_context + shiki_search → builds system prompt → LMStudioProvider.complete
+  → On completion: saves bg_result to ShikiDB, publishes shikki.bg.result.{taskId}
+  → tmux pane subscribes to shikki.bg.result.* / shikki.bg.progress.*, updates status live
+  → Ctrl+B g overlay renders full result with bat/less
+```
+
+## Test Scenarios
+
+```
+T-01: Submitting a bg task saves it to ShikiDB with status "queued" and returns a task ID
+T-02: BackgroundNode uses LMStudioProvider — mock provider verifies no cloud provider is called
+T-03: BackgroundNode recovers context from ShikiDB before calling LLM — mock verifies shiki_get_context called with correct project
+T-04: Completed task publishes NATS event on shikki.bg.result.{taskId} with full response payload
+T-05: Exceeding max parallel tasks (default 3) queues additional tasks and processes them FIFO when slots open
+T-06: shi bg cancel sets task status to "cancelled" in ShikiDB and aborts the running Task
+T-07: shi bg list returns all tasks for the current session sorted by submission time
+T-08: Results older than TTL (24h) are excluded from shi bg list and pruned on next launch
+```
+
+## Implementation Waves
+
+### Wave 1: Core Engine (P0 for this feature)
+- `BackgroundTask` model: id, prompt, status, result, model, timestamps, TTL
+- `BackgroundTaskStore`: ShikiDB persistence (save, list, get, cancel, prune)
+- `BackgroundNode` actor: context recovery + LMStudioProvider call + result persistence
+- Concurrency limiter (max 3 parallel, FIFO queue)
+- Unit tests: T-01 through T-06
+
+### Wave 2: CLI + NATS Integration
+- `BackgroundCommand` (ArgumentParser): `shi bg "prompt"`, `list`, `show <id>`, `cancel <id>`
+- NATS subjects: `shikki.bg.submit`, `shikki.bg.progress.{taskId}`, `shikki.bg.result.{taskId}`
+- Wire `NATSDispatcher` to publish/subscribe bg events
+- Unit tests: T-04, T-07, T-08
+
+### Wave 3: tmux Pane + Overlay
+- tmux pane renderer: 3-line status bar, NATS-driven updates
+- Overlay popup (Ctrl+B g): list results, select to view full output
+- Settings.json integration: `bg.maxParallel`, `bg.ttlHours`, `bg.keybind`
+- Integration tests: full flow from `shi bg` to overlay display
+
+## Reuse Audit
+
+| Utility / Pattern | Exists In | Decision |
+|---|---|---|
+| `LMStudioProvider` | `ShikkiKit/Providers/LMStudioProvider.swift` | Reuse as-is |
+| `FallbackProviderChain` | `ShikkiKit/Providers/FallbackProviderChain.swift` | Reuse with local-only config |
+| `NATSDispatcher` | `ShikkiKit/NATS/NATSDispatcher.swift` | Extend with `shikki.bg.*` subjects |
+| ShikiDB event persistence | `shiki_save_event` MCP tool | Reuse as-is |
+| tmux pane rendering | `ShikkiKit/TUI/` | Reuse existing pane primitives |
+| ArgumentParser subcommand | `Commands/` | Follow existing command patterns |
