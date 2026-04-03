@@ -41,25 +41,28 @@ You bring the idea. Shiki runs the process: the right pipeline kicks in, agent p
 
 ## Quick Start
 
-### Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/) (or [Colima](https://github.com/abiosoft/colima))
-- [Swift](https://swift.org/install) (5.9+)
-- [Claude Code](https://claude.ai/claude-code) (for agent skills)
-
-### Install
-
 ```bash
-git clone https://github.com/Fr0zenSide/shiki.git
-cd shiki/projects/shikki && swift build
-ln -sf $(pwd)/.build/debug/shikki ~/.local/bin/shikki
+# 1. Install
+git clone https://github.com/Fr0zenSide/shiki.git && cd shiki
+cd projects/shikki && swift build -c release
+mkdir -p ~/.local/bin && cp .build/release/shi ~/.local/bin/shi
+
+# 2. Setup (installs deps, creates .env, checks PATH)
+cd ../.. && shi setup
+
+# 3. Launch
+colima start          # skip if you use Docker Desktop
+docker compose up -d
+shi start
 ```
 
-### Launch
+That's it. `shi setup` handles the rest (brew dependencies, workspace dirs, `.env` config). If `~/.local/bin` isn't in your PATH yet, add it:
 
 ```bash
-shiki start
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
 ```
+
+> **Requires:** macOS, Swift 6.0+ (`xcode-select --install`), [Homebrew](https://brew.sh), [Colima](https://github.com/abiosoft/colima) or Docker Desktop, [Claude Code](https://claude.ai/claude-code)
 
 Shiki detects your environment, starts Docker services, boots the backend, shows a startup dashboard, and drops you into a tmux workspace.
 

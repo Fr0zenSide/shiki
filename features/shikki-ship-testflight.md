@@ -130,7 +130,7 @@ All ideas marked BUILD above. 15 ideas, 0 deferred to v1.1+ (scheme auto-detect 
 scheme = "WabiSabi"
 team_id = "L8NRHDDSWG"
 bundle_id = "one.obyw.wabisabi"
-project_path = "/Users/jeoffrey/Documents/Workspaces/shiki/projects/wabisabi/WabiSabi.xcodeproj"
+project_path = "./projects/wabisabi/WabiSabi.xcodeproj"  # relative to workspace root
 testflight_group = "Beta Testers"
 export_method = "app-store"
 
@@ -138,7 +138,7 @@ export_method = "app-store"
 scheme = "Maya"
 team_id = "UVC4JM6XD4"
 bundle_id = "fit.maya.app"
-project_path = "/Users/jeoffrey/Documents/Workspaces/Maya/MayaFit.xcodeproj"
+project_path = "../Maya/MayaFit.xcodeproj"  # relative to workspace root
 testflight_group = "Beta Testers"
 export_method = "app-store"
 ```

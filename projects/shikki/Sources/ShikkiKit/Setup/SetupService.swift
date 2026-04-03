@@ -81,7 +81,18 @@ public struct SetupService: Sendable {
             printSkip("workspace")
         }
 
-        // Step 3: PATH check
+        // Step 3: Ensure .env exists (required for docker compose)
+        if !state.isStepComplete("dotenv") {
+            printStep("Checking .env...")
+            let dotenvOK = ensureDotenv()
+            if dotenvOK {
+                state.markStep("dotenv")
+            }
+        } else {
+            printSkip("dotenv")
+        }
+
+        // Step 4: PATH check
         if !state.isStepComplete("completions") {
             printStep("Checking PATH...")
             checkPath()
@@ -214,6 +225,36 @@ public struct SetupService: Sendable {
         } else {
             printWarning("~/.local/bin not in PATH — add to ~/.zshrc:")
             printHint("  export PATH=\"$HOME/.local/bin:$PATH\"")
+        }
+    }
+
+    // MARK: - Dotenv
+
+    /// Copy .env.example to .env if missing. Returns true on success.
+    public func ensureDotenv() -> Bool {
+        let fm = FileManager.default
+        let cwd = fm.currentDirectoryPath
+        let envPath = cwd + "/.env"
+        let examplePath = cwd + "/.env.example"
+
+        if fm.fileExists(atPath: envPath) {
+            printOK(".env exists")
+            return true
+        }
+
+        guard fm.fileExists(atPath: examplePath) else {
+            printWarning(".env.example not found — skipping")
+            return true
+        }
+
+        do {
+            try fm.copyItem(atPath: examplePath, toPath: envPath)
+            printOK(".env created from .env.example")
+            printHint("  Edit .env to set your credentials before running docker compose")
+            return true
+        } catch {
+            printError("Failed to copy .env.example to .env: \(error)")
+            return false
         }
     }
 

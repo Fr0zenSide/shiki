@@ -103,9 +103,9 @@ Total storage estimate: ~17 backups × ~50MB = ~850MB max.
 
 ```cron
 # ~/.config/shiki/crontab
-0 3 * * * /Users/jeoffrey/.local/bin/shiki backup --quiet
-0 3 * * 0 /Users/jeoffrey/.local/bin/shiki backup --weekly --quiet
-0 3 1 * * /Users/jeoffrey/.local/bin/shiki backup --monthly --quiet
+0 3 * * * $HOME/.local/bin/shi backup --quiet
+0 3 * * 0 $HOME/.local/bin/shi backup --weekly --quiet
+0 3 1 * * $HOME/.local/bin/shi backup --monthly --quiet
 ```
 
 ### Option B: `shiki backup` command (preferred)

@@ -14,7 +14,9 @@ public struct MemoryFileScanner: Sendable {
     /// Default memory directory for the Shiki workspace.
     public static let defaultMemoryDirectory: String = {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
-        return "\(home)/.claude/projects/-Users-jeoffrey-Documents-Workspaces-shiki/memory"
+        let cwd = FileManager.default.currentDirectoryPath
+        let projectSlug = cwd.replacingOccurrences(of: "/", with: "-")
+        return "\(home)/.claude/projects/\(projectSlug)/memory"
     }()
 
     /// List all .md files in the memory directory (sorted, excludes MEMORY.md).

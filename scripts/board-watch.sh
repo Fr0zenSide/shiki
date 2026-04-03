@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # board-watch.sh — tmux pane companion for Claude Code agent monitoring
 # Usage: bash board-watch.sh
-# Alias: alias board-watch='tmux split-window -v -l 8 "bash /Users/jeoffrey/Documents/Workspaces/shiki/scripts/board-watch.sh"'
+# Alias: alias board-watch='tmux split-window -v -l 8 "bash $(git rev-parse --show-toplevel)/scripts/board-watch.sh"'
 
 set -euo pipefail
 
 INTERVAL="${BOARD_INTERVAL:-10}"
 WORKTREE_DIR="/tmp/wt-*"
-TASK_DIR="/private/tmp/claude-501/-Users-jeoffrey-Documents-Workspaces-shiki/tasks"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_SLUG=$(echo "$WORKSPACE_ROOT" | tr '/' '-')
+TASK_DIR="/private/tmp/claude-$(id -u)/${PROJECT_SLUG}/tasks"
 SPINNER_FRAMES=(⣾ ⣽ ⣻ ⢿ ⡿ ⣟ ⣯ ⣷)
 FRAME=0
 

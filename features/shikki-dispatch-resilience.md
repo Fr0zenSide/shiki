@@ -106,14 +106,14 @@ safe_worktree_remove() {
 
   # Guard 1: Never remove if we're inside it
   if [[ "$current_cwd" == "$wt_path"* ]]; then
-    cd /Users/jeoffrey/Documents/Workspaces/shiki  # return to repo root
+    cd "$SHIKI_ROOT"  # return to repo root
   fi
 
   # Guard 2: Check no background processes are CWD'd there
   # (lsof is expensive, so just cd to root first as prevention)
 
   # Guard 3: Always cd to repo root before any worktree operation
-  git -C /Users/jeoffrey/Documents/Workspaces/shiki worktree remove "$wt_path" --force 2>/dev/null
+  git -C "$SHIKI_ROOT" worktree remove "$wt_path" --force 2>/dev/null
 }
 ```
 
@@ -160,7 +160,7 @@ safe_worktree_remove() {
 1. **Agent timeout**: If an agent hasn't produced a commit in 10 minutes, mark it as stalled (not failed). Retry once, then skip and continue wave.
 2. **Rate limit awareness**: If any agent returns a rate limit error, immediately pause all other agents. Wait for reset. Resume.
 3. **Partial wave completion**: If 4/6 agents complete but 2 fail, the wave is "partial". Log failures, continue to next wave with dependency check. Don't block everything.
-4. **CWD recovery**: Every bash command in the dispatch skill starts with a CWD assertion: `cd /Users/jeoffrey/Documents/Workspaces/shiki && ...`
+4. **CWD recovery**: Every bash command in the dispatch skill starts with a CWD assertion: `cd "$SHIKI_ROOT" && ...`
 
 ---
 

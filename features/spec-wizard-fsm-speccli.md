@@ -68,7 +68,7 @@ File: `~/.config/shiki/wizard-progress.json`
     "2": { "completedAt": null, "artifactId": null }
   },
   "currentLevel": 2,
-  "workspacePath": "/Users/jeoffrey/Documents/Workspaces/shiki",
+  "workspacePath": ".",
   "companiesCreated": ["maya", "wabisabi", "brainy", "flsh", "kintsugi-ds"]
 }
 ```

@@ -13,7 +13,10 @@
 set -euo pipefail
 
 # ── Configuration ──────────────────────────────────────────────────
-DEFAULT_MEMORY_DIR="$HOME/.claude/projects/-Users-jeoffrey-Documents-Workspaces-shiki/memory"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_SLUG=$(echo "$WORKSPACE_ROOT" | tr '/' '-')
+DEFAULT_MEMORY_DIR="$HOME/.claude/projects/${PROJECT_SLUG}/memory"
 
 # Project IDs from ShikiDB
 PROJECT_SHIKI="80c27043-5282-4814-b79d-5e6d3903cbc9"
