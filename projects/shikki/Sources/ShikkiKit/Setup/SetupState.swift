@@ -19,10 +19,8 @@ public struct SetupState: Sendable, Codable, Equatable {
     /// All known setup step names.
     public static let allSteps: [String] = [
         "dependencies",
-        "build",
-        "symlink",
         "workspace",
-        "backend",
+        "dotenv",
         "completions",
     ]
 
