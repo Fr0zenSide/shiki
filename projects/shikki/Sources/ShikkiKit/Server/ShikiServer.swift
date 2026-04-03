@@ -10,12 +10,12 @@ import Logging
 ///
 /// Usage:
 /// ```swift
-/// let server = ShikiServer(port: 3900)
+/// let server = ShikkiServer(port: 3900)
 /// try await server.start()
 /// // ... server is running ...
 /// server.stop()
 /// ```
-public final class ShikiServer: Sendable {
+public final class ShikkiServer: Sendable {
     private let requestedPort: Int
     private let store: InMemoryStore
     private let routes: ServerRoutes
@@ -117,11 +117,11 @@ public final class ShikiServer: Sendable {
                 case .ready:
                     if let port = listener.port {
                         serverState.actualPort = Int(port.rawValue)
-                        serverLogger.info("ShikiServer listening on port \(port.rawValue)")
+                        serverLogger.info("ShikkiServer listening on port \(port.rawValue)")
                     }
                     resumeGuard.resume(with: .success(()))
                 case .failed(let error):
-                    serverLogger.error("ShikiServer failed: \(error)")
+                    serverLogger.error("ShikkiServer failed: \(error)")
                     resumeGuard.resume(with: .failure(error))
                 case .cancelled:
                     break
@@ -143,7 +143,7 @@ public final class ShikiServer: Sendable {
         state.cancelAllConnections()
         state.listener?.cancel()
         state.listener = nil
-        logger.info("ShikiServer stopped")
+        logger.info("ShikkiServer stopped")
     }
 
     // MARK: - Connection Handling

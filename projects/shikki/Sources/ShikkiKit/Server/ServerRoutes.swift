@@ -1,6 +1,6 @@
 import Foundation
 
-/// HTTP route handler for the embedded ShikiServer.
+/// HTTP route handler for the embedded ShikkiServer.
 ///
 /// Matches incoming requests to the appropriate handler and returns
 /// (statusCode, responseBody) tuples. All responses are JSON.

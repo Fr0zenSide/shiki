@@ -1,6 +1,6 @@
 import Foundation
 
-/// Thread-safe in-memory storage for the embedded ShikiServer.
+/// Thread-safe in-memory storage for the embedded ShikkiServer.
 ///
 /// Uses Swift actor isolation for safe concurrent access. Stores entries
 /// as serialized JSON `Data` to satisfy strict Sendable requirements.

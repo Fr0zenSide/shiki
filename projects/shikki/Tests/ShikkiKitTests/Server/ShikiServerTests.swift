@@ -3,13 +3,13 @@ import Testing
 
 @testable import ShikkiKit
 
-@Suite("ShikiServer")
-struct ShikiServerTests {
+@Suite("ShikkiServer")
+struct ShikkiServerTests {
     // MARK: - Helpers
 
     /// Start a server on an ephemeral port and return (server, port).
-    private func startServer() async throws -> (ShikiServer, Int) {
-        let server = ShikiServer(port: 0) // 0 = OS picks a free port
+    private func startServer() async throws -> (ShikkiServer, Int) {
+        let server = ShikkiServer(port: 0) // 0 = OS picks a free port
         try await server.start()
         let port = server.actualPort
         return (server, port)
@@ -175,7 +175,7 @@ struct ShikiServerTests {
 
     @Test("Server starts on configurable port")
     func configurablePort() async throws {
-        let server = ShikiServer(port: 0)
+        let server = ShikkiServer(port: 0)
         try await server.start()
         defer { server.stop() }
 
