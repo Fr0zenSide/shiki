@@ -39,26 +39,70 @@ Shiki manages autonomous Claude Code agents across multiple projects with TDD en
 
 You bring the idea. Shiki runs the process: the right pipeline kicks in, agent personas review the work, quality gates catch issues before merge, and everything your agent learns is stored in a searchable vector database. Next session, next project — context is preserved.
 
-## Quick Start
+## Fresh Install (from zero)
 
-### Prerequisites
+### 1. Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) (or [Colima](https://github.com/abiosoft/colima))
-- [Swift](https://swift.org/install) (5.9+)
-- [Claude Code](https://claude.ai/claude-code) (for agent skills)
+| Tool | Install | Why |
+|------|---------|-----|
+| **Homebrew** | [brew.sh](https://brew.sh) | Package manager |
+| **Swift 6.0+** | `xcode-select --install` (macOS) or [swift.org](https://swift.org/install) | Builds the CLI |
+| **Docker runtime** | [Colima](https://github.com/abiosoft/colima) (recommended) or Docker Desktop | Runs the backend stack |
+| **Claude Code** | [claude.ai/claude-code](https://claude.ai/claude-code) | Agent skills require it |
 
-### Install
+### 2. Clone and build
 
 ```bash
 git clone https://github.com/Fr0zenSide/shiki.git
-cd shiki/projects/shikki && swift build
-ln -sf $(pwd)/.build/debug/shikki ~/.local/bin/shikki
+cd shiki
+
+# Build the CLI in release mode
+cd projects/shikki && swift build -c release
+
+# Install to your PATH
+mkdir -p ~/.local/bin
+cp .build/release/shi ~/.local/bin/shi
+
+# Make sure ~/.local/bin is in your PATH (add to ~/.zshrc if needed)
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+
+# Verify
+shi --version
 ```
 
-### Launch
+### 3. Bootstrap
 
 ```bash
-shiki start
+cd /path/to/shiki   # back to repo root
+shi setup
+```
+
+This will:
+- Check and install dependencies (`tmux`, `delta`, `fzf`, `rg`, `bat`)
+- Create workspace directories (`.shikki/`)
+- Copy `.env.example` to `.env` if missing
+- Verify `~/.local/bin` is in your PATH
+
+### 4. Start Docker services
+
+```bash
+# Start Colima if you don't have Docker Desktop
+colima start
+
+# Start the full stack (DB + Ollama + backend)
+docker compose up -d
+
+# Verify everything is healthy
+curl -s http://localhost:3900/health | python3 -m json.tool
+```
+
+You should see `"status": "ok"` with `database.connected: true` and `ollama.connected: true`.
+
+### 5. Launch
+
+```bash
+shi start
 ```
 
 Shiki detects your environment, starts Docker services, boots the backend, shows a startup dashboard, and drops you into a tmux workspace.
