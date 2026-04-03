@@ -455,7 +455,7 @@ struct StartupCommand: AsyncParsableCommand {
 
         var decideStep = ""
         if data.pendingDecisions > 0 {
-            decideStep = " && echo '' && echo '\\e[33m⚠ \(data.pendingDecisions) T1 decisions blocking your companies — let\\'s unblock them first.\\e[0m' && echo '' && \(binaryPath) decide"
+            decideStep = " && echo '' && echo $'\\e[33m⚠ \(data.pendingDecisions) T1 decisions blocking your companies — let\\'s unblock them first.\\e[0m' && echo '' && \(binaryPath) decide"
         }
 
         let orchestratorPrompt = """
