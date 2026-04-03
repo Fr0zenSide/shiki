@@ -19,7 +19,9 @@ set -euo pipefail
 # ── Configuration ──────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLASSIFY="$SCRIPT_DIR/classify-memory.sh"
-DEFAULT_MEMORY_DIR="$HOME/.claude/projects/-Users-jeoffrey-Documents-Workspaces-shiki/memory"
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_SLUG=$(echo "$WORKSPACE_ROOT" | tr '/' '-')
+DEFAULT_MEMORY_DIR="$HOME/.claude/projects/${PROJECT_SLUG}/memory"
 API="http://localhost:3900"
 
 # Project IDs from ShikiDB (must match classify-memory.sh)

@@ -452,7 +452,7 @@ DSKintsugi is the cross-platform design system (replacing DesignKit). It already
 - Style Dictionary config: `style-dictionary.config.mjs`
 - Node modules + npm pipeline for token generation
 - Gallery app for visual testing
-- Symlink: `projects/kintsugi-ds/kintsugi-ds -> /Users/jeoffrey/Documents/Workspaces/xcode/26-Perso/kintsugi-ds`
+- Symlink: `projects/kintsugi-ds/kintsugi-ds -> $HOME/Documents/Workspaces/xcode/26-Perso/kintsugi-ds`
 
 **What is missing:**
 - No `.github/workflows/` — zero CI

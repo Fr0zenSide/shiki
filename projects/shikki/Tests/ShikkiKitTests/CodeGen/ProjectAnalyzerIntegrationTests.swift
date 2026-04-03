@@ -87,7 +87,11 @@ struct ProjectAnalyzerIntegrationTests {
             candidate = (candidate as NSString).deletingLastPathComponent
         }
         // Fallback to known path
-        return "/Users/jeoffrey/Documents/Workspaces/shiki/projects/shikki"
+        return URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // CodeGen/
+            .deletingLastPathComponent() // ShikkiKitTests/
+            .deletingLastPathComponent() // Tests/
+            .path
     }
 }
 

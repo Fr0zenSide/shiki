@@ -274,7 +274,10 @@ fi
 
 # ── Full directory classification count matches file count ────────
 FULL_OUTPUT=$("$CLASSIFY" --report 2>/dev/null)
-FILE_COUNT=$(ls /Users/jeoffrey/.claude/projects/-Users-jeoffrey-Documents-Workspaces-shiki/memory/*.md 2>/dev/null | wc -l | tr -d ' ')
+WORKSPACE_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT_SLUG=$(echo "$WORKSPACE_ROOT" | tr '/' '-')
+REAL_MEMORY_DIR="$HOME/.claude/projects/${PROJECT_SLUG}/memory"
+FILE_COUNT=$(ls "$REAL_MEMORY_DIR"/*.md 2>/dev/null | wc -l | tr -d ' ')
 
 REPORT_TOTAL=$(echo "$FULL_OUTPUT" | grep "Total files:" | awk '{print $NF}')
 if [ "$REPORT_TOTAL" = "$FILE_COUNT" ]; then

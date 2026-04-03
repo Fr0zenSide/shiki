@@ -19,7 +19,7 @@
 
 set -euo pipefail
 
-SHIKI_ROOT="/Users/jeoffrey/Documents/Workspaces/shiki"
+SHIKI_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORKTREE_PATH="${1:?Usage: worktree-setup.sh <worktree-path>}"
 
 # Resolve to absolute path

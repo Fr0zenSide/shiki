@@ -364,7 +364,7 @@ $ shikki status
 
 Shikki Orchestrator
 ────────────────────────────────────────────────────────
-Workspace: /Users/jeoffrey/Documents/Workspaces/shiki
+Workspace: $SHIKI_ROOT
 Kernel:    🟢 running (pid 12345)
 NATS:      🟢 connected (localhost:4222)
 DB:        🟢 healthy (VPS sync: 2s ago)

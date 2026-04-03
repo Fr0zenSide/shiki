@@ -31,8 +31,8 @@
       "WebFetch(domain:www.cmux.dev)",
       "WebFetch(domain:docs.ntfy.sh)",
       "Bash(bash:*)",
-      "Bash(/Users/jeoffrey/Documents/Workspaces/shiki/scripts/shikki-approval.sh:*)",
-      "Bash(/Users/jeoffrey/Documents/Workspaces/shiki/shikki notify:*)",
+      "Bash(./scripts/shikki-approval.sh:*)",
+      "Bash(./shikki notify:*)",
       "Bash(./shikki notify:*)",
       "Bash(rm:*)",
       "Bash(gh api:*)",
@@ -48,14 +48,14 @@
       "WebFetch(domain:webflow.com)",
       "WebFetch(domain:blast-6abc35.webflow.io)",
       "Bash(file:*)",
-      "Read(//Users/jeoffrey/.claude/**)",
-      "Read(//Users/jeoffrey/**)",
-      "Bash(OBYW=\"/Users/jeoffrey/Documents/Workspaces/shiki/projects/obyw-one\")",
+      "Read(//Users/pro/.claude/**)",
+      "Read(//Users/pro/**)",
+      "Bash(OBYW=\"./projects/obyw-one\")",
       "Bash(cp \"$OBYW/index.html\" \"$OBYW/landings/obyw.one/\")",
       "Bash(cp -r \"$OBYW/css\" \"$OBYW/landings/obyw.one/\")",
       "Bash(cp -r \"$OBYW/js\" \"$OBYW/landings/obyw.one/\")",
       "Bash(cp -r \"$OBYW/assets\" \"$OBYW/landings/obyw.one/\")",
-      "Read(//Users/jeoffrey/Documents/Workspaces/shiki/projects/obyw-one/$OBYW/**)",
+      "Read(./projects/obyw-one/**)",
       "WebFetch(domain:www.comaps.app)",
       "WebFetch(domain:organicmaps.app)",
       "WebFetch(domain:localhost)",
@@ -105,7 +105,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/jeoffrey/Documents/Workspaces/shiki/scripts/shikki-approval.sh",
+            "command": "/Users/pro/Desktop/Shi/scripts/shikki-approval.sh",
             "timeout": 120
           }
         ]
@@ -117,7 +117,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/jeoffrey/Documents/Workspaces/shiki/scripts/shikki-idle.sh",
+            "command": "/Users/pro/Desktop/Shi/scripts/shikki-idle.sh",
             "timeout": 10
           }
         ]
@@ -129,7 +129,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/jeoffrey/Documents/Workspaces/shiki/scripts/shikki-activity.sh",
+            "command": "/Users/pro/Desktop/Shi/scripts/shikki-activity.sh",
             "timeout": 5
           }
         ]
