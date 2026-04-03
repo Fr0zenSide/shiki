@@ -110,6 +110,9 @@ struct StatusCommand: AsyncParsableCommand {
         }
         print(String(repeating: "\u{2500}", count: 56))
 
+        // Daemon status
+        printDaemonStatus()
+
         // Node health (Mesh heartbeat)
         await printNodeHealth()
 
@@ -297,6 +300,39 @@ struct StatusCommand: AsyncParsableCommand {
         let known = "\(home)/Documents/Workspaces/shiki"
         if FileManager.default.fileExists(atPath: "\(known)/docker-compose.yml") { return known }
         return FileManager.default.currentDirectoryPath
+    }
+
+    // MARK: - Daemon Status
+
+    private func printDaemonStatus() {
+        let pidManager = DaemonPIDManager()
+        if pidManager.isRunning(), let pid = pidManager.readPID() {
+            let attrs = try? FileManager.default.attributesOfItem(atPath: pidManager.pidPath)
+            let created = attrs?[.creationDate] as? Date ?? Date()
+            let uptime = formatUptime(Date().timeIntervalSince(created))
+            print("\u{1B}[2mDaemon:\u{1B}[0m    \u{1B}[32mrunning\u{1B}[0m (PID: \(pid))")
+            print("\u{1B}[2mUptime:\u{1B}[0m    \(uptime)")
+        } else {
+            print("\u{1B}[2mDaemon:\u{1B}[0m    stopped")
+        }
+    }
+
+    private func formatUptime(_ interval: TimeInterval) -> String {
+        let totalSeconds = Int(interval)
+        let days = totalSeconds / 86400
+        let hours = (totalSeconds % 86400) / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+
+        if days > 0 {
+            return "\(days)d \(hours)h \(minutes)m"
+        } else if hours > 0 {
+            return "\(hours)h \(minutes)m \(seconds)s"
+        } else if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        } else {
+            return "\(seconds)s"
+        }
     }
 
     // MARK: - Node Health (Mesh Heartbeat)

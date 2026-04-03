@@ -20,6 +20,8 @@ struct ShikkiCommand: AsyncParsableCommand {
             AuditCommand.self,
             BacklogCommand.self,
             BoardCommand.self,
+            DaemonCommand.self,
+            DaemonStopCommand.self,
             DashboardCommand.self,
             DecideCommand.self,
             DecisionsCommand.self,

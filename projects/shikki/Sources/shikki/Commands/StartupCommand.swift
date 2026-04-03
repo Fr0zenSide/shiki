@@ -37,6 +37,41 @@ struct StartupCommand: AsyncParsableCommand {
             return
         }
 
+        // ── Daemon detection ──
+        // When a daemon is already running, skip the full bootstrap
+        // (Docker, NATS, kernel) and only set up the tmux UI.
+        let daemonPIDManager = DaemonPIDManager()
+        if daemonPIDManager.isRunning() {
+            let pid = daemonPIDManager.readPID() ?? 0
+            print("Daemon already running (PID: \(pid)), attaching...")
+
+            let workspacePath = resolveWorkspace()
+            let sessionName = session ?? URL(fileURLWithPath: workspacePath).lastPathComponent
+
+            if !noTmux {
+                let env = EnvironmentDetector()
+                if await env.isTmuxSessionRunning(name: sessionName) {
+                    print("  \u{1B}[2mSession '\(sessionName)' already running\u{1B}[0m")
+                } else {
+                    print("  Creating layout...")
+                    try await createTmuxLayout(
+                        workspace: workspacePath, session: sessionName,
+                        companies: []
+                    )
+                    print("  \u{1B}[32mReady\u{1B}[0m")
+                }
+
+                if !noAttach && !isInsideTmux() {
+                    let path = "/usr/bin/env"
+                    let args = ["env", "tmux", "attach-session", "-t", sessionName]
+                    let cArgs = args.map { strdup($0) } + [nil]
+                    execv(path, cArgs)
+                    print("\u{1B}[31mFailed to attach. Run: shiki attach\u{1B}[0m")
+                }
+            }
+            return
+        }
+
         let workspacePath = resolveWorkspace()
         let sessionName = session ?? URL(fileURLWithPath: workspacePath).lastPathComponent
         let env = EnvironmentDetector()
