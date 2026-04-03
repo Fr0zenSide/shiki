@@ -41,6 +41,9 @@ struct InboxCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Output JSON for piping")
     var json: Bool = false
 
+    @Flag(name: .long, help: "Strip colors for piping")
+    var plain: Bool = false
+
     @Option(name: .long, help: "Sort by: urgency (default), age, type")
     var sort: String = "urgency"
 
@@ -126,58 +129,26 @@ struct InboxCommand: AsyncParsableCommand {
     }
 
     private func renderList(_ items: [InboxItem]) {
-        guard !items.isEmpty else {
-            Swift.print("Inbox is empty.")
-            return
-        }
-
-        Swift.print("\u{1B}[1mInbox (\(items.count) items)\u{1B}[0m")
-        Swift.print()
-
-        for item in items {
-            let typeIcon = typeSymbol(item.type)
-            let urgencyColor = urgencyColorCode(item.urgencyScore)
-            let ageStr = formatAge(item.age)
-            let companyTag = item.companySlug.map { " \u{1B}[36m[\($0)]\u{1B}[0m" } ?? ""
-
-            Swift.print(
-                "  \(typeIcon) \(urgencyColor)\(item.urgencyScore)\u{1B}[0m "
-                    + "\u{1B}[1m\(item.title)\u{1B}[0m"
-                    + companyTag
-                    + " \u{1B}[2m(\(ageStr))\u{1B}[0m"
-            )
-            if let subtitle = item.subtitle {
-                Swift.print("    \u{1B}[2m\(subtitle)\u{1B}[0m")
-            }
-        }
-
-        Swift.print()
-        Swift.print("\u{1B}[2mPipe to review: shi review inbox | Filtered: shi inbox --prs\u{1B}[0m")
+        let output = InboxRenderer.render(
+            items: items,
+            branch: currentBranch(),
+            plain: plain
+        )
+        Swift.print(output)
     }
 
-    private func typeSymbol(_ type: InboxItem.ItemType) -> String {
-        switch type {
-        case .pr: return "\u{1B}[32mPR\u{1B}[0m"
-        case .decision: return "\u{1B}[33mDC\u{1B}[0m"
-        case .spec: return "\u{1B}[35mSP\u{1B}[0m"
-        case .task: return "\u{1B}[34mTK\u{1B}[0m"
-        case .gate: return "\u{1B}[31mGT\u{1B}[0m"
-        }
-    }
-
-    private func urgencyColorCode(_ score: Int) -> String {
-        switch score {
-        case 70...: return "\u{1B}[31m"  // red
-        case 40..<70: return "\u{1B}[33m"  // yellow
-        default: return "\u{1B}[32m"  // green
-        }
-    }
-
-    private func formatAge(_ seconds: TimeInterval) -> String {
-        let hours = Int(seconds / 3600)
-        if hours < 1 { return "<1h" }
-        if hours < 24 { return "\(hours)h" }
-        let days = hours / 24
-        return "\(days)d"
+    private func currentBranch() -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = ["rev-parse", "--abbrev-ref", "HEAD"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { return "develop" }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        return (String(data: data, encoding: .utf8) ?? "develop")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
