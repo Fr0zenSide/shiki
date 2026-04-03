@@ -1,0 +1,122 @@
+{
+  "date": "2026-04-03",
+  "source": "github-trending",
+  "summary": {
+    "total_scanned": 22,
+    "high_relevance": 6,
+    "medium_relevance": 4,
+    "low_relevance": 12
+  },
+  "entries": [
+    {
+      "repo": "Yeachan-Heo/oh-my-codex",
+      "description": "OmX - Oh My codeX: Your codex is not alone. Add hooks, agent teams, HUDs, and so much more.",
+      "stars_today": 2867,
+      "language": "TypeScript",
+      "relevance": "HIGH",
+      "takeaway": "Hook system for AI coding agents with composable agent teams and a terminal HUD layer. Shikki can steal: hooks-as-extension-points for skills/plugins, a persistent HUD overlay showing active agent state, and the agent-team orchestration pattern for parallel skill execution.",
+      "tags": ["hooks", "agent-teams", "HUD", "terminal-UX", "orchestration"]
+    },
+    {
+      "repo": "yusufkaraaslan/Skill_Seekers",
+      "description": "Convert documentation websites, GitHub repositories, and PDFs into Claude AI skills with automatic conflict detection.",
+      "stars_today": 264,
+      "language": "Python",
+      "relevance": "HIGH",
+      "takeaway": "Automated skill ingestion pipeline (URL/PDF/repo → Claude skill) with conflict detection when skills overlap. Shikki can steal: the /ingest pipeline UX for turning external docs into skills, and the conflict-detection mechanism to warn when new skills shadow existing ones.",
+      "tags": ["skill-ingestion", "conflict-detection", "claude", "documentation", "plugin-system"]
+    },
+    {
+      "repo": "farouqaldori/claude-island",
+      "description": "Claude Code notifications without the context switch. A minimal, always-present session manager for macOS.",
+      "stars_today": 43,
+      "language": "Swift",
+      "relevance": "HIGH",
+      "takeaway": "Native Swift macOS app providing a minimal, always-present session manager for Claude Code with notifications that avoid context switching. Shikki can steal: the 'island' UX pattern (persistent ambient status widget), non-intrusive notification design for long-running AI sessions, and the Swift-native macOS integration approach.",
+      "tags": ["swift", "macos", "session-manager", "notifications", "terminal-UX", "claude-code"]
+    },
+    {
+      "repo": "automazeio/vibeproxy",
+      "description": "Native macOS menu bar app to use your Claude Code & ChatGPT subscriptions with AI coding tools.",
+      "stars_today": 24,
+      "language": "Swift",
+      "relevance": "HIGH",
+      "takeaway": "Swift macOS menu bar app that proxies Claude Code / ChatGPT subscriptions for third-party AI tools. Shikki can steal: the subscription-proxy pattern for routing AI provider calls, and the menu bar entry point as a lightweight Shikki session launcher without a full terminal.",
+      "tags": ["swift", "macos", "menu-bar", "proxy", "claude-code", "ai-tools"]
+    },
+    {
+      "repo": "google/adk-go",
+      "description": "An open-source, code-first Go toolkit for building, evaluating, and deploying sophisticated AI agents.",
+      "stars_today": 45,
+      "language": "Go",
+      "relevance": "HIGH",
+      "takeaway": "Google's Agent Development Kit in Go: code-first agent definition, built-in evaluation harness, deployment tooling. Shikki can steal: the evaluation/scoring framework for agents (run agent, measure output quality), the code-first agent definition syntax, and the structured deployment pipeline pattern.",
+      "tags": ["agent-SDK", "evaluation", "deployment", "code-first", "orchestration"]
+    },
+    {
+      "repo": "danielmiessler/Fabric",
+      "description": "Open-source framework for augmenting humans using AI with modular prompt system.",
+      "stars_today": 41,
+      "language": "Go",
+      "relevance": "HIGH",
+      "takeaway": "Fabric organizes AI capabilities as named 'patterns' — discrete, composable prompt modules invokable from the CLI. Shikki can steal: the patterns-as-skills naming convention, the CLI piping model (stdin → pattern → stdout), and the community pattern library approach for Shikki skill distribution.",
+      "tags": ["modular-prompts", "cli-piping", "skills", "patterns", "community-library"]
+    },
+    {
+      "repo": "asgeirtj/system_prompts_leaks",
+      "description": "Compilation of extracted system prompts from ChatGPT, Claude, Gemini, Grok, Perplexity, and others. Updated regularly.",
+      "stars_today": 306,
+      "language": null,
+      "relevance": "MEDIUM",
+      "takeaway": "Study how frontier AI products structure their system prompts — persona, constraints, tool descriptions, escalation paths. Useful reference for refining Shikki's own agent system prompts and @persona definitions.",
+      "tags": ["system-prompts", "reference", "claude", "prompt-engineering"]
+    },
+    {
+      "repo": "Alishahryar1/free-claude-code",
+      "description": "Use Claude Code for free in the terminal, VSCode extension or via Discord.",
+      "stars_today": 57,
+      "language": "Python",
+      "relevance": "MEDIUM",
+      "takeaway": "Alternative Claude Code entrypoints (Discord bot, VSCode extension). Shikki can observe which surfaces users gravitate toward when the primary CLI is inaccessible — informs potential Shikki multi-surface strategy.",
+      "tags": ["claude-code", "discord", "vscode", "multi-surface"]
+    },
+    {
+      "repo": "nicklockwood/SwiftFormat",
+      "description": "A command-line tool and Xcode Extension for formatting Swift code.",
+      "stars_today": 9,
+      "language": "Swift",
+      "relevance": "MEDIUM",
+      "takeaway": "Mature Swift CLI + Xcode Extension dual-mode tool. Shikki can study its CLI flag design, config file conventions (.swiftformat), and how it handles the CLI↔IDE plugin duality for its own Swift CLI architecture.",
+      "tags": ["swift", "cli", "xcode-extension", "code-formatting", "tooling"]
+    },
+    {
+      "repo": "777genius/claude-notifications-go",
+      "description": "Cross-platform smart notifications plugin for Claude Code with webhook support.",
+      "stars_today": 17,
+      "language": "Go",
+      "relevance": "MEDIUM",
+      "takeaway": "Lightweight notification plugin for Claude Code with webhook integration. Shikki can steal: the plugin-as-sidecar pattern (attach to existing tool via hooks), webhook-out for external integrations like Slack/Discord, and the cross-platform notification abstraction.",
+      "tags": ["notifications", "webhooks", "plugin", "claude-code", "cross-platform"]
+    }
+  ],
+  "top3_highlights": [
+    {
+      "rank": 1,
+      "repo": "Yeachan-Heo/oh-my-codex",
+      "stars_today": 2867,
+      "why": "Highest signal: hooks + agent teams + HUD is exactly the composability model Shikki is building. Study the hook event taxonomy immediately."
+    },
+    {
+      "rank": 2,
+      "repo": "yusufkaraaslan/Skill_Seekers",
+      "stars_today": 264,
+      "why": "Direct overlap with Shikki's /ingest pipeline. The conflict-detection mechanism is a gap in Shikki today — steal it."
+    },
+    {
+      "rank": 3,
+      "repo": "danielmiessler/Fabric",
+      "stars_today": 41,
+      "why": "Fabric's patterns-as-skills + stdin/stdout piping is the CLI interaction model Shikki should emulate for skill invocation from the terminal."
+    }
+  ]
+}
