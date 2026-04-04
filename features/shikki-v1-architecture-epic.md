@@ -291,15 +291,25 @@ Even though waves are sequential within a phase, some cross-phase work can start
 
 ## Estimated Scope
 
-| Phase | Waves | New files | Modified files | LOC added | LOC deleted | Tests |
-|---|---|---|---|---|---|---|
-| 0: Test Gate | 1 (5 batches) | ~24 | 0 | ~2,000 | 0 | ~50 |
-| 1: Workspace | 4 | ~8 | ~25 | ~1,200 | ~200 | ~17 |
-| 2: MCP-First | 4 | ~5 | ~20 | ~800 | ~4,200 | ~11 |
-| 3: Distributed | 4 | ~12 | ~5 | ~3,000 | 0 | ~30 |
-| **Total** | **13** | **~49** | **~50** | **~7,000** | **~4,400** | **~108** |
+| Phase | Waves | New files | Modified | LOC added | LOC deleted | Tests | Est. Budget (Opus) |
+|---|---|---|---|---|---|---|---|
+| 0: Test Gate | 1 (5 batches) | ~24 | 0 | ~2,000 | 0 | ~50 | ~$8-12 |
+| 1: Workspace | 4 | ~8 | ~25 | ~1,200 | ~200 | ~17 | ~$10-15 |
+| 2: MCP-First | 4 | ~5 | ~20 | ~800 | ~4,200 | ~11 | ~$12-18 |
+| 3: Distributed | 4 | ~12 | ~5 | ~3,000 | 0 | ~30 | ~$15-25 |
+| **Total** | **13** | **~49** | **~50** | **~7,000** | **~4,400** | **~108** | **~$45-70** |
 
-Net: **+600 LOC** (add 5K, delete 4.4K). The codebase gets SMALLER while gaining multi-tenant distributed sync.
+**Budget estimation basis** (Claude Opus, parallel agent dispatch):
+- Wave 0: 5 parallel agents × ~$2 each = ~$10. Mechanical test writing, low complexity.
+- Phase 1: 4 sequential waves. W1 simple (~$2), W2 high-touch 20+ files (~$5), W3 medium (~$3), W4 low (~$2).
+- Phase 2: W5 medium (~$3), W6 high-touch 16 commands + 3 MCP tools (~$6), W7 deletion (~$2), W8 simple move (~$1).
+- Phase 3: All new code, complex distributed logic. W9 (~$4), W10 (~$4), W11 sync engine (~$8), W12 security (~$5).
+
+**Cost drivers**: Parallel agents multiply throughput but each agent costs ~$1.5-3 per wave. Phase 2 Wave 6 is the most expensive single wave (16 commands to rewire). Phase 3 Wave 11 (sync protocol) is the most complex.
+
+**Comparison**: This session (2026-04-03/04) shipped 280 tests across ~15 agents for an estimated ~$25-35. The full V1 epic is roughly 2-3x that.
+
+Net: **+2,600 LOC** (add 7K, delete 4.4K). The codebase grows modestly while gaining multi-tenant distributed sync.
 
 ## Risk Assessment
 
