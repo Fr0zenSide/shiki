@@ -153,9 +153,10 @@ BR-50: Permission model: admin (full access), developer (own events + team read)
 
 BR-53: Every device MUST declare its ownership class on registration: personal | company
 BR-54: Personal devices MUST NOT be available as compute nodes for company dispatch — UNLESS the user grants explicit consent via shi device allow-dispatch (revocable anytime via shi device deny-dispatch)
-BR-55: Company devices MUST be available for company dispatch by default — admin controls company hardware
-BR-56: Admin MUST NOT be able to force-install, force-wipe, or dispatch compute tasks on personal devices without user consent. Admin authority stops at the tenant boundary, not the hardware boundary.
-BR-57: Admin CAN force-wipe company devices (company property, company rules)
+BR-55: Company devices MUST be available for company dispatch by default — admin decides, not the user. This is the admin's hardware.
+BR-56: Admin MUST NOT force-install, force-wipe, or dispatch compute tasks on personal devices. Instead, admin requests are delivered as notifications — the user sees the request and can approve or ignore it. Admin authority stops at the tenant boundary, not the hardware boundary.
+BR-57: Admin CAN force-wipe company tenant data on company devices (company property, company rules)
+BR-57b: Company devices CAN have personal workspaces — the user can run side projects. But the company tenant's dispatch/wipe rules are the admin's decision, not the user's. Personal workspaces on company hardware follow personal device rules (admin can't touch them).
 BR-58: A user's personal device can join MULTIPLE tenants (ws-obyw + ws-freelance-xyz). Each tenant's admin has ZERO visibility into other tenants on the same device.
 BR-59: shi device list MUST show all registered devices with ownership class, tenant memberships, dispatch consent status
 BR-60: shi device register --ownership personal|company MUST be set during shi setup --join and stored in device config
