@@ -74,15 +74,13 @@ WORKSPACE (what shi setup creates — company-scoped, multi-workspace from day 1
 │   └── ws-shikki/                     ← Shikki product workspace (dev on shikki itself)
 │       ├── projects/
 │       │   └── shikki/                ← the shi CLI source (cloned from github)
+│       ├── packages/                  ← shared local packages FOR THIS WORKSPACE
+│       │   ├── CoreKit/               ← SPM package developed alongside projects
+│       │   ├── NetKit/
+│       │   └── DSKintsugi/
 │       ├── memory/                    ← shikki dev memories
 │       ├── features/                  ← shikki specs
 │       └── reports/                   ← shikki dev reports
-│
-└── packages/                          ← shared SPM packages (across all workspaces)
-    ├── CoreKit/
-    ├── NetKit/
-    ├── DSKintsugi/
-    └── ShikkiTestRunner/
 ```
 
 **$SHI_WS** is the single env var that ALL code uses. No more CWD assumptions, no more git rev-parse, no more hardcoded paths.
@@ -107,7 +105,7 @@ BR-14: shi ws switch <name> MUST update $SHI_WS and config.yaml default_workspac
 BR-15: shi ws create <name> MUST scaffold a new workspace at ~/.shikki/workspaces/<name>/
 BR-16: Workspace MUST be self-contained — moving ~/.shikki/ to another machine works with zero path fixups
 BR-17: shi setup --migrate MUST migrate an existing repo-as-workspace to the new structure (move memory/, features/, reports/ to ~/.shikki/workspaces/)
-BR-18: Shared SPM packages (CoreKit, NetKit, DSKintsugi) MUST live in ~/.shikki/packages/ with symlinks or SPM path resolution
+BR-18: Local dev packages (CoreKit, NetKit, DSKintsugi) MUST live INSIDE the workspace at ws-{name}/packages/. Shikki MUST NOT manage package caches — that's the native tool's job (SPM cache at ~/Library/org.swift.swiftpm/, npm at ~/.npm/, pip at ~/.cache/pip/). Cross-workspace sharing is handled by the package manager's global cache, not by shikki.
 BR-19: The daemon ($SHI_WS-aware) MUST know which workspace it serves — stored in daemon config
 BR-20: Multiple workspaces MUST be supported from day 1 — NOT a future feature
 BR-21: Default workspace structure MUST be company-scoped: ~/.shikki/workspaces/{company-name}/ (e.g., ws-personal, ws-obyw, ws-maya)
