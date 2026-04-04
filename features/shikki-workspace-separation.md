@@ -100,7 +100,11 @@ BR-04: $SHI_WS env var MUST point to the workspace ROOT (e.g., ~/.shikki/workspa
 BR-04b: There is NO global active_workspace. The current workspace MUST be detected from cwd — walk up from current directory until you find a direct child of $SHI_WS/. That child is the workspace.
 BR-04c: WorkspaceResolver.current MUST return the detected workspace from cwd (e.g., $SHI_WS/ws-obyw/). WorkspaceResolver.root MUST return $SHI_WS/.
 BR-04d: If cwd is not inside any workspace under $SHI_WS/, commands that need a workspace MUST error: "Not inside a workspace. cd to $SHI_WS/<name> first."
-BR-04e: Different terminals can be in different workspaces simultaneously — no global state, no switching, no conflicts.
+BR-04e: Different terminals can be in different workspaces simultaneously — no global state, no conflicts.
+BR-04f: Agent sessions MUST detect workspace scope on the fly from context: cwd (primary), file paths mentioned, project names in conversation, MCP projectId. No manual switching required.
+BR-04g: When scope is ambiguous (conversation touches multiple workspaces), the system MUST ask: "This touches ws-obyw and ws-personal. Which scope?"
+BR-04h: shi scope <ws-name> MUST allow explicit scope override for the current session (force scope when auto-detection isn't enough).
+BR-04i: Current workspace scope MUST be visible at all times — tmux status bar, TUI header, or prompt indicator. The user always knows where they are.
 BR-05: shi MUST set $SHI_WS on startup if not already set — resolve from: (1) env var, (2) config.yaml workspace_root, (3) default ~/.shikki/workspaces/
 BR-06: ALL commands MUST use WorkspaceResolver.root instead of FileManager.currentDirectoryPath for workspace paths
 BR-07: ALL scripts MUST use $SHI_WS instead of git rev-parse --show-toplevel or hardcoded paths
