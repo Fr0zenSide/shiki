@@ -51,34 +51,4 @@ struct DoctorTests {
     }
 }
 
-@Suite("Dashboard data model")
-struct DashboardModelTests {
-
-    @Test("DashboardSnapshot from registry")
-    func snapshotFromRegistry() async {
-        let discoverer = MockSessionDiscoverer()
-        let journal = SessionJournal(basePath: NSTemporaryDirectory() + "shiki-dash-\(UUID().uuidString)")
-        let registry = SessionRegistry(discoverer: discoverer, journal: journal)
-
-        await registry.registerManual(windowName: "maya:task", paneId: "%1", pid: 1, state: .working)
-        await registry.registerManual(windowName: "wabi:pr", paneId: "%2", pid: 2, state: .approved)
-
-        let snapshot = await DashboardSnapshot.from(registry: registry)
-        #expect(snapshot.sessions.count == 2)
-        #expect(snapshot.sessions[0].attentionZone == .merge) // approved = merge, sorted first
-        #expect(snapshot.sessions[1].attentionZone == .working)
-    }
-
-    @Test("Snapshot is Codable")
-    func snapshotCodable() throws {
-        let snapshot = DashboardSnapshot(
-            sessions: [
-                DashboardSession(windowName: "test", state: .working, attentionZone: .working, companySlug: "test"),
-            ],
-            timestamp: Date()
-        )
-        let data = try JSONEncoder().encode(snapshot)
-        let decoded = try JSONDecoder().decode(DashboardSnapshot.self, from: data)
-        #expect(decoded.sessions.count == 1)
-    }
-}
+// DashboardModelTests — extracted to plugins/shikki-dashboard/Tests/

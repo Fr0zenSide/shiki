@@ -22,7 +22,7 @@ struct ShikkiCommand: AsyncParsableCommand {
             BoardCommand.self,
             DaemonCommand.self,
             DaemonStopCommand.self,
-            DashboardCommand.self,
+            // DashboardCommand — extracted to plugins/shikki-dashboard/
             DecideCommand.self,
             DecisionsCommand.self,
             DiagnosticCommand.self,

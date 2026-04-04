@@ -129,25 +129,5 @@ struct RendererSnapshotTests {
         #expect(snapResult.isMatch)
     }
 
-    @Test("Dashboard sessions snapshot", .disabled("Stdout pollution from parallel tests — needs TestRunner logger isolation"))
-    func dashboardSessions() throws {
-        let sessions = [
-            DashboardSession(windowName: "maya:spm-wave3", state: .approved, attentionZone: .merge, companySlug: "maya"),
-            DashboardSession(windowName: "wabisabi:onboard", state: .working, attentionZone: .working, companySlug: "wabisabi"),
-            DashboardSession(windowName: "flsh:mlx", state: .done, attentionZone: .idle, companySlug: "flsh"),
-        ]
-
-        let output = TerminalSnapshot.capture {
-            for session in sessions {
-                let name = session.windowName.padding(toLength: 25, withPad: " ", startingAt: 0)
-                let zone = session.attentionZone
-                let state = session.state.rawValue
-                print("  [\(zone)] \(name) \(state) (\(session.companySlug ?? "-"))")
-            }
-        }
-        let snapResult = try TerminalSnapshot.assertSnapshot(
-            output, named: "dashboard-sessions", snapshotDir: snapshotDir
-        )
-        #expect(snapResult.isMatch)
-    }
+    // Dashboard sessions snapshot — extracted to plugins/shikki-dashboard/Tests/
 }

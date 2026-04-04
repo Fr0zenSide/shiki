@@ -1,0 +1,402 @@
+---
+title: "Workspace Separation — Repo vs Runtime, $SHI_WS, Portable Paths"
+status: draft
+priority: P0
+project: shikki
+created: 2026-04-04
+authors: ["@Daimyo"]
+tags: [architecture, workspace, portability, setup, paths, security]
+depends-on: [shikki-setup-swift.md, shikki-daemon-command.md]
+relates-to: [shikki-hot-reload-restart.md]
+epic-branch: feature/workspace-separation
+validated-commit: —
+test-run-id: —
+---
+
+# Feature: Workspace Separation — Repo vs Runtime, $SHI_WS, Portable Paths
+> Created: 2026-04-04 | Status: Draft | Owner: @Daimyo
+
+## Context
+
+The git repo IS the workspace. Anyone who clones shikki gets personal projects (WabiSabi, Maya, Brainy), personal memory files, radar reports, session data, hardcoded `/Users/jeoffrey` paths, and `.claude/` config. This is not a product — it's one developer's workstation committed to git.
+
+### Path Audit (45+ problems found)
+
+| Category | Count | Critical |
+|----------|-------|----------|
+| Hardcoded absolute paths (`/Users/jeoffrey`, `/Users/pro`) | 4 | 4 |
+| CWD assumptions (`currentDirectoryPath` = project root) | 20+ | 1 |
+| `git rev-parse --show-toplevel` as path hack | 4 | 0 |
+| `#filePath` hacks to navigate to project root | 7+ | 0 |
+| Relative paths assuming repo structure (`../../features/`) | 5 | 0 |
+| Personal data in repo (memory/, reports/, personal projects) | 5 | 3 |
+
+**Root cause**: No distinction between "the shikki CLI source code" (what you clone) and "a shikki workspace" (what you use daily). They're the same directory.
+
+## Vision
+
+```
+REPO (what you clone — github.com/shikki-cli/shikki)
+├── Package.swift
+├── Sources/ShikkiKit/
+├── Sources/shikki/
+├── Tests/
+├── docs/
+├── README.md
+└── LICENSE
+
+WORKSPACE (what shi setup creates — company-scoped, multi-workspace from day 1)
+~/.shikki/
+├── bin/shi                            ← installed binary
+├── config.yaml                        ← user config (theme, active workspace, etc.)
+├── themes/                            ← custom Base16 themes
+├── daemon.pid                         ← daemon PID
+├── logs/                              ← daemon + session logs
+├── workspaces/
+│   ├── ws-personal/                   ← $SHI_WS (default — personal workspace, created first)
+│   │   ├── projects/
+│   │   │   ├── brainy/                ← personal side project
+│   │   │   └── flsh/                  ← personal side project
+│   │   ├── memory/                    ← personal memories
+│   │   ├── features/                  ← personal specs
+│   │   ├── reports/                   ← personal radars
+│   │   └── .shikki-quality
+│   │
+│   ├── ws-obyw/                       ← OBYW company workspace
+│   │   ├── projects/
+│   │   │   ├── wabisabi/              ← company iOS app
+│   │   │   └── maya/                  ← company iOS app
+│   │   ├── memory/                    ← company-scoped memories
+│   │   ├── features/                  ← company specs
+│   │   ├── reports/                   ← company reports
+│   │   └── .shikki-quality
+│   │
+│   └── ws-shikki/                     ← Shikki product workspace (dev on shikki itself)
+│       ├── projects/
+│       │   └── shikki/                ← the shi CLI source (cloned from github)
+│       ├── memory/                    ← shikki dev memories
+│       ├── features/                  ← shikki specs
+│       └── reports/                   ← shikki dev reports
+│
+└── packages/                          ← shared SPM packages (across all workspaces)
+    ├── CoreKit/
+    ├── NetKit/
+    ├── DSKintsugi/
+    └── ShikkiTestRunner/
+```
+
+**$SHI_WS** is the single env var that ALL code uses. No more CWD assumptions, no more git rev-parse, no more hardcoded paths.
+
+## Business Rules
+
+```
+BR-01: The git repo MUST contain ONLY the shi CLI source code (Package.swift, Sources/, Tests/, docs/, LICENSE, README)
+BR-02: shi setup MUST create ~/.shikki/ directory structure with workspaces/, bin/, config.yaml, logs/
+BR-03: shi setup MUST create a default workspace at ~/.shikki/workspaces/{name}/ (name from --workspace flag or auto-detect)
+BR-04: $SHI_WS env var MUST point to the active workspace absolute path (e.g., ~/.shikki/workspaces/shiki)
+BR-05: shi MUST set $SHI_WS on startup if not already set — resolve from: (1) env var, (2) config.yaml default_workspace, (3) cwd detection
+BR-06: ALL commands MUST use WorkspaceResolver.root instead of FileManager.currentDirectoryPath for workspace paths
+BR-07: ALL scripts MUST use $SHI_WS instead of git rev-parse --show-toplevel or hardcoded paths
+BR-08: Package.swift local dependencies MUST use $SHI_WS-relative paths or a packages/ manifest
+BR-09: NO hardcoded absolute user paths (/Users/*, /home/*) anywhere in the codebase
+BR-10: NO personal data (memory/, reports/, personal projects) in the git repo
+BR-11: .mcp.json MUST resolve binary paths via $PATH or $SHI_WS, never hardcoded
+BR-12: Test fixtures MUST use #filePath for snapshot dirs (acceptable) but NEVER for project root resolution
+BR-13: shi ws list MUST show all workspaces with active marker
+BR-14: shi ws switch <name> MUST update $SHI_WS and config.yaml default_workspace
+BR-15: shi ws create <name> MUST scaffold a new workspace at ~/.shikki/workspaces/<name>/
+BR-16: Workspace MUST be self-contained — moving ~/.shikki/ to another machine works with zero path fixups
+BR-17: shi setup --migrate MUST migrate an existing repo-as-workspace to the new structure (move memory/, features/, reports/ to ~/.shikki/workspaces/)
+BR-18: Shared SPM packages (CoreKit, NetKit, DSKintsugi) MUST live in ~/.shikki/packages/ with symlinks or SPM path resolution
+BR-19: The daemon ($SHI_WS-aware) MUST know which workspace it serves — stored in daemon config
+BR-20: Multiple workspaces MUST be supported from day 1 — NOT a future feature
+BR-21: Default workspace structure MUST be company-scoped: ~/.shikki/workspaces/{company-name}/ (e.g., ws-personal, ws-obyw, ws-maya)
+BR-22: The first workspace created by shi setup MUST be the personal one: ws-personal (or ws-{username})
+BR-23: Each workspace is isolated — its own memory/, features/, reports/, projects/, .shikki-quality
+BR-24: shi ws create <company-name> MUST scaffold ws-{company-name}/ with full directory structure
+BR-25: $SHI_WS points to ONE active workspace. shi ws switch changes it. Commands always operate on the active workspace.
+BR-26: shi ws list MUST show all workspaces with company name, project count, active marker, and last-used timestamp
+BR-27: Daemon MUST serve ALL workspaces — iterate workspace configs on each tick, not just the active one
+```
+
+## TDDP — Test Summary Table
+
+| Test | BR | Tier | Type | Scenario |
+|------|-----|------|------|----------|
+| T-01 | BR-04, BR-05 | Core (80%) | Unit | When $SHI_WS set → WorkspaceResolver returns it |
+| T-02 | BR-05 | Core (80%) | Unit | When $SHI_WS unset → resolves from config.yaml |
+| T-03 | BR-05 | Core (80%) | Unit | When no config → detects from cwd if inside workspace |
+| T-04 | BR-06 | Core (80%) | Unit | When WorkspaceResolver.root called → returns $SHI_WS |
+| T-05 | BR-06 | Core (80%) | Unit | When WorkspaceResolver.features → returns $SHI_WS/features |
+| T-06 | BR-06 | Core (80%) | Unit | When WorkspaceResolver.memory → returns $SHI_WS/memory |
+| T-07 | BR-06 | Core (80%) | Unit | When WorkspaceResolver.reports → returns $SHI_WS/reports |
+| T-08 | BR-06 | Core (80%) | Unit | When WorkspaceResolver.projects → returns $SHI_WS/projects |
+| T-09 | BR-02, BR-03 | Core (80%) | Unit | When shi setup → creates workspace dirs |
+| T-10 | BR-15 | Core (80%) | Unit | When shi ws create "work" → scaffolds at ~/.shikki/workspaces/work/ |
+| T-11 | BR-13 | Smoke (CLI) | Unit | When shi ws list → shows all workspaces |
+| T-12 | BR-14 | Core (80%) | Unit | When shi ws switch "work" → updates config.yaml |
+| T-13 | BR-17 | Core (80%) | Integration | When shi setup --migrate → moves memory/features/reports |
+| T-14 | BR-09 | Security (100%) | Unit | No hardcoded /Users/* in any source file |
+| T-15 | BR-16 | Core (80%) | Integration | When ~/.shikki/ moved to /tmp/test → workspace still resolves |
+| T-16 | BR-19 | Core (80%) | Unit | When daemon starts → reads workspace from config |
+| T-17 | BR-07 | Core (80%) | Unit | When script reads $SHI_WS → gets correct workspace path |
+
+### S3 Test Scenarios
+
+```
+T-01 [BR-04, BR-05, Core 80%]:
+When $SHI_WS is set in environment:
+  → WorkspaceResolver.root returns that exact path
+  → no config file read
+  → no cwd detection attempted
+
+T-02 [BR-05, Core 80%]:
+When $SHI_WS is unset and ~/.shikki/config.yaml has default_workspace: "shiki":
+  → WorkspaceResolver.root returns ~/.shikki/workspaces/shiki
+  → $SHI_WS NOT modified in environment (read-only resolution)
+
+T-03 [BR-05, Core 80%]:
+When $SHI_WS is unset and no config exists:
+  if cwd is inside ~/.shikki/workspaces/foo/:
+    → WorkspaceResolver.root returns ~/.shikki/workspaces/foo
+  if cwd is outside any workspace:
+    → WorkspaceResolver.root returns nil
+    → commands that need workspace print "No workspace found — run: shi setup"
+
+T-04 [BR-06, Core 80%]:
+When WorkspaceResolver.root is ~/.shikki/workspaces/shiki:
+  → .features returns ~/.shikki/workspaces/shiki/features
+  → .memory returns ~/.shikki/workspaces/shiki/memory
+  → .reports returns ~/.shikki/workspaces/shiki/reports
+  → .projects returns ~/.shikki/workspaces/shiki/projects
+  → .reviews returns ~/.shikki/workspaces/shiki/.shikki/reviews
+
+T-05 [BR-06, Core 80%]:
+When a command uses WorkspaceResolver instead of currentDirectoryPath:
+  → SpecCommand finds specs at $SHI_WS/features/
+  → ReviewService stores reviews at $SHI_WS/.shikki/reviews/
+  → IngestCommand resolves project at $SHI_WS/projects/<name>/
+  → SearchCommand searches within $SHI_WS/
+
+T-06 [BR-02, BR-03, Core 80%]:
+When shi setup runs for the first time:
+  → creates ~/.shikki/
+  → creates ~/.shikki/bin/
+  → creates ~/.shikki/config.yaml with default_workspace: "default"
+  → creates ~/.shikki/workspaces/default/
+  → creates ~/.shikki/workspaces/default/projects/
+  → creates ~/.shikki/workspaces/default/memory/
+  → creates ~/.shikki/workspaces/default/features/
+  → creates ~/.shikki/workspaces/default/reports/
+
+T-07 [BR-15, Core 80%]:
+When shi ws create "work":
+  → creates ~/.shikki/workspaces/work/ with full scaffold
+  if workspace already exists:
+    → prints "Workspace 'work' already exists"
+
+T-08 [BR-13, Smoke CLI]:
+When shi ws list:
+  → shows "default *" (active marked)
+  → shows "work" (if exists)
+  → active workspace marked with * based on config.yaml default_workspace
+
+T-09 [BR-14, Core 80%]:
+When shi ws switch "work":
+  → updates ~/.shikki/config.yaml: default_workspace: "work"
+  → prints "Switched to workspace: work"
+  → prints "Set $SHI_WS in your shell: export SHI_WS=~/.shikki/workspaces/work"
+
+T-10 [BR-17, Core 80%]:
+When shi setup --migrate in a repo-as-workspace:
+  if cwd has memory/ and features/ and projects/:
+    → detects repo-as-workspace layout
+    → creates ~/.shikki/workspaces/<dirname>/
+    → moves memory/ → ~/.shikki/workspaces/<dirname>/memory/
+    → moves features/ → ~/.shikki/workspaces/<dirname>/features/
+    → moves reports/ → ~/.shikki/workspaces/<dirname>/reports/
+    → creates symlinks from old locations → new (for transition)
+    → prints migration summary
+
+T-11 [BR-09, Security 100%]:
+When scanning all .swift and .sh files in the repo:
+  → zero matches for /Users/jeoffrey
+  → zero matches for /Users/pro
+  → zero matches for hardcoded home directories
+
+T-12 [BR-16, Core 80%]:
+When ~/.shikki/ is copied to /tmp/test-shikki/:
+  → export SHI_WS=/tmp/test-shikki/workspaces/default
+  → all commands resolve paths correctly
+  → no path references the old location
+
+T-13 [BR-19, Core 80%]:
+When daemon starts:
+  → reads default_workspace from config.yaml
+  → sets internal workspace reference to that path
+  → all daemon services use workspace-relative paths
+
+T-14 [BR-07, Core 80%]:
+When scripts use $SHI_WS:
+  → board-watch.sh: TASK_DIR="$SHI_WS/.shikki/tasks"
+  → worktree-setup.sh: SHIKI_ROOT="$SHI_WS"
+  → test-classify-memory.sh: MEMORY_DIR="$SHI_WS/memory"
+```
+
+## Wave Dispatch Tree
+
+```
+Wave 1: WorkspaceResolver + Config
+  ├── WorkspaceResolver.swift — $SHI_WS resolution chain (env → config → cwd)
+  ├── WorkspaceConfig.swift — config.yaml read/write (default_workspace, etc.)
+  └── WorkspacePaths.swift — .features, .memory, .reports, .projects accessors
+  Input:  $SHI_WS env var, ~/.shikki/config.yaml
+  Output: Resolved workspace root for all commands
+  Tests:  T-01, T-02, T-03, T-04, T-05, T-06, T-07
+  Gate:   swift test --filter Workspace → green
+  ║
+  ╠══ Wave 2: Command Migration ← BLOCKED BY Wave 1
+  ║   ├── Replace ALL currentDirectoryPath with WorkspaceResolver (20+ commands)
+  ║   ├── Replace ALL git rev-parse in scripts with $SHI_WS
+  ║   ├── Remove ALL hardcoded /Users/* paths
+  ║   └── Update .mcp.json to use $PATH or $SHI_WS
+  ║   Input:  WorkspaceResolver
+  ║   Output: All commands workspace-aware, zero hardcoded paths
+  ║   Tests:  T-11, T-14, T-17
+  ║   Gate:   grep -r "/Users/jeoffrey" finds 0 matches in Sources/ and scripts/
+  ║   ║
+  ║   ╠══ Wave 3: Workspace CLI (shi ws) ← BLOCKED BY Wave 2
+  ║   ║   ├── WorkspaceCommand.swift — shi ws list|create|switch
+  ║   ║   ├── SetupCommand.swift — update to create ~/.shikki/ structure
+  ║   ║   └── shi setup --migrate for existing repo-as-workspace
+  ║   ║   Input:  WorkspaceResolver, WorkspaceConfig
+  ║   ║   Output: Multi-workspace support
+  ║   ║   Tests:  T-08, T-09, T-10, T-12
+  ║   ║   Gate:   shi ws list shows workspaces, shi ws switch works
+  ║   ║
+  ║   ╚══ Wave 4: Repo Restructure ← BLOCKED BY Wave 3
+  ║       ├── Move personal data out of repo (memory/, reports/)
+  ║       ├── Update .gitignore
+  ║       ├── Update Package.swift paths (shared packages)
+  ║       ├── Daemon workspace awareness
+  ║       └── Documentation update (README, CONTRIBUTING)
+  ║       Input:  Working multi-workspace, migration tool
+  ║       Output: Clean repo = only CLI source code
+  ║       Tests:  T-13, T-15, T-16
+  ║       Gate:   fresh clone + shi setup → working workspace
+```
+
+## Implementation Waves
+
+### Wave 1: WorkspaceResolver + Config
+**Files:**
+- `Sources/ShikkiKit/Kernel/Core/WorkspaceResolver.swift` — resolution chain, path accessors
+- `Sources/ShikkiKit/Kernel/Core/WorkspaceConfig.swift` — config.yaml parser (default_workspace)
+- `Sources/ShikkiKit/Kernel/Core/WorkspacePaths.swift` — .features, .memory, .reports, .projects
+- `Tests/ShikkiKitTests/Kernel/WorkspaceResolverTests.swift`
+**Tests:** T-01..T-07
+**BRs:** BR-04, BR-05, BR-06
+**Deps:** none
+**Gate:** `swift test --filter Workspace` green
+
+### Wave 2: Command Migration ← BLOCKED BY Wave 1
+**Files (modify 20+ commands):**
+- Every command in `Sources/shikki/Commands/` that uses `currentDirectoryPath`
+- `scripts/board-watch.sh`, `scripts/worktree-setup.sh`, `scripts/test-classify-memory.sh`
+- `.mcp.json`
+- `Sources/ShikkiKit/Extensions/Spec/SpecCommandUtilities.swift`
+- `Sources/ShikkiKit/Extensions/Review/ReviewService.swift`
+- `Sources/ShikkiKit/Kernel/Recovery/SessionCheckpointManager.swift`
+**Tests:** T-11, T-14, T-17
+**BRs:** BR-06, BR-07, BR-09, BR-11, BR-12
+**Deps:** Wave 1 (WorkspaceResolver)
+**Gate:** `grep -rn "/Users/jeoffrey" Sources/ scripts/` returns 0 matches
+
+### Wave 3: Workspace CLI ← BLOCKED BY Wave 2
+**Files:**
+- `Sources/shikki/Commands/WorkspaceCommand.swift` — shi ws list|create|switch
+- `Sources/ShikkiKit/Setup/SetupService.swift` — modify to create ~/.shikki/ structure
+- `Sources/ShikkiKit/Setup/WorkspaceMigration.swift` — repo-as-workspace → proper workspace
+- `Tests/ShikkiKitTests/WorkspaceCommandTests.swift`
+**Tests:** T-08, T-09, T-10, T-12
+**BRs:** BR-02, BR-03, BR-13, BR-14, BR-15, BR-16, BR-17
+**Deps:** Wave 2 (all commands workspace-aware)
+**Gate:** `shi ws list` + `shi ws switch` + `shi ws create` work
+
+### Wave 4: Repo Restructure ← BLOCKED BY Wave 3
+**Files:**
+- `.gitignore` — add memory/, reports/, .claude/settings.local.json
+- `Package.swift` — update local dep paths for ~/.shikki/packages/
+- `README.md` — update install/setup docs
+- `CONTRIBUTING.md` — document workspace architecture
+- Daemon config — workspace awareness
+**Tests:** T-13, T-15, T-16
+**BRs:** BR-01, BR-10, BR-18, BR-19, BR-20
+**Deps:** Wave 3 (migration tool ready)
+**Gate:** Fresh clone + `shi setup` → working workspace with zero hardcoded paths
+
+## Reuse Audit
+
+| Utility | Exists In | Decision |
+|---------|-----------|----------|
+| Config YAML parsing | ThemeLoader (manual YAML) | Reuse pattern for config.yaml |
+| PID file management | DaemonPIDManager | Reuse for workspace lock |
+| Directory creation | SetupService | Extend for workspace scaffold |
+| Path resolution | SpecCommandUtilities.findFeaturesDirectory() | Replace with WorkspaceResolver.features |
+| Project detection | ProjectInitWizard | Integrate with workspace projects/ |
+
+## CWD → WorkspaceResolver Migration Map
+
+Every `FileManager.default.currentDirectoryPath` in the codebase mapped to its WorkspaceResolver replacement:
+
+| Command | Current (CWD) | Replacement |
+|---------|--------------|-------------|
+| AskCommand | `findProjectRoot() ?? cwd` | `WorkspaceResolver.projectRoot(for: project)` |
+| FastCommand | `project ?? cwd` | `WorkspaceResolver.projectRoot(for: project)` |
+| QuickCommand | `project ?? cwd` | `WorkspaceResolver.projectRoot(for: project)` |
+| SpecCommand | `cwd` for spec files | `WorkspaceResolver.features` |
+| ReviewCommand | `cwd` for project + review dir | `WorkspaceResolver.root` + `.reviews` |
+| SpecMigrateCommand | `cwd + "/" + input` | `WorkspaceResolver.features + "/" + input` |
+| HeartbeatCommand | `cwd` as workspace | `WorkspaceResolver.root` |
+| StatusCommand | `cwd` for git/project | `WorkspaceResolver.root` |
+| PRCommand | `cwd` for git root | `WorkspaceResolver.projectRoot(for: project)` |
+| WaveCommand | `cwd` for project | `WorkspaceResolver.projectRoot(for: project)` |
+| ShipCommand | `cwd` for project | `WorkspaceResolver.projectRoot(for: project)` |
+| MotoCommand | `cwd` for project | `WorkspaceResolver.projectRoot(for: project)` |
+| IngestCommand | `cwd` for project | `WorkspaceResolver.root` |
+| InitCommand | `cwd` for project | `WorkspaceResolver.root` |
+| SearchCommand | `cwd` for search root | `WorkspaceResolver.root` |
+| StartupCommand | `cwd` as workspace | `WorkspaceResolver.root` |
+| RestartCommand | `cwd` for binary | `WorkspaceResolver.root` |
+| SetupService | `cwd + "/.shikki/"` | `WorkspaceResolver.root + "/.shikki/"` |
+| SessionCheckpointManager | `cwd` for checkpoints | `WorkspaceResolver.root` |
+| SpecCommandUtilities | `cwd + "/features"` | `WorkspaceResolver.features` |
+| ReviewService | `cwd + "/.shikki/reviews"` | `WorkspaceResolver.reviews` |
+
+## Script Migration Map
+
+| Script | Current | Replacement |
+|--------|---------|-------------|
+| `board-watch.sh` | `/private/tmp/claude-501/-Users-jeoffrey-...` | `$SHI_WS/.shikki/tasks` or `$TMPDIR/shikki-tasks` |
+| `worktree-setup.sh` | `SHIKI_ROOT="/Users/jeoffrey/..."` | `SHIKI_ROOT="${SHI_WS:?SHI_WS not set}"` |
+| `test-classify-memory.sh` | `/Users/jeoffrey/.claude/projects/...` | `$SHI_WS/memory/` |
+| `shiki-notify-lib.sh` | `git rev-parse --git-dir` | `$SHI_WS` (keep git fallback for git-specific ops) |
+
+## @t Review
+
+### @Sensei (CTO)
+This is the single most important architectural change before v1. Every path bug, every portability fix, every "works on my machine" issue traces back to the repo-as-workspace conflation. WorkspaceResolver is ~80 LOC and eliminates 20+ CWD bugs in one shot. The migration path (Wave 3) is critical — existing users need `shi setup --migrate` to move their data without losing anything.
+
+The `$SHI_WS` env var is the right pattern — same as `$GOPATH`, `$CARGO_HOME`, `$VOLTA_HOME`. Every tool in the ecosystem uses an env var for its root. Ship this before any more features.
+
+### @Ronin (Adversarial)
+- **Symlink hell**: During migration, symlinks from old locations → new can create circular references. Resolve symlinks before copying, not after.
+- **Multiple shi processes**: If two terminal tabs have different `$SHI_WS`, commands in each tab affect different workspaces. Is this a feature or a bug? Document it.
+- **Package.swift local paths**: SPM resolves `path:` relative to the Package.swift file, not cwd. Moving packages to `~/.shikki/packages/` means ALL Package.swift files need updating. Consider a shared SPM registry or local SPM mirror instead.
+- **git hooks**: Pre-commit hooks installed by `shi init` reference workspace paths. After migration, hooks in old projects break.
+
+### @Katana (Security)
+The current repo exposes personal memory files, radar reports, and project data to anyone with repo access. This is a data leak — not a theoretical one, it's live on GitHub right now. Wave 4 (repo restructure) should be treated as a security incident response, not a nice-to-have.
+
+### @Kintsugi (Philosophy)
+A workspace is personal — it's your desk, your notes, your arrangement. Source code is shared — it's the blueprint. Mixing them is like publishing your diary inside a textbook. The separation isn't just technical hygiene, it's respect for the boundary between creation (the tool) and practice (the workspace).
