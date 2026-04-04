@@ -34,6 +34,44 @@ Total: **84 BRs** across 3 phases, **12 waves**.
 
 ---
 
+## Phase 0: Test Coverage Gate (Wave 0)
+
+**Goal**: Every command that will be migrated has tests BEFORE migration. No blind rewiring.
+**Unblocks**: Phase 1 and Phase 2 (safe to migrate with test safety net)
+
+### Wave 0 — TDD Coverage for 24 Untested Commands
+
+**What**: Write characterization tests for all 24 commands that currently have zero tests. These tests capture CURRENT behavior — they're the safety net for migration.
+
+**Coverage audit (current state)**:
+| Status | Count | Commands |
+|---|---|---|
+| Has tests | 2 | ReviewCommand (4), BacklogCommand (3) |
+| NO tests | 24 | AskCommand, BoardCommand, CodirCommand, DaemonCommand, DecideCommand, FastCommand, HeartbeatCommand, HistoryCommand, InboxCommand, IngestCommand, InitCommand, MotoCommand, PauseCommand, PRCommand, QuickCommand, ReportCommand, RestartCommand, SearchCommand, ShipCommand, SpecCommand, SpecCheckCommand, SpecMigrateCommand, StartupCommand, StatusCommand, TemplatesCommand, WakeCommand, WaveCommand |
+
+**Priority order** (highest risk = uses both CWD + BackendClient):
+1. StartupCommand, StatusCommand, HeartbeatCommand, WakeCommand (both patterns)
+2. BoardCommand, DecideCommand, ReportCommand, PauseCommand, InboxCommand (BackendClient)
+3. QuickCommand, ShipCommand, SpecCommand, SearchCommand (CWD-heavy)
+4. Remaining commands
+
+**TDD Migration Protocol (mandatory for every command)**:
+```
+Step 1: Write characterization tests for current behavior → GREEN
+Step 2: Migrate (WorkspaceResolver / MCPClient swap)
+Step 3: Same tests → GREEN (behavior preserved, plumbing changed)
+Step 4: shikki-test full suite → GREEN
+Step 5: Only then move to next command
+```
+
+**Files**: One test file per command in `Tests/ShikkiKitTests/Commands/`
+**Gate**: All 26 commands have tests → `shikki-test` full suite green
+**Parallel**: Yes — test files are independent, dispatch in batches of 5-6
+
+**Estimated scope**: ~50 tests (2 per command average), ~2,000 LOC tests
+
+---
+
 ## Phase 1: Workspace Separation (Waves 1-4)
 
 **Goal**: Clean repo, portable paths, multi-workspace support.
@@ -181,10 +219,23 @@ Total: **84 BRs** across 3 phases, **12 waves**.
 ## Unified Wave Dispatch Tree
 
 ```
+PHASE 0: TEST COVERAGE GATE
+════════════════════════════
+
+Wave 0: Characterization Tests for 24 Commands ─────────── no deps
+  ├── Batch A (5): StartupCommand, StatusCommand, HeartbeatCommand, WakeCommand, BoardCommand
+  ├── Batch B (5): DecideCommand, ReportCommand, PauseCommand, InboxCommand, HistoryCommand
+  ├── Batch C (5): QuickCommand, ShipCommand, SpecCommand, SearchCommand, MotoCommand
+  ├── Batch D (5): DaemonCommand, RestartCommand, InitCommand, IngestCommand, PRCommand
+  └── Batch E (4): FastCommand, SpecCheckCommand, SpecMigrateCommand, TemplatesCommand, WaveCommand
+  Gate: shikki-test full suite → ALL GREEN (existing + ~50 new tests)
+  Parallel: YES — each batch is independent, dispatch 5 agents
+  ║
+  ║
 PHASE 1: WORKSPACE SEPARATION
 ══════════════════════════════
-
-Wave 1: WorkspaceResolver ──────────────────────────────────── no deps
+  ║
+Wave 1: WorkspaceResolver ──────────────────────────────────── ← Wave 0
   ║
   ╚══ Wave 2: Command Migration (20+ files) ──────────────── ← Wave 1
        ║
@@ -242,10 +293,11 @@ Even though waves are sequential within a phase, some cross-phase work can start
 
 | Phase | Waves | New files | Modified files | LOC added | LOC deleted | Tests |
 |---|---|---|---|---|---|---|
+| 0: Test Gate | 1 (5 batches) | ~24 | 0 | ~2,000 | 0 | ~50 |
 | 1: Workspace | 4 | ~8 | ~25 | ~1,200 | ~200 | ~17 |
 | 2: MCP-First | 4 | ~5 | ~20 | ~800 | ~4,200 | ~11 |
 | 3: Distributed | 4 | ~12 | ~5 | ~3,000 | 0 | ~30 |
-| **Total** | **12** | **~25** | **~50** | **~5,000** | **~4,400** | **~58** |
+| **Total** | **13** | **~49** | **~50** | **~7,000** | **~4,400** | **~108** |
 
 Net: **+600 LOC** (add 5K, delete 4.4K). The codebase gets SMALLER while gaining multi-tenant distributed sync.
 
