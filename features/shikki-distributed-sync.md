@@ -136,15 +136,31 @@ BR-41: shi admin broadcast --tenant <name> --command <cmd> MUST publish to shikk
 BR-42: shi admin target <user> --command <cmd> MUST publish to shikki.{tenant}.admin.user.{userId} — single device receives
 BR-43: Admin commands MUST include: config-reload, data-wipe, force-sync, announce
 BR-44: Only admin NKeys MUST be allowed to publish to shikki.{tenant}.admin.* — NATS server enforces this
+BR-44b: Admin commands MUST be persisted in NATS JetStream — offline users receive them on reconnect
+BR-44c: Each admin command MUST have a TTL (time-to-live): config-reload (7d), data-wipe (30d), force-sync (1h), announce (7d). Expired commands silently discarded on delivery.
+BR-44d: User's daemon MUST check command timestamp vs TTL before executing — stale commands logged but not executed
 
 ## User Permission Model (bottom-up protection)
 
 BR-45: Regular users MUST NOT publish to shikki.{tenant}.admin.* (cannot impersonate admin)
 BR-46: Regular users MUST NOT publish to shikki.{tenant}.user.{otherUser}.* (cannot impersonate other users)
-BR-47: Regular users MUST NOT publish to shikki.{tenant}.dispatch.* (cannot dispatch tasks to other nodes)
+BR-47: Regular users MUST be able to dispatch to their OWN nodes: shikki.{tenant}.dispatch.{userId}.* — but MUST NOT dispatch to other users' nodes or broadcast to all (shikki.{tenant}.dispatch.available is admin-only)
 BR-48: Regular users MUST subscribe to shikki.{tenant}.team.* (shared events) and shikki.{tenant}.admin.broadcast (admin commands)
 BR-49: NATS server MUST enforce permissions via NKey-based authorization — even a hacked client cannot bypass
 BR-50: Permission model: admin (full access), developer (own events + team read), viewer (team read only)
+
+## Device Ownership + Trust Boundaries
+
+BR-53: Every device MUST declare its ownership class on registration: personal | company
+BR-54: Personal devices MUST NOT be available as compute nodes for company dispatch — UNLESS the user grants explicit consent via shi device allow-dispatch (revocable anytime via shi device deny-dispatch)
+BR-55: Company devices MUST be available for company dispatch by default — admin controls company hardware
+BR-56: Admin MUST NOT be able to force-install, force-wipe, or dispatch compute tasks on personal devices without user consent. Admin authority stops at the tenant boundary, not the hardware boundary.
+BR-57: Admin CAN force-wipe company devices (company property, company rules)
+BR-58: A user's personal device can join MULTIPLE tenants (ws-obyw + ws-freelance-xyz). Each tenant's admin has ZERO visibility into other tenants on the same device.
+BR-59: shi device list MUST show all registered devices with ownership class, tenant memberships, dispatch consent status
+BR-60: shi device register --ownership personal|company MUST be set during shi setup --join and stored in device config
+BR-61: Device ownership class MUST be transmitted to the server on registration — server enforces dispatch permissions based on it
+BR-62: NATS dispatch subjects for company compute MUST include device class filter: shikki.{tenant}.dispatch.{userId}.{deviceId} — server only publishes dispatch tasks to devices where ownership=company OR user has granted dispatch consent
 
 ## Conflict Resolution
 
