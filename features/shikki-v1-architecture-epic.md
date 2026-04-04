@@ -28,9 +28,10 @@ These are sequential — you can't delete Deno until workspace paths are clean, 
 This epic unifies:
 - `features/shikki-workspace-separation.md` (27 BRs, 17 tests, 4 waves)
 - `features/shikki-deno-sunset.md` (17 BRs, 11 tests, 4 waves)
-- `features/shikki-distributed-sync.md` (40 BRs, pending tests)
+- `features/shikki-distributed-sync.md` (50 BRs, pending tests — includes admin commands, user permissions, device trust)
+- `features/shikki-crdt-sync.md` (15 BRs, 12 tests, 4 waves)
 
-Total: **84 BRs** across 3 phases, **12 waves**.
+Total: **109 BRs** across 4 phases, **17 waves**.
 
 ---
 
@@ -216,6 +217,57 @@ Step 5: Only then move to next command
 
 ---
 
+## Phase 4: CRDT Collaboration (Waves 13-16)
+
+**Goal**: Conflict-free multi-user editing via Automerge. No data loss when two users edit the same entity.
+**Unblocks**: True real-time collaboration between Jeoffrey + Faustin (and any team).
+
+### Wave 13 — CRDTDocument + Entity Mapping
+**What**: Wrap Automerge with typed accessors per entity type. Local file-based CRDT storage.
+**Files**:
+- `Sources/ShikkiKit/CRDT/CRDTDocument.swift` — Automerge wrapper
+- `Sources/ShikkiKit/CRDT/CRDTEntityType.swift` — entity schemas (spec, backlog, task, decision)
+- `Sources/ShikkiKit/CRDT/CRDTStore.swift` — local storage in `~/.shikki/crdt/`
+- `Package.swift` — add `automerge-swift` (0.7.x, Rust FFI, MIT)
+- Tests: `CRDTDocumentTests.swift`
+**Key BRs**: BR-01..BR-05 (entity mapping, actor IDs, field→CRDT type mapping)
+**Gate**: `swift test --filter CRDT` green — fork, edit, merge preserves all changes
+**Blocked by**: Wave 12 (data protection layer)
+
+### Wave 14 — NATS Sync Transport
+**What**: Broadcast incremental changes via NATS. JetStream persistence for offline replay.
+**Files**:
+- `Sources/ShikkiKit/CRDT/CRDTSyncTransport.swift`
+- `Sources/ShikkiKit/CRDT/CRDTChangeListener.swift`
+- Tests: `CRDTSyncTransportTests.swift`
+**Key BRs**: BR-06..BR-08 (change broadcast, JetStream durability, offline replay)
+**Gate**: Two MockNATSClient instances sync a document
+**Blocked by**: Wave 13
+
+### Wave 15 — PostgreSQL CRDT Storage
+**What**: Store Automerge binary in PostgreSQL BYTEA + extract denormalized columns for SQL queries.
+**Files**:
+- `Sources/ShikkiKit/CRDT/CRDTPostgresStore.swift`
+- SQL migration: `crdt_entities` table + `crdt_changes` hypertable
+- Tests: `CRDTPostgresStoreTests.swift`
+**Key BRs**: BR-09..BR-12 (BYTEA storage, denormalized extraction, server-side merge)
+**Gate**: Merge + query round-trip works
+**Blocked by**: Wave 13
+
+### Wave 16 — Full Sync Protocol + History
+**What**: Automerge's built-in sync protocol over NATS request-reply. SyncState persistence. Operation history for undo.
+**Files**:
+- `Sources/ShikkiKit/CRDT/CRDTFullSync.swift`
+- `Sources/ShikkiKit/CRDT/CRDTHistory.swift`
+- Tests: `CRDTFullSyncTests.swift`
+**Key BRs**: BR-13..BR-15 (sync protocol, persisted SyncState, full history)
+**Gate**: Offline → reconnect → full sync converges in 1-3 round trips
+**Blocked by**: Wave 14 + 15
+
+**Phase 4 deliverable**: True conflict-free collaboration. Two users edit the same spec/backlog/task simultaneously, offline or online. Zero data loss. Full audit trail. Undo any change.
+
+---
+
 ## Unified Wave Dispatch Tree
 
 ```
@@ -266,6 +318,18 @@ PHASE 3: DISTRIBUTED SYNC
                                           ╚══ Wave 11: Sync ── ← Wave 10
                                                ║
                                                ╚══ Wave 12: Data Protection ── ← Wave 11
+                                                    ║
+                                                    ║
+PHASE 4: CRDT COLLABORATION
+═══════════════════════════
+                                                    ║
+                                                    ╚══ Wave 13: CRDTDocument ───── ← Wave 12
+                                                         ║
+                                                         ╠══ Wave 14: NATS Sync ──── ← Wave 13
+                                                         ║
+                                                         ╠══ Wave 15: PostgreSQL ──── ← Wave 13 (parallel w/ 14)
+                                                         ║
+                                                         ╚══ Wave 16: Full Sync ───── ← Wave 14 + 15
 ```
 
 ## Parallel Opportunities
@@ -286,8 +350,9 @@ Even though waves are sequential within a phase, some cross-phase work can start
 |---|---|---|---|
 | 1: Workspace | shikki-workspace-separation.md | 27 | 17 |
 | 2: MCP-First | shikki-deno-sunset.md | 17 | 11 |
-| 3: Distributed | shikki-distributed-sync.md | 40 | TBD |
-| **Total** | | **84** | **28+** |
+| 3: Distributed | shikki-distributed-sync.md | 50 | TBD |
+| 4: CRDT | shikki-crdt-sync.md | 15 | 12 |
+| **Total** | | **109** | **40+** |
 
 ## Estimated Scope
 
@@ -297,7 +362,8 @@ Even though waves are sequential within a phase, some cross-phase work can start
 | 1: Workspace | 4 | ~8 | ~25 | ~1,200 | ~200 | ~17 | ~$10-15 |
 | 2: MCP-First | 4 | ~5 | ~20 | ~800 | ~4,200 | ~11 | ~$12-18 |
 | 3: Distributed | 4 | ~12 | ~5 | ~3,000 | 0 | ~30 | ~$15-25 |
-| **Total** | **13** | **~49** | **~50** | **~7,000** | **~4,400** | **~108** | **~$45-70** |
+| 4: CRDT | 4 | ~8 | ~3 | ~2,000 | 0 | ~12 | ~$10-15 |
+| **Total** | **17** | **~57** | **~53** | **~9,000** | **~4,400** | **~120** | **~$55-85** |
 
 **Budget estimation basis** (Claude Opus, parallel agent dispatch):
 - Wave 0: 5 parallel agents × ~$2 each = ~$10. Mechanical test writing, low complexity.
