@@ -129,6 +129,27 @@ BR-37: New user runs shi setup --join <server-url> --token <invite-token>
 BR-38: Setup MUST: install local PostgreSQL + extensions, configure NATS leaf to company server, create workspace, initial sync
 BR-39: Invite token MUST be single-use, time-limited (24h default), tied to specific tenant + role
 BR-40: After initial sync, user can work offline immediately — local DB has their scoped dataset
+
+## Admin Commands (top-down)
+
+BR-41: shi admin broadcast --tenant <name> --command <cmd> MUST publish to shikki.{tenant}.admin.broadcast — all user devices receive and execute
+BR-42: shi admin target <user> --command <cmd> MUST publish to shikki.{tenant}.admin.user.{userId} — single device receives
+BR-43: Admin commands MUST include: config-reload, data-wipe, force-sync, announce
+BR-44: Only admin NKeys MUST be allowed to publish to shikki.{tenant}.admin.* — NATS server enforces this
+
+## User Permission Model (bottom-up protection)
+
+BR-45: Regular users MUST NOT publish to shikki.{tenant}.admin.* (cannot impersonate admin)
+BR-46: Regular users MUST NOT publish to shikki.{tenant}.user.{otherUser}.* (cannot impersonate other users)
+BR-47: Regular users MUST NOT publish to shikki.{tenant}.dispatch.* (cannot dispatch tasks to other nodes)
+BR-48: Regular users MUST subscribe to shikki.{tenant}.team.* (shared events) and shikki.{tenant}.admin.broadcast (admin commands)
+BR-49: NATS server MUST enforce permissions via NKey-based authorization — even a hacked client cannot bypass
+BR-50: Permission model: admin (full access), developer (own events + team read), viewer (team read only)
+
+## Conflict Resolution
+
+BR-51: Conflict resolution MUST use CRDT (Conflict-free Replicated Data Types) — NOT LWW. Multiple users edit the same data constantly.
+BR-52: CRDT spec in separate file: features/shikki-crdt-sync.md
 ```
 
 ## Data Scoping — What Each User Gets

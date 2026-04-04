@@ -319,7 +319,7 @@ Net: **+2,600 LOC** (add 7K, delete 4.4K). The codebase grows modestly while gai
 | 6 (Rewire 16 Commands) | MCP tool gaps (missing shiki_update_company) | Implement new MCP tools BEFORE rewiring commands |
 | 7 (Delete 4,200 LOC) | Point of no return for Deno | Wave 6 proves everything works on MCP before deleting |
 | 10 (User Join) | PostgreSQL + extensions install across platforms | Script it, test on Ubuntu + macOS in CI |
-| 11 (Sync Protocol) | Conflict resolution edge cases | Start with LWW (simple), upgrade to CRDT if needed |
+| 11 (Sync Protocol) | Conflict resolution edge cases | CRDT from day 1 — multiple users edit same data constantly |
 | 12 (Data Protection) | TTL wipe could destroy user data unexpectedly | Multiple warnings before wipe, admin override |
 
 ## @Daimyo Review Checklist
@@ -331,7 +331,7 @@ Before dispatching, validate these decisions:
 - [ ] **Wave 7**: Delete Deno permanently — point of no return. Ready?
 - [ ] **Wave 8**: Vue frontend parked as plugin — no rebuild planned. OK?
 - [ ] **Wave 9**: Shared schema + RLS (capacity audit recommendation) vs database-per-tenant?
-- [ ] **Wave 11**: LWW conflict resolution vs CRDT — LWW is simpler, CRDT is more correct. Which?
+- [x] **Wave 11**: ~~LWW vs CRDT~~ → **CRDT from day 1**. Multiple users edit same data constantly (Jeoffrey + Faustin = the norm, not the exception). Separate spec: `features/shikki-crdt-sync.md`
 - [ ] **Wave 12**: TTL default for stale device wipe — 7 / 14 / 30 days?
 - [ ] **BR-08**: Local PostgreSQL on every user device — acceptable install weight?
 - [ ] **BR-20**: Confidential data never on devices — how to classify what's confidential?
