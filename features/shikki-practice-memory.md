@@ -243,8 +243,11 @@ New alias available: `shikki alias forge 'spec,🌟🧠🌟@t'`
 
 ## Implementation Waves
 
-### Wave 1: Capture Hook + ShikiDB Events (~100 LOC)
-- **Files**: `~/.claude/hooks/practice-memory-capture.sh`, `ShikkiKit/Models/CommandInvokedEvent.swift`
+### Wave 1: CLI Self-Logging + ShikiDB Events (~100 LOC)
+- **Approach**: shi logs its own commands — no hooks, no agent transcript parsing, agent-agnostic
+- **Files**: `ShikkiKit/Kernel/Core/CommandLogger.swift` (logs every shi command to `~/.shikki/logs/command-history.jsonl`), `ShikkiKit/Models/CommandInvokedEvent.swift`
+- **Log format**: `{"ts":"ISO8601","cmd":"shi inbox","ws":"ws-obyw","duration_ms":340,"exit":0}`
+- **4 metrics**: command frequency, chain frequency, session duration, error rate per command
 - **Tests**: T-01, T-02, T-09, T-12
 - **BRs**: BR-01, BR-04, BR-07
 - **Deps**: ShikiDB MCP (exists)
