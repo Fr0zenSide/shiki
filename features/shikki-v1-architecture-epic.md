@@ -392,13 +392,36 @@ Net: **+2,600 LOC** (add 7K, delete 4.4K). The codebase grows modestly while gai
 
 Before dispatching, validate these decisions:
 
-- [ ] **Phase ordering**: Workspace → MCP → Distributed. Agree?
-- [ ] **Wave 2**: 20+ commands migrated in one wave — or split into batches?
-- [ ] **Wave 7**: Delete Deno permanently — point of no return. Ready?
-- [ ] **Wave 8**: Vue frontend parked as plugin — no rebuild planned. OK?
-- [ ] **Wave 9**: Shared schema + RLS (capacity audit recommendation) vs database-per-tenant?
-- [x] **Wave 11**: ~~LWW vs CRDT~~ → **CRDT from day 1**. Multiple users edit same data constantly (Jeoffrey + Faustin = the norm, not the exception). Separate spec: `features/shikki-crdt-sync.md`
-- [ ] **Wave 12**: TTL default for stale device wipe — 7 / 14 / 30 days?
-- [ ] **BR-08**: Local PostgreSQL on every user device — acceptable install weight?
-- [ ] **BR-20**: Confidential data never on devices — how to classify what's confidential?
-- [ ] **Parallel**: Start new MCP tools (Wave 6 prep) during Wave 1?
+- [x] **Phase ordering**: Workspace → MCP → Distributed → CRDT. **APPROVED.**
+- [x] **Wave 2**: Split in batches of 5 commands — small scope, more parallel agents, less build race. **APPROVED.**
+- [x] **Wave 7**: Delete Deno permanently. Git history is the backup. **APPROVED.** "@Daimyo: throw this shit in the trash"
+- [x] **Wave 8**: Vue frontend parked as local plugin. NOT committed to GitHub. Wait and see if needed. **APPROVED.**
+- [ ] **Wave 9**: Shared schema + RLS vs database-per-tenant → **PENDING — needs comparative detail.** See analysis below.
+- [x] **Wave 11**: CRDT from day 1 (Automerge-swift). **APPROVED.**
+- [x] **Wave 12**: TTL 14 days default. Admin adjustable per tenant. **APPROVED.**
+- [x] **BR-08**: Local PostgreSQL acceptable. Runs on Raspberry Pi. LLM models are the real storage hog, not PostgreSQL. **APPROVED.**
+- [x] **BR-20**: ALL data confidential by default — for companies AND personal. Your data is yours. P1 backlog task for data classification/scoping system with @t brainstorm. **APPROVED with follow-up.**
+- [x] **Parallel**: Yes — start new MCP tools during Wave 1. Eat your own dog food. **APPROVED.**
+
+### Wave 9 Decision: Shared Schema + RLS vs Database-per-Tenant
+
+| | Shared Schema + RLS | Database-per-Tenant |
+|---|---|---|
+| **Isolation** | Row-level (PostgreSQL RLS policies) | Full database boundary |
+| **Connection pooling** | One PgBouncer pool, one connection pool | One pool PER tenant — 10 tenants = 10x connections |
+| **Capacity** | 100+ tenants on medium VPS | ~20-30 tenants before connection exhaustion |
+| **Migration/schema updates** | ONE migration, applies to all tenants | N migrations (one per database) |
+| **Cross-tenant queries** | Possible (admin dashboard, global analytics) | Requires cross-database joins (painful) |
+| **Backup/restore** | One database to backup | N databases to backup |
+| **Tenant offboarding** | DELETE WHERE tenant_id = X | DROP DATABASE (cleaner) |
+| **Data leak risk** | RLS misconfiguration = tenant sees other's data | Zero risk — databases are isolated by design |
+| **Used by** | Supabase, Neon, Crunchy Data (SaaS standard) | Heroku Postgres, some enterprise deployments |
+| **Complexity** | RLS policies on every table (need to get right) | Simple — no policies, just separate DBs |
+| **Performance at scale** | Better (shared indexes, shared buffers) | Worse (duplicated indexes, fragmented memory) |
+| **TimescaleDB hypertables** | Shared — compression benefits all tenants | Per-DB — each tenant's data compressed separately |
+
+**@Sensei recommendation**: Shared schema + RLS for managed service (your VPS hosting multiple companies). Database-per-tenant ONLY if a client demands it (regulatory). The capacity audit confirms: PgBouncer + shared schema = 100+ tenants on medium VPS. Database-per-tenant caps at ~20-30.
+
+**@Ronin concern**: One bad RLS policy = data leak across tenants. Mitigation: test RLS policies in CI, use `SET app.current_tenant = 'obyw'` pattern, never trust client-side tenant ID.
+
+**@Daimyo**: Your call. RLS is more efficient + scalable. Database-per-tenant is simpler + safer isolation. Both work. The default can be RLS with an option for dedicated DB on demand.
