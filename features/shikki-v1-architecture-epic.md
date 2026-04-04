@@ -396,7 +396,7 @@ Before dispatching, validate these decisions:
 - [x] **Wave 2**: Split in batches of 5 commands — small scope, more parallel agents, less build race. **APPROVED.**
 - [x] **Wave 7**: Delete Deno permanently. Git history is the backup. **APPROVED.** "@Daimyo: throw this shit in the trash"
 - [x] **Wave 8**: Vue frontend parked as local plugin. NOT committed to GitHub. Wait and see if needed. **APPROVED.**
-- [ ] **Wave 9**: Shared schema + RLS vs database-per-tenant → **PENDING — needs comparative detail.** See analysis below.
+- [x] **Wave 9**: Hybrid — RLS default (Starter/SaaS), DB-per-tenant (Business), dedicated VPS (Enterprise), on-premise (contract). **APPROVED.**
 - [x] **Wave 11**: CRDT from day 1 (Automerge-swift). **APPROVED.**
 - [x] **Wave 12**: TTL 14 days default. Admin adjustable per tenant. **APPROVED.**
 - [x] **BR-08**: Local PostgreSQL acceptable. Runs on Raspberry Pi. LLM models are the real storage hog, not PostgreSQL. **APPROVED.**
@@ -424,4 +424,13 @@ Before dispatching, validate these decisions:
 
 **@Ronin concern**: One bad RLS policy = data leak across tenants. Mitigation: test RLS policies in CI, use `SET app.current_tenant = 'obyw'` pattern, never trust client-side tenant ID.
 
-**@Daimyo**: Your call. RLS is more efficient + scalable. Database-per-tenant is simpler + safer isolation. Both work. The default can be RLS with an option for dedicated DB on demand.
+**@Daimyo decision (2026-04-04)**: Hybrid. 4 tiers:
+
+| Tier | Isolation | Target | Pricing model |
+|---|---|---|---|
+| **Starter** | Shared schema + RLS | Small teams, freelancers, startups | SaaS subscription |
+| **Business** | Database-per-tenant (same server) | Mid-size companies needing isolation | Higher subscription |
+| **Enterprise** | Dedicated VPS | Large companies needing bandwidth | Custom contract |
+| **On-Premise** | Client's own infrastructure | Regulated industries, gov, finance | Installation + maintenance contract |
+
+Default = RLS. Upgrade path is clear and each tier builds on the previous. **APPROVED.**
