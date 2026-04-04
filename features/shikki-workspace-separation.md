@@ -96,8 +96,12 @@ WORKSPACE (what shi setup creates — company-scoped, multi-workspace from day 1
 BR-01: The git repo MUST contain ONLY the shi CLI source code (Package.swift, Sources/, Tests/, docs/, LICENSE, README)
 BR-02: shi setup MUST create ~/.shikki/ directory structure with workspaces/, bin/, config.yaml, logs/
 BR-03: shi setup MUST create a default workspace at ~/.shikki/workspaces/{name}/ (name from --workspace flag or auto-detect)
-BR-04: $SHI_WS env var MUST point to the active workspace absolute path (e.g., ~/.shikki/workspaces/shiki)
-BR-05: shi MUST set $SHI_WS on startup if not already set — resolve from: (1) env var, (2) config.yaml default_workspace, (3) cwd detection
+BR-04: $SHI_WS env var MUST point to the workspace ROOT (e.g., ~/.shikki/workspaces/) — the tree containing ALL workspaces (personal + companies). NOT a single workspace.
+BR-04b: There is NO global active_workspace. The current workspace MUST be detected from cwd — walk up from current directory until you find a direct child of $SHI_WS/. That child is the workspace.
+BR-04c: WorkspaceResolver.current MUST return the detected workspace from cwd (e.g., $SHI_WS/ws-obyw/). WorkspaceResolver.root MUST return $SHI_WS/.
+BR-04d: If cwd is not inside any workspace under $SHI_WS/, commands that need a workspace MUST error: "Not inside a workspace. cd to $SHI_WS/<name> first."
+BR-04e: Different terminals can be in different workspaces simultaneously — no global state, no switching, no conflicts.
+BR-05: shi MUST set $SHI_WS on startup if not already set — resolve from: (1) env var, (2) config.yaml workspace_root, (3) default ~/.shikki/workspaces/
 BR-06: ALL commands MUST use WorkspaceResolver.root instead of FileManager.currentDirectoryPath for workspace paths
 BR-07: ALL scripts MUST use $SHI_WS instead of git rev-parse --show-toplevel or hardcoded paths
 BR-08: Package.swift local dependencies MUST use $SHI_WS-relative paths or a packages/ manifest
@@ -106,7 +110,7 @@ BR-10: NO personal data (memory/, reports/, personal projects) in the git repo
 BR-11: .mcp.json MUST resolve binary paths via $PATH or $SHI_WS, never hardcoded
 BR-12: Test fixtures MUST use #filePath for snapshot dirs (acceptable) but NEVER for project root resolution
 BR-13: shi ws list MUST show all workspaces with active marker
-BR-14: shi ws switch <name> MUST update $SHI_WS and config.yaml default_workspace
+BR-14: shi ws cd <name> MUST print the path to cd into (helper, not a state change): `echo $SHI_WS/ws-<name>`
 BR-15: shi ws create <name> MUST scaffold a new workspace at ~/.shikki/workspaces/<name>/
 BR-16: Workspace MUST be self-contained — moving ~/.shikki/ to another machine works with zero path fixups
 BR-17: shi setup --migrate MUST migrate an existing repo-as-workspace to the new structure (move memory/, features/, reports/ to ~/.shikki/workspaces/)
